@@ -15,7 +15,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import {
@@ -150,17 +156,17 @@ export default function ImportPage() {
           {isConsolidated && operational.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="company">Empresa de destino</Label>
-              <Select
-                id="company"
-                value={companyId ?? ""}
-                onChange={(e) => setCompanyId(e.target.value)}
-                className="max-w-[300px]"
-              >
-                {operational.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.trade_name ?? c.legal_name}
-                  </option>
-                ))}
+              <Select value={companyId ?? undefined} onValueChange={(v) => setCompanyId(v)}>
+                <SelectTrigger id="company" className="max-w-[300px]">
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {operational.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.trade_name ?? c.legal_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
           )}
@@ -406,18 +412,22 @@ function MappingPanel({
                 </td>
                 <td className="px-4 py-2.5">
                   <Select
-                    value={mapping[field.key] ?? ""}
-                    onChange={(e) =>
-                      onChange({ ...mapping, [field.key]: e.target.value || undefined })
+                    value={mapping[field.key] ?? "__none__"}
+                    onValueChange={(v) =>
+                      onChange({ ...mapping, [field.key]: v === "__none__" ? undefined : v })
                     }
-                    className="w-full max-w-[300px]"
                   >
-                    <option value="">— não mapear —</option>
-                    {columns.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
+                    <SelectTrigger className="w-full max-w-[300px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— não mapear —</SelectItem>
+                      {columns.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </td>
               </tr>

@@ -8,7 +8,13 @@ import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetBody,
@@ -167,17 +173,17 @@ export function EmployeeDrawer({ open, onOpenChange, employee, companyId }: Prop
                   name="employeeKind"
                   control={control}
                   render={({ field }) => (
-                    <Select
-                      id="employeeKind"
-                      value={field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      className="w-full"
-                    >
-                      {EMPLOYEE_KINDS.map((k) => (
-                        <option key={k.value} value={k.value}>
-                          {k.label}
-                        </option>
-                      ))}
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="employeeKind">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EMPLOYEE_KINDS.map((k) => (
+                          <SelectItem key={k.value} value={k.value}>
+                            {k.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   )}
                 />
@@ -248,19 +254,20 @@ export function EmployeeDrawer({ open, onOpenChange, employee, companyId }: Prop
                   control={control}
                   render={({ field }) => (
                     <Select
-                      id="costCenter"
-                      value={field.value ?? ""}
-                      onChange={(e) =>
-                        field.onChange(e.target.value === "" ? null : e.target.value)
-                      }
-                      className="w-full"
+                      value={field.value ?? "__none__"}
+                      onValueChange={(v) => field.onChange(v === "__none__" ? null : v)}
                     >
-                      <option value="">— sem centro de custo —</option>
-                      {costCenters.map((cc) => (
-                        <option key={cc.id} value={cc.id}>
-                          {cc.code} · {cc.name}
-                        </option>
-                      ))}
+                      <SelectTrigger id="costCenter">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— sem centro de custo —</SelectItem>
+                        {costCenters.map((cc) => (
+                          <SelectItem key={cc.id} value={cc.id}>
+                            {cc.code} · {cc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   )}
                 />
@@ -300,17 +307,17 @@ export function EmployeeDrawer({ open, onOpenChange, employee, companyId }: Prop
                   name="status"
                   control={control}
                   render={({ field }) => (
-                    <Select
-                      id="status"
-                      value={field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      className="w-full"
-                    >
-                      {EMPLOYEE_STATUSES.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EMPLOYEE_STATUSES.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   )}
                 />
@@ -322,13 +329,16 @@ export function EmployeeDrawer({ open, onOpenChange, employee, companyId }: Prop
                   control={control}
                   render={({ field }) => (
                     <Select
-                      id="isPartner"
                       value={field.value ? "yes" : "no"}
-                      onChange={(e) => field.onChange(e.target.value === "yes")}
-                      className="w-full"
+                      onValueChange={(v) => field.onChange(v === "yes")}
                     >
-                      <option value="no">Não</option>
-                      <option value="yes">Sim — recebe dividendos</option>
+                      <SelectTrigger id="isPartner">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">Não</SelectItem>
+                        <SelectItem value="yes">Sim — recebe dividendos</SelectItem>
+                      </SelectContent>
                     </Select>
                   )}
                 />

@@ -7,7 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetBody,
@@ -78,12 +84,17 @@ export default function PayrollRunsPage() {
         </div>
         <div className="flex items-end gap-2">
           {isConsolidated && operational.length > 0 && (
-            <Select value={companyId ?? ""} onChange={(e) => setPickedCompanyId(e.target.value)}>
-              {operational.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.trade_name ?? c.legal_name}
-                </option>
-              ))}
+            <Select value={companyId ?? undefined} onValueChange={(v) => setPickedCompanyId(v)}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
+              <SelectContent>
+                {operational.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.trade_name ?? c.legal_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           )}
           <Button disabled={!companyId} onClick={() => setCreateOpen(true)}>

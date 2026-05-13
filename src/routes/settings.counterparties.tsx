@@ -10,7 +10,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { type Counterparty, type CounterpartyKind } from "@/features/counterparties/api";
@@ -70,13 +76,21 @@ export default function SettingsCounterpartiesPage() {
             className="pl-9"
           />
         </div>
-        <Select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)}>
-          <option value="">Todos os tipos</option>
-          {COUNTERPARTY_KINDS.map((k) => (
-            <option key={k.value} value={k.value}>
-              {k.label}
-            </option>
-          ))}
+        <Select
+          value={kindFilter || "__all__"}
+          onValueChange={(v) => setKindFilter(v === "__all__" ? "" : v)}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os tipos</SelectItem>
+            {COUNTERPARTY_KINDS.map((k) => (
+              <SelectItem key={k.value} value={k.value}>
+                {k.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
 

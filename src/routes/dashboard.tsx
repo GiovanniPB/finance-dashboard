@@ -5,7 +5,13 @@ import { parseAsInteger, useQueryState } from "nuqs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { useExpenseBreakdown, useKpiDashboard, useKpiDashboardConsolidated } from "@/features/kpis";
@@ -77,16 +83,17 @@ export default function DashboardPage() {
         <div className="flex items-end gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="year">Ano</Label>
-            <Select
-              id="year"
-              value={String(year)}
-              onChange={(e) => void setYear(Number(e.target.value))}
-            >
-              {[2024, 2025, 2026].map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
+            <Select value={String(year)} onValueChange={(v) => void setYear(Number(v))}>
+              <SelectTrigger id="year" className="w-[110px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026].map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
           <Badge tone="info">YTD · {year}</Badge>
