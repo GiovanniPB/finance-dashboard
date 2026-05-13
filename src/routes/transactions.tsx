@@ -1,10 +1,11 @@
 import * as React from "react";
-import { Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { usePermissions } from "@/features/auth/usePermissions";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { TransactionDrawer } from "@/features/transactions/components/TransactionDrawer";
 import { TransactionsFilters } from "@/features/transactions/components/TransactionsFilters";
@@ -17,11 +18,13 @@ import {
 } from "@/features/transactions/hooks";
 import type { TransactionWithRelations } from "@/features/transactions/types";
 import { useTransactionFilters } from "@/features/transactions/useTransactionFilters";
+import { downloadCsv, toCsv } from "@/lib/csv";
 
 const PAGE_SIZE = 50;
 
 export default function TransactionsPage() {
   const { selectedCompanyId, isConsolidated, selectedCompany, companies } = useCompanyScope();
+  const { canEdit } = usePermissions();
   const [filters, setFilters] = useTransactionFilters();
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
 
@@ -131,13 +134,41 @@ export default function TransactionsPage() {
             )}
           </p>
         </div>
-        <Button onClick={handleNew}>
-          <Plus className="size-4" />
-          Novo lançamento
-          <kbd className="ml-2 hidden rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] sm:inline">
-            N
-          </kbd>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.rows.length === 0}
+            onClick={() => {
+              if (!data) return;
+              const csv = toCsv(data.rows, [
+                { key: "accrual_date", header: "Competência", getValue: (r) => r.accrual_date },
+                { key: "cash_date", header: "Caixa", getValue: (r) => r.cash_date ?? "" },
+                { key: "description", header: "Descrição", getValue: (r) => r.description },
+                {
+                  key: "account",
+                  header: "Conta",
+                  getValue: (r) => (r.account ? `${r.account.code} ${r.account.name}` : ""),
+                },
+                { key: "direction", header: "Tipo", getValue: (r) => r.direction },
+                { key: "amount", header: "Valor", getValue: (r) => r.amount.toFixed(2) },
+                { key: "status", header: "Status", getValue: (r) => r.status },
+              ]);
+              downloadCsv(`lancamentos-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+            }}
+          >
+            <Download className="size-3.5" /> CSV
+          </Button>
+          {canEdit && (
+            <Button onClick={handleNew}>
+              <Plus className="size-4" />
+              Novo lançamento
+              <kbd className="ml-2 hidden rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] sm:inline">
+                N
+              </kbd>
+            </Button>
+          )}
+        </div>
       </div>
 
       <TransactionsFilters companyId={companyId} />

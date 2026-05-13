@@ -1,12 +1,14 @@
-import { Globe2 } from "lucide-react";
+import { Download, Globe2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { DreTable } from "@/features/dre/components/DreTable";
 import { PeriodPicker } from "@/features/dre/components/PeriodPicker";
 import { useDreByCompany, useDreConsolidated } from "@/features/dre/hooks";
 import { resolvePreset, usePeriod } from "@/features/dre/usePeriod";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
@@ -64,7 +66,33 @@ export default function DrePage() {
             )}
           </p>
         </div>
-        <Badge tone="info">Regime de competência</Badge>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!data || data.length === 0}
+            onClick={() => {
+              if (!data) return;
+              const csv = toCsv(data, [
+                { key: "code", header: "Código", getValue: (r) => r.code },
+                { key: "name", header: "Conta", getValue: (r) => r.name },
+                { key: "kind", header: "Tipo", getValue: (r) => r.kind },
+                {
+                  key: "total",
+                  header: "Total",
+                  getValue: (r) => r.effective_total.toFixed(2),
+                },
+              ]);
+              const scope = isConsolidated
+                ? "consolidado"
+                : (selectedCompany?.trade_name ?? "empresa");
+              downloadCsv(`dre-${scope}-${effective.from}-${effective.to}.csv`, csv);
+            }}
+          >
+            <Download className="size-3.5" /> Exportar CSV
+          </Button>
+          <Badge tone="info">Regime de competência</Badge>
+        </div>
       </div>
 
       <PeriodPicker />

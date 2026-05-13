@@ -1,22 +1,35 @@
+import * as React from "react";
 import { Search } from "lucide-react";
+
+import { useCommandPalette } from "@/features/command/CommandPalette";
 
 import { CompanySwitcher } from "./CompanySwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
 
-export function Topbar() {
+interface Props {
+  mobileMenuTrigger?: React.ReactNode;
+}
+
+export function Topbar({ mobileMenuTrigger }: Props) {
+  const { open } = useCommandPalette();
+
   return (
-    <header className="sticky top-0 z-30 flex h-[var(--topbar-height)] items-center gap-3 border-b border-border bg-bg/80 px-5 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-[var(--topbar-height)] items-center gap-3 border-b border-border bg-bg/80 px-3 backdrop-blur-md sm:px-5">
+      {mobileMenuTrigger}
       <CompanySwitcher />
 
-      <div className="relative hidden max-w-md flex-1 md:flex">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-subtle" />
-        <input
-          type="search"
-          placeholder="Buscar lançamentos, fornecedores…  ⌘K"
-          className="h-9 w-full rounded-[var(--radius-md)] border border-border bg-surface pr-3 pl-9 text-sm placeholder:text-text-subtle focus:border-accent focus:ring-2 focus:ring-[var(--color-accent-ring)] focus:outline-none"
-        />
-      </div>
+      <button
+        type="button"
+        onClick={open}
+        className="hidden h-9 max-w-md flex-1 items-center gap-2 rounded-[var(--radius-md)] border border-border bg-surface px-3 text-left text-sm text-text-subtle transition-colors hover:border-border-strong md:flex"
+      >
+        <Search className="size-4" />
+        <span className="flex-1 truncate">Buscar lançamentos, navegar…</span>
+        <kbd className="text-2xs rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-text-muted">
+          ⌘K
+        </kbd>
+      </button>
 
       <div className="ml-auto flex items-center gap-1.5">
         <ThemeToggle />

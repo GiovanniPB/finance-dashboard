@@ -26,6 +26,8 @@ const ImportPage = lazy(() => import("@/routes/import"));
 const PayrollEmployeesPage = lazy(() => import("@/routes/payroll.employees"));
 const PayrollRunsPage = lazy(() => import("@/routes/payroll.runs"));
 const PayrollRunDetailPage = lazy(() => import("@/routes/payroll.run-detail"));
+const AuditPage = lazy(() => import("@/routes/audit"));
+const RecurringPage = lazy(() => import("@/routes/recurring"));
 const SettingsBanksPage = lazy(() => import("@/routes/settings.banks"));
 const SettingsCostCentersPage = lazy(() => import("@/routes/settings.cost-centers"));
 const SettingsCounterpartiesPage = lazy(() => import("@/routes/settings.counterparties"));
@@ -70,15 +72,8 @@ export default function App() {
                       <Route path="runs" element={<PayrollRunsPage />} />
                       <Route path="runs/:id" element={<PayrollRunDetailPage />} />
                     </Route>
-                    <Route
-                      path="recurring"
-                      element={
-                        <PlaceholderPage
-                          title="Recorrências"
-                          description="Templates de lançamentos recorrentes."
-                        />
-                      }
-                    />
+                    <Route path="recurring" element={<RecurringPage />} />
+                    <Route path="audit" element={<AuditPage />} />
                     <Route path="import" element={<ImportPage />} />
                     <Route
                       path="companies"

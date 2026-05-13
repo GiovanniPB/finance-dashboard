@@ -818,6 +818,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
@@ -826,6 +827,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
@@ -834,6 +836,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Relationships: []
@@ -1396,6 +1399,31 @@ export type Database = {
       }
     }
     Functions: {
+      audit_log_list: {
+        Args: {
+          p_changed_by?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_record_id?: string
+          p_table_name?: string
+          p_to?: string
+        }
+        Returns: {
+          action: string
+          changed_at: string
+          changed_by: string
+          changed_fields: string[]
+          changer_email: string
+          changer_name: string
+          id: number
+          new_data: Json
+          old_data: Json
+          record_id: string
+          table_name: string
+          total_count: number
+        }[]
+      }
       bank_balances: {
         Args: { p_company_id: string; p_reference_month: string }
         Returns: {
@@ -1435,6 +1463,10 @@ export type Database = {
       create_payroll_run_with_active_employees: {
         Args: { p_company_id: string; p_reference_month: string }
         Returns: string
+      }
+      current_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
       }
       dre_by_company: {
         Args: { p_company_id: string; p_end: string; p_start: string }
@@ -1610,6 +1642,7 @@ export type Database = {
         | "settled"
         | "reconciled"
         | "canceled"
+      user_role: "admin" | "editor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1811,6 +1844,7 @@ export const Constants = {
         "reconciled",
         "canceled",
       ],
+      user_role: ["admin", "editor", "viewer"],
     },
   },
 } as const

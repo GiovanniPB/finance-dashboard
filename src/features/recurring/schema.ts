@@ -1,0 +1,46 @@
+import { z } from "zod";
+
+export const RECURRENCE_FREQUENCIES = [
+  { value: "weekly", label: "Semanal" },
+  { value: "biweekly", label: "Quinzenal" },
+  { value: "monthly", label: "Mensal" },
+  { value: "quarterly", label: "Trimestral" },
+  { value: "semiannual", label: "Semestral" },
+  { value: "yearly", label: "Anual" },
+] as const;
+
+export const recurringFormSchema = z.object({
+  companyId: z.string().uuid(),
+  accountId: z.string().uuid({ message: "Conta obrigatória" }),
+  description: z.string().min(2, "Descrição obrigatória").max(200),
+  amount: z.number().positive("Valor deve ser maior que zero"),
+  direction: z.enum(["inflow", "outflow"]),
+  frequency: z.enum(["weekly", "biweekly", "monthly", "quarterly", "semiannual", "yearly"]),
+  dayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/u)
+    .nullable()
+    .optional(),
+  autoGenerate: z.boolean(),
+  isActive: z.boolean(),
+});
+
+export type RecurringFormValues = z.infer<typeof recurringFormSchema>;
+
+export function emptyRecurringForm(companyId: string): RecurringFormValues {
+  return {
+    companyId,
+    accountId: "",
+    description: "",
+    amount: 0,
+    direction: "outflow",
+    frequency: "monthly",
+    dayOfMonth: 5,
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: null,
+    autoGenerate: true,
+    isActive: true,
+  };
+}
