@@ -28,8 +28,8 @@ export default function ExpenseDonut({ data }: Props) {
           data={data}
           dataKey="total"
           nameKey="account_name"
-          innerRadius={64}
-          outerRadius={104}
+          innerRadius="60%"
+          outerRadius="95%"
           paddingAngle={1}
           stroke="var(--color-surface)"
           strokeWidth={2}
