@@ -91,3 +91,11 @@ export async function softDeleteTransaction(id: string): Promise<void> {
     .eq("id", id);
   if (error) throw error;
 }
+
+export async function restoreTransaction(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("transactions")
+    .update({ deleted_at: null, deleted_by: null })
+    .eq("id", id);
+  if (error) throw error;
+}

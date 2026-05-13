@@ -1,23 +1,37 @@
+import * as React from "react";
 import { Plus } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { TransactionDrawer } from "@/features/transactions/components/TransactionDrawer";
 import { TransactionsFilters } from "@/features/transactions/components/TransactionsFilters";
 import { TransactionsPagination } from "@/features/transactions/components/TransactionsPagination";
 import { TransactionsTable } from "@/features/transactions/components/TransactionsTable";
-import { useTransactions } from "@/features/transactions/hooks";
+import {
+  useRestoreTransaction,
+  useSoftDeleteTransaction,
+  useTransactions,
+} from "@/features/transactions/hooks";
+import type { TransactionWithRelations } from "@/features/transactions/types";
 import { useTransactionFilters } from "@/features/transactions/useTransactionFilters";
 
 const PAGE_SIZE = 50;
 
 export default function TransactionsPage() {
-  const { selectedCompanyId, isConsolidated, selectedCompany } = useCompanyScope();
+  const { selectedCompanyId, isConsolidated, selectedCompany, companies } = useCompanyScope();
   const [filters, setFilters] = useTransactionFilters();
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
 
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<TransactionWithRelations | null>(null);
+
   const companyId = isConsolidated ? null : selectedCompanyId;
+
+  // No modo consolidado, abrir o drawer de criar requer escolher uma empresa
+  const drawerCompanyId = companyId ?? companies.find((c) => !c.is_holding)?.id ?? null;
 
   const { data, isLoading, isFetching } = useTransactions({
     companyId,
@@ -32,6 +46,67 @@ export default function TransactionsPage() {
     page,
     pageSize: PAGE_SIZE,
   });
+
+  const softDelete = useSoftDeleteTransaction();
+  const restore = useRestoreTransaction();
+
+  const handleEdit = React.useCallback((t: TransactionWithRelations) => {
+    setEditing(t);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleNew = React.useCallback(() => {
+    setEditing(null);
+    setDrawerOpen(true);
+  }, []);
+
+  const handleDelete = React.useCallback(
+    (t: TransactionWithRelations) => {
+      softDelete.mutate(t.id, {
+        onSuccess: () => {
+          toast("Lançamento excluído", {
+            description: t.description,
+            action: {
+              label: "Desfazer",
+              onClick: () => {
+                restore.mutate(t.id, {
+                  onSuccess: () => {
+                    toast.success("Lançamento restaurado");
+                  },
+                });
+              },
+            },
+          });
+        },
+        onError: (err) => {
+          toast.error("Erro ao excluir", { description: err.message });
+        },
+      });
+    },
+    [softDelete, restore],
+  );
+
+  // Atalho de teclado: N para novo lançamento
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "n" && e.key !== "N") return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      e.preventDefault();
+      handleNew();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [handleNew]);
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
@@ -56,8 +131,12 @@ export default function TransactionsPage() {
             )}
           </p>
         </div>
-        <Button disabled title="Em breve">
-          <Plus className="size-4" /> Novo lançamento
+        <Button onClick={handleNew}>
+          <Plus className="size-4" />
+          Novo lançamento
+          <kbd className="ml-2 hidden rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] sm:inline">
+            N
+          </kbd>
         </Button>
       </div>
 
@@ -75,6 +154,8 @@ export default function TransactionsPage() {
           })
         }
         showCompany={isConsolidated}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
 
       <TransactionsPagination
@@ -86,6 +167,13 @@ export default function TransactionsPage() {
         inflowTotal={data?.inflowTotal ?? 0}
         outflowTotal={data?.outflowTotal ?? 0}
         onPageChange={(p) => void setPage(p)}
+      />
+
+      <TransactionDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        transaction={editing}
+        companyId={drawerCompanyId}
       />
     </div>
   );
