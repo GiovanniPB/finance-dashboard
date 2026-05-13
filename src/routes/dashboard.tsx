@@ -1,24 +1,58 @@
+import { useMemo } from "react";
 import { ArrowDownRight, ArrowUpRight, Building2, Sparkles } from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { useKpiDashboard } from "@/features/kpis";
 import { cn } from "@/lib/cn";
+import { formatMonthYear } from "@/lib/dates";
 import { formatBRL, formatPercent } from "@/lib/format";
+
+const YEAR = 2025;
 
 export default function DashboardPage() {
   const { isConsolidated, selectedCompany, companies, loading } = useCompanyScope();
   const operational = companies.filter((c) => !c.is_holding);
 
+  // Para consolidado: pega a primeira empresa operacional (Assessoria) como demo;
+  // futuro: somar todas via RPC consolidado.
+  const companyId = isConsolidated ? (operational[0]?.id ?? null) : (selectedCompany?.id ?? null);
+  const { data: kpis, isLoading: kpisLoading } = useKpiDashboard(companyId, YEAR);
+  const ytd = kpis?.ytd;
+
+  const chartData = useMemo(
+    () =>
+      (kpis?.monthly ?? []).map((m) => ({
+        month: formatMonthYear(m.month_start).split(" ")[0],
+        receita: m.gross_revenue,
+        liquido: m.net_revenue,
+        resultado: m.net_result,
+      })),
+    [kpis?.monthly],
+  );
+
+  const showSkeleton = kpisLoading || !ytd;
+
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-6 p-6 lg:p-8">
-      {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-2xs flex items-center gap-2 font-medium tracking-wide text-text-subtle uppercase">
             <Sparkles className="size-3 text-accent" />
-            {isConsolidated ? "Visão de grupo" : "Empresa"}
+            {isConsolidated ? "Visão de grupo · Demo OTM Assessoria" : "Empresa"}
           </div>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-balance">
             {isConsolidated
@@ -27,112 +61,193 @@ export default function DashboardPage() {
           </h1>
           <p className="mt-1 text-sm text-text-muted">
             {isConsolidated
-              ? `Agregando ${operational.length} empresas operacionais.`
+              ? `Agregando ${operational.length} empresas — exibindo OTM Assessoria nesta demo`
               : "Operação individual"}
           </p>
         </div>
-        <Badge tone="info">YTD · 2026</Badge>
+        <Badge tone="info">YTD · {YEAR}</Badge>
       </div>
 
-      {/* Bento KPI grid */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:auto-rows-[140px] lg:grid-cols-6">
-        {/* Receita Bruta — destaque */}
         <Card className="surface-gradient-brand relative overflow-hidden border-0 text-white shadow-[var(--shadow-accent)] lg:col-span-3 lg:row-span-2">
           <div className="bento-mesh pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay" />
           <CardHeader className="relative">
-            <CardTitle className="text-white/80">Venda Bruta · YTD</CardTitle>
+            <CardTitle className="text-white/80">Venda Bruta · YTD {YEAR}</CardTitle>
           </CardHeader>
           <CardContent className="relative space-y-3">
-            <div className="font-mono text-4xl font-semibold tracking-tight">{formatBRL(0)}</div>
+            <div className="font-mono text-4xl font-semibold tracking-tight">
+              {showSkeleton ? (
+                <Skeleton className="h-10 w-48 bg-white/20" />
+              ) : (
+                formatBRL(ytd.gross_revenue)
+              )}
+            </div>
             <div className="flex items-center gap-1.5 text-xs">
               <ArrowUpRight className="size-3.5" />
-              <span className="font-medium">+0,0%</span>
-              <span className="text-white/70">vs ano anterior</span>
+              <span className="font-medium">
+                {ytd ? formatPercent(ytd.effective_tax_rate_pct / 100) : "—"}
+              </span>
+              <span className="text-white/70">alíquota efetiva</span>
             </div>
-            <p className="text-2xs pt-6 text-white/60">
-              Sem lançamentos ainda — popular via importação CSV ou cadastro manual.
-            </p>
+            <div className="-mx-2 h-[120px] pt-4">
+              {chartData.length > 0 && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="white" stopOpacity={0.55} />
+                        <stop offset="100%" stopColor="white" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "rgba(0,0,0,0.7)",
+                        border: "none",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      labelStyle={{ color: "white" }}
+                      formatter={(v: number) => formatBRL(v)}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="receita"
+                      stroke="white"
+                      strokeWidth={2}
+                      fill="url(#rev)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         <KpiCard
-          label="Lucro Líquido"
-          value={formatBRL(0)}
-          sub="Margem Líquida 0,0%"
-          tone="income"
+          label="Lucro Líquido YTD"
+          value={ytd ? formatBRL(ytd.net_result) : "—"}
+          sub={ytd ? `Margem ${formatPercent(ytd.net_margin_pct / 100)}` : ""}
+          tone={ytd && ytd.net_result < 0 ? "expense" : "income"}
+          loading={showSkeleton}
         />
         <KpiCard
-          label="Despesas Totais"
-          value={formatBRL(0)}
-          sub="0,0% da receita"
+          label="Custos Fixos"
+          value={ytd ? formatBRL(ytd.fixed_costs) : "—"}
+          sub={
+            ytd?.gross_revenue
+              ? `${formatPercent(ytd.fixed_costs / ytd.gross_revenue)} da receita`
+              : ""
+          }
           tone="expense"
+          loading={showSkeleton}
         />
-        <KpiCard label="Geração de Caixa" value={formatBRL(0)} sub="Mês atual" tone="info" />
         <KpiCard
-          label="Alíquota Efetiva"
-          value={formatPercent(0)}
-          sub="Tributos / Receita"
-          tone="warning"
+          label="Geração de Caixa"
+          value={ytd ? formatBRL(ytd.cash_generation) : "—"}
+          sub={`YTD ${YEAR}`}
+          tone={ytd && ytd.cash_generation < 0 ? "warning" : "info"}
+          loading={showSkeleton}
+        />
+        <KpiCard
+          label="Margem Bruta"
+          value={ytd ? formatPercent(ytd.gross_margin_pct / 100) : "—"}
+          sub={ytd ? `${formatBRL(ytd.net_revenue - ytd.cogs)} líquido` : ""}
+          tone="accent"
+          loading={showSkeleton}
         />
       </div>
 
-      {/* Empresas grid (consolidado) */}
-      {isConsolidated && (
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Empresas do grupo</h2>
-            <Badge>{operational.length} ativas</Badge>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {loading
-              ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32" />)
-              : operational.map((c) => (
-                  <Card key={c.id} className="group transition-colors hover:border-accent/40">
-                    <CardContent className="space-y-3 p-5">
-                      <div className="flex items-start justify-between">
-                        <div className="grid size-9 place-items-center rounded-[var(--radius-md)] bg-accent-soft text-accent transition-transform group-hover:scale-110">
-                          <Building2 className="size-4" />
-                        </div>
-                        <Badge tone="default">{c.tax_regime.replace("_", " ")}</Badge>
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium">{c.trade_name ?? c.legal_name}</div>
-                        {c.trade_name && c.legal_name !== c.trade_name && (
-                          <div className="text-2xs truncate text-text-subtle">{c.legal_name}</div>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between border-t border-border pt-1">
-                        <span className="text-2xs text-text-subtle">Receita YTD</span>
-                        <span className="font-mono text-sm font-medium">{formatBRL(0)}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-          </div>
-        </section>
-      )}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Receita & Resultado · {YEAR}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chartData.length === 0 && showSkeleton ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : (
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid
+                      stroke="var(--color-border)"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fill: "var(--color-text-muted)", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v: number) => formatBRL(v, { compact: true })}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--color-surface)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 12,
+                        fontSize: 12,
+                      }}
+                      formatter={(v: number) => formatBRL(v)}
+                    />
+                    <Bar
+                      dataKey="receita"
+                      name="Venda Bruta"
+                      fill="var(--color-accent)"
+                      radius={[6, 6, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="resultado"
+                      name="Resultado Líquido"
+                      fill="var(--color-income)"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Próximos passos */}
-      <Card className="border-dashed">
-        <CardContent className="space-y-2 p-6">
-          <h3 className="font-semibold">Próximos passos para popular o dashboard</h3>
-          <ul className="mt-3 space-y-1.5 text-sm text-text-muted">
-            <li className="flex gap-2">
-              <span className="text-accent">→</span> Cadastrar contas bancárias com saldo inicial
-            </li>
-            <li className="flex gap-2">
-              <span className="text-accent">→</span> Importar planilha histórica (CSV/XLSX)
-            </li>
-            <li className="flex gap-2">
-              <span className="text-accent">→</span> Configurar lançamentos recorrentes (aluguel,
-              salários)
-            </li>
-            <li className="flex gap-2">
-              <span className="text-accent">→</span> Lançar folha de pagamento do mês corrente
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Empresas do grupo</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2.5 pt-0">
+            {loading
+              ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)
+              : operational.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border bg-surface-2/40 px-3 py-2.5"
+                  >
+                    <div className="grid size-8 place-items-center rounded-[var(--radius-md)] bg-accent-soft text-accent">
+                      <Building2 className="size-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">
+                        {c.trade_name ?? c.legal_name}
+                      </div>
+                      <div className="text-2xs text-text-subtle">
+                        {c.tax_regime.replace("_", " ")}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -142,9 +257,10 @@ interface KpiCardProps {
   value: string;
   sub?: string;
   tone?: "income" | "expense" | "info" | "warning" | "accent";
+  loading?: boolean;
 }
 
-function KpiCard({ label, value, sub, tone = "accent" }: KpiCardProps) {
+function KpiCard({ label, value, sub, tone = "accent", loading }: KpiCardProps) {
   const toneRing = {
     income: "before:bg-income",
     expense: "before:bg-expense",
@@ -163,7 +279,11 @@ function KpiCard({ label, value, sub, tone = "accent" }: KpiCardProps) {
     >
       <CardContent className="space-y-2 p-5">
         <CardTitle>{label}</CardTitle>
-        <div className="font-mono text-2xl font-semibold tracking-tight">{value}</div>
+        {loading ? (
+          <Skeleton className="h-7 w-32" />
+        ) : (
+          <div className="font-mono text-2xl font-semibold tracking-tight">{value}</div>
+        )}
         {sub && (
           <div className="text-2xs flex items-center gap-1 text-text-subtle">
             {tone === "income" ? (

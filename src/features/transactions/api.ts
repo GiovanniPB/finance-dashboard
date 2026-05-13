@@ -1,0 +1,93 @@
+import { supabase } from "@/lib/supabase";
+
+import type {
+  TransactionFilters,
+  TransactionInsert,
+  TransactionRow,
+  TransactionsListResult,
+  TransactionUpdate,
+  TransactionWithRelations,
+} from "./types";
+
+const SELECT_WITH_RELATIONS = `
+  *,
+  account:chart_of_accounts!transactions_account_id_fkey(id, code, name, kind, dre_section),
+  company:companies!transactions_company_id_fkey(id, trade_name, legal_name),
+  cost_center:cost_centers!transactions_cost_center_id_fkey(id, code, name),
+  bank_account:bank_accounts!transactions_bank_account_id_fkey(id, nickname, bank_name),
+  counterparty:counterparties!transactions_counterparty_id_fkey(id, name)
+` as const;
+
+export async function fetchTransactions(
+  filters: TransactionFilters,
+): Promise<TransactionsListResult> {
+  const page = filters.page ?? 1;
+  const pageSize = filters.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  const sortBy = filters.sortBy ?? "accrual_date";
+  const sortOrder = filters.sortOrder ?? "desc";
+
+  let query = supabase
+    .from("transactions")
+    .select(SELECT_WITH_RELATIONS, { count: "exact" })
+    .is("deleted_at", null);
+
+  if (filters.companyId) query = query.eq("company_id", filters.companyId);
+  if (filters.from) query = query.gte("accrual_date", filters.from);
+  if (filters.to) query = query.lte("accrual_date", filters.to);
+  if (filters.status && filters.status.length > 0) query = query.in("status", filters.status);
+  if (filters.direction) query = query.eq("direction", filters.direction);
+  if (filters.accountId) query = query.eq("account_id", filters.accountId);
+  if (filters.costCenterId) query = query.eq("cost_center_id", filters.costCenterId);
+  if (filters.bankAccountId) query = query.eq("bank_account_id", filters.bankAccountId);
+  if (filters.search) query = query.ilike("description", `%${filters.search}%`);
+
+  query = query.order(sortBy, { ascending: sortOrder === "asc" }).range(from, to);
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+
+  const rows = (data ?? []) as unknown as TransactionWithRelations[];
+  const totalCount = count ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // Totais para o footer (somente os da página atual — soma global virá de RPC futura)
+  let inflowTotal = 0;
+  let outflowTotal = 0;
+  for (const r of rows) {
+    if (r.direction === "inflow") inflowTotal += r.amount;
+    else outflowTotal += r.amount;
+  }
+
+  return { rows, totalCount, pageCount, inflowTotal, outflowTotal };
+}
+
+export async function createTransaction(payload: TransactionInsert): Promise<TransactionRow> {
+  const { data, error } = await supabase.from("transactions").insert(payload).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateTransaction(
+  id: string,
+  payload: TransactionUpdate,
+): Promise<TransactionRow> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function softDeleteTransaction(id: string): Promise<void> {
+  const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+  const { error } = await supabase
+    .from("transactions")
+    .update({ deleted_at: new Date().toISOString(), deleted_by: userId })
+    .eq("id", id);
+  if (error) throw error;
+}
