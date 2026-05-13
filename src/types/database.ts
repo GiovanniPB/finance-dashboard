@@ -1424,6 +1424,14 @@ export type Database = {
           outflow: number
         }[]
       }
+      commit_import_batch: {
+        Args: { p_batch_id: string }
+        Returns: {
+          batch_status: string
+          committed_count: number
+          failed_count: number
+        }[]
+      }
       dre_by_company: {
         Args: { p_company_id: string; p_end: string; p_start: string }
         Returns: {

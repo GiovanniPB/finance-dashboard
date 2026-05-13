@@ -21,6 +21,7 @@ const DashboardPage = lazy(() => import("@/routes/dashboard"));
 const TransactionsPage = lazy(() => import("@/routes/transactions"));
 const DrePage = lazy(() => import("@/routes/dre"));
 const CashflowPage = lazy(() => import("@/routes/cashflow"));
+const ImportPage = lazy(() => import("@/routes/import"));
 const SettingsBanksPage = lazy(() => import("@/routes/settings.banks"));
 const SettingsCostCentersPage = lazy(() => import("@/routes/settings.cost-centers"));
 const SettingsCounterpartiesPage = lazy(() => import("@/routes/settings.counterparties"));
@@ -77,15 +78,7 @@ export default function App() {
                         />
                       }
                     />
-                    <Route
-                      path="import"
-                      element={
-                        <PlaceholderPage
-                          title="Importar"
-                          description="Importação de CSV/XLSX com preview e mapeamento de colunas."
-                        />
-                      }
-                    />
+                    <Route path="import" element={<ImportPage />} />
                     <Route
                       path="companies"
                       element={
