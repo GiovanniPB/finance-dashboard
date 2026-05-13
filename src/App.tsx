@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { CompanyProvider } from "@/features/companies/CompanyContext";
 import { queryClient } from "@/lib/queryClient";
 import DashboardPage from "@/routes/dashboard";
+import DrePage from "@/routes/dre";
 import LoginPage from "@/routes/login";
 import NotFoundPage from "@/routes/not-found";
 import { PlaceholderPage } from "@/routes/placeholder";
@@ -36,15 +37,7 @@ export default function App() {
                 >
                   <Route index element={<DashboardPage />} />
                   <Route path="transactions" element={<TransactionsPage />} />
-                  <Route
-                    path="dre"
-                    element={
-                      <PlaceholderPage
-                        title="DRE"
-                        description="Demonstrativo de Resultado por empresa ou consolidado."
-                      />
-                    }
-                  />
+                  <Route path="dre" element={<DrePage />} />
                   <Route
                     path="cashflow"
                     element={
