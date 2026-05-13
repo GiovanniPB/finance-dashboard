@@ -19,6 +19,7 @@ const LoginPage = lazy(() => import("@/routes/login"));
 const DashboardPage = lazy(() => import("@/routes/dashboard"));
 const TransactionsPage = lazy(() => import("@/routes/transactions"));
 const DrePage = lazy(() => import("@/routes/dre"));
+const CashflowPage = lazy(() => import("@/routes/cashflow"));
 
 function RouteFallback() {
   return (
@@ -53,15 +54,7 @@ export default function App() {
                     <Route index element={<DashboardPage />} />
                     <Route path="transactions" element={<TransactionsPage />} />
                     <Route path="dre" element={<DrePage />} />
-                    <Route
-                      path="cashflow"
-                      element={
-                        <PlaceholderPage
-                          title="Fluxo de Caixa"
-                          description="Entradas e saídas por período, com snapshot mensal."
-                        />
-                      }
-                    />
+                    <Route path="cashflow" element={<CashflowPage />} />
                     <Route
                       path="payroll"
                       element={
