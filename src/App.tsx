@@ -14,7 +14,6 @@ import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { CompanyProvider } from "@/features/companies/CompanyContext";
 import { queryClient } from "@/lib/queryClient";
 import NotFoundPage from "@/routes/not-found";
-import { PlaceholderPage } from "@/routes/placeholder";
 
 // Route-level code splitting so the initial bundle stays under budget.
 const LoginPage = lazy(() => import("@/routes/login"));
@@ -31,6 +30,7 @@ const RecurringPage = lazy(() => import("@/routes/recurring"));
 const SettingsBanksPage = lazy(() => import("@/routes/settings.banks"));
 const SettingsCostCentersPage = lazy(() => import("@/routes/settings.cost-centers"));
 const SettingsCounterpartiesPage = lazy(() => import("@/routes/settings.counterparties"));
+const CompaniesPage = lazy(() => import("@/routes/companies"));
 
 function RouteFallback() {
   return (
@@ -75,15 +75,7 @@ export default function App() {
                     <Route path="recurring" element={<RecurringPage />} />
                     <Route path="audit" element={<AuditPage />} />
                     <Route path="import" element={<ImportPage />} />
-                    <Route
-                      path="companies"
-                      element={
-                        <PlaceholderPage
-                          title="Empresas"
-                          description="Gerenciar empresas do grupo."
-                        />
-                      }
-                    />
+                    <Route path="companies" element={<CompaniesPage />} />
                     <Route path="settings" element={<SettingsLayout />}>
                       <Route path="banks" element={<SettingsBanksPage />} />
                       <Route path="cost-centers" element={<SettingsCostCentersPage />} />
