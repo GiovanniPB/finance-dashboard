@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   Building2,
   FileBarChart,
+  History,
   LayoutDashboard,
   Repeat,
   Settings,
@@ -31,13 +32,19 @@ const navItems: NavItem[] = [
 ];
 
 const adminItems: NavItem[] = [
+  { to: "/audit", label: "Auditoria", icon: History },
   { to: "/companies", label: "Empresas", icon: Building2 },
   { to: "/settings", label: "Configurações", icon: Settings },
 ];
 
-export function Sidebar() {
+interface Props {
+  /** When provided, clicking a link triggers this (for mobile drawer dismiss). */
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: Props) {
   return (
-    <aside className="hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-border bg-surface lg:flex">
+    <aside className="flex h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex h-[var(--topbar-height)] items-center gap-2.5 border-b border-border px-5">
         <div className="surface-gradient-brand grid h-8 w-8 place-items-center rounded-[var(--radius-md)] shadow-[var(--shadow-accent)]">
           <span className="text-sm font-bold text-white">F</span>
@@ -52,7 +59,7 @@ export function Sidebar() {
         <ul className="space-y-0.5">
           {navItems.map((item) => (
             <li key={item.to}>
-              <NavLink to={item.to} end={item.end} className={navLinkClass}>
+              <NavLink to={item.to} end={item.end} onClick={onNavigate} className={navLinkClass}>
                 <item.icon className="size-4 shrink-0" />
                 <span>{item.label}</span>
               </NavLink>
@@ -66,7 +73,7 @@ export function Sidebar() {
         <ul className="space-y-0.5">
           {adminItems.map((item) => (
             <li key={item.to}>
-              <NavLink to={item.to} className={navLinkClass}>
+              <NavLink to={item.to} onClick={onNavigate} className={navLinkClass}>
                 <item.icon className="size-4 shrink-0" />
                 <span>{item.label}</span>
               </NavLink>
@@ -77,9 +84,9 @@ export function Sidebar() {
 
       <div className="border-t border-border p-4">
         <div className="rounded-[var(--radius-md)] bg-accent-soft px-3 py-3 text-xs">
-          <p className="font-medium text-accent">Em desenvolvimento</p>
+          <p className="font-medium text-accent">Dica: ⌘K</p>
           <p className="mt-0.5 leading-snug text-text-muted">
-            Schema completo no Supabase. Frontend nas fundações.
+            Busca rápida e navegação em qualquer tela.
           </p>
         </div>
       </div>

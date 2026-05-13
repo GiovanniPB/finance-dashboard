@@ -1,6 +1,7 @@
 import { LogOut, User as UserIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { roleLabel, usePermissions } from "@/features/auth/usePermissions";
 
 function computeInitials(fullName: string | undefined, email: string | undefined): string {
   if (fullName) {
@@ -26,6 +28,7 @@ function computeInitials(fullName: string | undefined, email: string | undefined
 
 export function UserMenu() {
   const { user, signOut } = useAuth();
+  const { role } = usePermissions();
   const fullName =
     typeof user?.user_metadata.full_name === "string" ? user.user_metadata.full_name : undefined;
   const initials = computeInitials(fullName, user?.email);
@@ -41,10 +44,13 @@ export function UserMenu() {
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[220px]">
+      <DropdownMenuContent align="end" className="min-w-[240px]">
         <DropdownMenuLabel>
           <div className="flex flex-col gap-0.5 tracking-normal normal-case">
-            <span className="text-sm font-medium text-text">{fullName ?? "Usuário"}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium text-text">{fullName ?? "Usuário"}</span>
+              {role && <Badge tone="accent">{roleLabel(role)}</Badge>}
+            </div>
             <span className="text-2xs truncate text-text-subtle">{user?.email}</span>
           </div>
         </DropdownMenuLabel>

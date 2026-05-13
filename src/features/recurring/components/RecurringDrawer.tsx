@@ -1,0 +1,308 @@
+import * as React from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { AccountCombobox } from "@/features/accounts/AccountCombobox";
+
+import type { RecurringTemplate } from "../api";
+import { useCreateRecurringTemplate, useUpdateRecurringTemplate } from "../hooks";
+import {
+  emptyRecurringForm,
+  RECURRENCE_FREQUENCIES,
+  recurringFormSchema,
+  type RecurringFormValues,
+} from "../schema";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  template: RecurringTemplate | null;
+  companyId: string;
+}
+
+export function RecurringDrawer({ open, onOpenChange, template, companyId }: Props) {
+  const isEditing = Boolean(template);
+  const create = useCreateRecurringTemplate();
+  const update = useUpdateRecurringTemplate();
+  const pending = create.isPending || update.isPending;
+
+  const initialValues = React.useMemo<RecurringFormValues>(() => {
+    if (template) {
+      return {
+        companyId: template.company_id,
+        accountId: template.account_id,
+        description: template.description,
+        amount: template.amount,
+        direction: template.direction,
+        frequency: template.frequency,
+        dayOfMonth: template.day_of_month,
+        startDate: template.start_date,
+        endDate: template.end_date,
+        autoGenerate: template.auto_generate,
+        isActive: template.is_active,
+      };
+    }
+    return emptyRecurringForm(companyId);
+  }, [template, companyId]);
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    formState: { errors, isDirty },
+  } = useForm<RecurringFormValues>({
+    resolver: zodResolver(recurringFormSchema),
+    defaultValues: initialValues,
+  });
+
+  const watchedCompanyId = watch("companyId");
+
+  const onSubmit = handleSubmit((values) => {
+    const payload = {
+      company_id: values.companyId,
+      account_id: values.accountId,
+      description: values.description,
+      amount: values.amount,
+      direction: values.direction,
+      frequency: values.frequency,
+      day_of_month: values.dayOfMonth,
+      start_date: values.startDate,
+      end_date: values.endDate,
+      next_run_date: values.startDate,
+      auto_generate: values.autoGenerate,
+      is_active: values.isActive,
+    };
+    if (isEditing && template) {
+      update.mutate(
+        { id: template.id, payload },
+        {
+          onSuccess: () => {
+            toast.success("Recorrência atualizada");
+            onOpenChange(false);
+          },
+          onError: (err) => toast.error("Erro", { description: err.message }),
+        },
+      );
+    } else {
+      create.mutate(payload, {
+        onSuccess: () => {
+          toast.success("Recorrência criada");
+          onOpenChange(false);
+        },
+        onError: (err) => toast.error("Erro", { description: err.message }),
+      });
+    }
+  });
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="md" className="flex flex-col p-0">
+        <SheetHeader>
+          <SheetTitle>{isEditing ? "Editar recorrência" : "Nova recorrência"}</SheetTitle>
+          <SheetDescription>
+            Modelo que gera lançamentos automaticamente — útil pra aluguel, assinaturas, folha base.
+          </SheetDescription>
+        </SheetHeader>
+        <form
+          onSubmit={onSubmit}
+          key={template?.id ?? "new"}
+          className="flex flex-1 flex-col overflow-hidden"
+        >
+          <SheetBody className="space-y-5">
+            <div className="space-y-1.5">
+              <Label htmlFor="description">Descrição</Label>
+              <Input
+                id="description"
+                placeholder="Aluguel sede"
+                {...register("description")}
+                aria-invalid={Boolean(errors.description)}
+              />
+              {errors.description && (
+                <p className="text-2xs text-expense">{errors.description.message}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="direction">Tipo</Label>
+                <Controller
+                  name="direction"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      id="direction"
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      className="w-full"
+                    >
+                      <option value="outflow">Saída</option>
+                      <option value="inflow">Entrada</option>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="amount">Valor</Label>
+                <Controller
+                  name="amount"
+                  control={control}
+                  render={({ field }) => (
+                    <CurrencyInput id="amount" value={field.value} onValueChange={field.onChange} />
+                  )}
+                />
+                {errors.amount && <p className="text-2xs text-expense">{errors.amount.message}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="accountId">Conta</Label>
+              <Controller
+                name="accountId"
+                control={control}
+                render={({ field }) => (
+                  <AccountCombobox
+                    id="accountId"
+                    companyId={watchedCompanyId}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              {errors.accountId && (
+                <p className="text-2xs text-expense">{errors.accountId.message}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="frequency">Frequência</Label>
+                <Controller
+                  name="frequency"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      id="frequency"
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      className="w-full"
+                    >
+                      {RECURRENCE_FREQUENCIES.map((f) => (
+                        <option key={f.value} value={f.value}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dayOfMonth">Dia do mês</Label>
+                <Input
+                  id="dayOfMonth"
+                  type="number"
+                  min={1}
+                  max={31}
+                  {...register("dayOfMonth", { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="startDate">Início</Label>
+                <Input id="startDate" type="date" {...register("startDate")} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="endDate">
+                  Fim <span className="text-text-subtle">(opcional)</span>
+                </Label>
+                <Controller
+                  name="endDate"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(e.target.value === "" ? null : e.target.value)
+                      }
+                    />
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label>Geração</Label>
+                <Controller
+                  name="autoGenerate"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ? "auto" : "manual"}
+                      onChange={(e) => field.onChange(e.target.value === "auto")}
+                      className="w-full"
+                    >
+                      <option value="auto">Automática</option>
+                      <option value="manual">Manual (precisa aprovar)</option>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Status</Label>
+                <Controller
+                  name="isActive"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ? "active" : "inactive"}
+                      onChange={(e) => field.onChange(e.target.value === "active")}
+                      className="w-full"
+                    >
+                      <option value="active">Ativa</option>
+                      <option value="inactive">Pausada</option>
+                    </Select>
+                  )}
+                />
+              </div>
+            </div>
+          </SheetBody>
+          <SheetFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={pending}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={pending || (isEditing && !isDirty)}>
+              {pending && <Loader2 className="size-4 animate-spin" />}
+              {isEditing ? "Salvar" : "Criar"}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
