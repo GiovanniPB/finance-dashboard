@@ -1456,9 +1456,47 @@ export type Database = {
           total: number
         }[]
       }
+      expense_breakdown: {
+        Args: {
+          p_company_id?: string
+          p_end?: string
+          p_limit?: number
+          p_organization_id?: string
+          p_start?: string
+        }
+        Returns: {
+          account_code: string
+          account_id: string
+          account_name: string
+          is_other: boolean
+          kind: Database["public"]["Enums"]["account_kind"]
+          total: number
+        }[]
+      }
       is_financial_user: { Args: never; Returns: boolean }
       kpi_dashboard: {
         Args: { p_company_id: string; p_year: number }
+        Returns: {
+          cash_generation: number
+          cogs: number
+          contribution_margin: number
+          dividends: number
+          effective_tax_rate_pct: number
+          financial_result: number
+          fixed_costs: number
+          gross_margin_pct: number
+          gross_revenue: number
+          month_start: string
+          net_margin_pct: number
+          net_result: number
+          net_revenue: number
+          partner_bonus: number
+          partner_reimbursement: number
+          revenue_deductions: number
+        }[]
+      }
+      kpi_dashboard_consolidated: {
+        Args: { p_organization_id: string; p_year: number }
         Returns: {
           cash_generation: number
           cogs: number
