@@ -34,16 +34,7 @@ export interface KpiAggregate {
   };
 }
 
-export async function fetchKpiDashboard(companyId: string, year: number): Promise<KpiAggregate> {
-  const { data, error } = await supabase.rpc("kpi_dashboard", {
-    p_company_id: companyId,
-    p_year: year,
-  });
-  if (error) throw error;
-
-  const monthly: MonthlyKpi[] = data ?? [];
-
-  // YTD aggregation
+function aggregate(monthly: MonthlyKpi[]): KpiAggregate {
   const sum = (k: keyof MonthlyKpi) =>
     monthly.reduce<number>((acc, m) => acc + (m[k] as number), 0);
 
@@ -55,17 +46,71 @@ export async function fetchKpiDashboard(companyId: string, year: number): Promis
   const cash_generation = sum("cash_generation");
   const deductions = sum("revenue_deductions");
 
-  const ytd = {
-    gross_revenue,
-    net_revenue,
-    cogs,
-    fixed_costs,
-    net_result,
-    cash_generation,
-    gross_margin_pct: gross_revenue ? ((net_revenue - cogs) / gross_revenue) * 100 : 0,
-    net_margin_pct: gross_revenue ? (net_result / gross_revenue) * 100 : 0,
-    effective_tax_rate_pct: gross_revenue ? (deductions / gross_revenue) * 100 : 0,
+  return {
+    monthly,
+    ytd: {
+      gross_revenue,
+      net_revenue,
+      cogs,
+      fixed_costs,
+      net_result,
+      cash_generation,
+      gross_margin_pct: gross_revenue ? ((net_revenue - cogs) / gross_revenue) * 100 : 0,
+      net_margin_pct: gross_revenue ? (net_result / gross_revenue) * 100 : 0,
+      effective_tax_rate_pct: gross_revenue ? (deductions / gross_revenue) * 100 : 0,
+    },
   };
+}
 
-  return { monthly, ytd };
+export async function fetchKpiDashboard(companyId: string, year: number): Promise<KpiAggregate> {
+  const { data, error } = await supabase.rpc("kpi_dashboard", {
+    p_company_id: companyId,
+    p_year: year,
+  });
+  if (error) throw error;
+  return aggregate(data ?? []);
+}
+
+export async function fetchKpiDashboardConsolidated(
+  organizationId: string,
+  year: number,
+): Promise<KpiAggregate> {
+  const { data, error } = await supabase.rpc("kpi_dashboard_consolidated", {
+    p_organization_id: organizationId,
+    p_year: year,
+  });
+  if (error) throw error;
+  return aggregate(data ?? []);
+}
+
+export interface ExpenseBreakdownRow {
+  account_id: string | null;
+  account_code: string | null;
+  account_name: string;
+  total: number;
+  is_other: boolean;
+}
+
+export async function fetchExpenseBreakdown(opts: {
+  companyId: string | null;
+  organizationId: string | null;
+  from: string;
+  to: string;
+  limit?: number;
+}): Promise<ExpenseBreakdownRow[]> {
+  const { data, error } = await supabase.rpc("expense_breakdown", {
+    p_company_id: opts.companyId ?? undefined,
+    p_organization_id: opts.organizationId ?? undefined,
+    p_start: opts.from,
+    p_end: opts.to,
+    p_limit: opts.limit ?? 8,
+  });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    account_id: r.account_id,
+    account_code: r.account_code,
+    account_name: r.account_name,
+    total: r.total,
+    is_other: r.is_other,
+  }));
 }
