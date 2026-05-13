@@ -62,6 +62,73 @@ bun run dev            # http://localhost:5173
 - **GitHub Actions** ([.github/workflows/ci.yml](.github/workflows/ci.yml)) roda
   typecheck → lint → format:check → test → build em PRs e pushes para `main`.
 
+## Git workflow
+
+Seguimos **GitHub Flow** — `main` é a única branch permanente e está sempre
+deployável.
+
+```
+main      ●───●───●───●───●   ← sempre verde, sempre deployável
+            ↑   ↑   ↑   ↑
+feat       ●   ●   ●   ●     ← branches curtas, mergeadas via PR
+```
+
+### Regras
+
+1. **Nunca commitar direto na `main`.** Toda mudança passa por PR.
+2. **Branch por feature/fix:** `feat/<slug>`, `fix/<slug>`, `chore/<slug>`,
+   `refactor/<slug>`, `docs/<slug>`. Use kebab-case.
+3. **Branch curta:** o objetivo é mergear em 1–3 dias. Se ficou maior, quebre
+   em PRs menores.
+4. **PR só faz merge com CI verde** — typecheck, lint, format, tests, build.
+5. **Conventional Commits** obrigatório no título do PR e nos commits
+   (hook `commit-msg` enforça localmente).
+6. **Squash merge** preferido: histórico da `main` fica linear e legível.
+7. **Deletar branch após merge.** GitHub faz isso automaticamente se ativar
+   "Automatically delete head branches".
+
+### Fluxo prático
+
+```sh
+# Atualizar main e criar branch
+git checkout main
+git pull
+git checkout -b feat/transaction-form-drawer
+
+# Desenvolver, commitando localmente (hooks rodam preflight nos arquivos staged)
+git add -p
+git commit -m "feat(transactions): drawer skeleton with RHF + Zod"
+
+# Push e abrir PR
+git push -u origin feat/transaction-form-drawer
+# (depois pelo navegador: abrir PR no GitHub, esperar CI, mergear via squash)
+```
+
+### Branch protection na `main` (configurar 1 vez no GitHub)
+
+Em `Settings → Branches → Add rule` para `main`:
+
+- ✅ Require a pull request before merging
+- ✅ Require status checks to pass before merging
+  - Selecionar o check `Quality gates` do workflow `CI`
+- ✅ Require branches to be up to date before merging
+- ✅ Require conversation resolution before merging
+- ✅ Do not allow bypassing the above settings
+- (Opcional) Require signed commits — se o time todo tiver GPG configurado
+
+Em `Settings → General → Pull Requests`:
+
+- ✅ Allow squash merging (default)
+- ❌ Allow merge commits (desligar para forçar squash)
+- ✅ Automatically delete head branches
+
+### Ambientes
+
+- **Produção:** deploy manual via Cloudflare Pages (você dispara).
+- **Preview por PR (futuro):** Cloudflare Pages cria URL automática para cada
+  PR — bom para o financeiro validar antes de aprovar. Configurável na
+  integração GitHub ↔ Cloudflare.
+
 ## Estrutura
 
 ```
