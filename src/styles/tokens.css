@@ -1,0 +1,136 @@
+/* ─────────────────────────────────────────────────────────────
+   Bento Financeiro — Design Tokens
+   Paleta: violeta moderno como acento, neutros frios,
+   semânticos para receita/despesa, suporte light + dark.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* Surfaces (light) */
+  --color-bg: oklch(98.5% 0.004 264);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-2: oklch(96.5% 0.008 264);
+  --color-surface-3: oklch(93% 0.012 264);
+  --color-border: oklch(91% 0.012 264);
+  --color-border-strong: oklch(82% 0.018 264);
+
+  /* Text */
+  --color-text: oklch(20% 0.02 264);
+  --color-text-muted: oklch(52% 0.018 264);
+  --color-text-subtle: oklch(68% 0.012 264);
+  --color-text-inverse: oklch(98% 0 0);
+
+  /* Accent (violet) */
+  --color-accent: oklch(58% 0.22 285);
+  --color-accent-hover: oklch(53% 0.23 285);
+  --color-accent-soft: oklch(95% 0.04 285);
+  --color-accent-foreground: oklch(98% 0 0);
+  --color-accent-ring: oklch(58% 0.22 285 / 0.35);
+
+  /* Semantic — receita / despesa / atenção */
+  --color-income: oklch(60% 0.16 158);
+  --color-income-soft: oklch(94% 0.045 158);
+  --color-expense: oklch(58% 0.21 24);
+  --color-expense-soft: oklch(95% 0.04 24);
+  --color-warning: oklch(73% 0.16 75);
+  --color-warning-soft: oklch(95% 0.05 75);
+  --color-info: oklch(62% 0.16 235);
+  --color-info-soft: oklch(95% 0.035 235);
+
+  /* Brand gradient stops para hero/bento destaque */
+  --gradient-brand: linear-gradient(135deg, oklch(60% 0.22 285) 0%, oklch(64% 0.2 250) 100%);
+  --gradient-income: linear-gradient(135deg, oklch(64% 0.16 158) 0%, oklch(70% 0.14 175) 100%);
+  --gradient-expense: linear-gradient(135deg, oklch(62% 0.2 24) 0%, oklch(66% 0.18 45) 100%);
+
+  /* Radius */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Shadows — sutis, depth honesto */
+  --shadow-xs: 0 1px 2px 0 oklch(0% 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px 0 oklch(0% 0 0 / 0.06), 0 1px 2px -1px oklch(0% 0 0 / 0.04);
+  --shadow-md: 0 4px 6px -1px oklch(0% 0 0 / 0.06), 0 2px 4px -2px oklch(0% 0 0 / 0.04);
+  --shadow-lg: 0 10px 20px -8px oklch(0% 0 0 / 0.1), 0 6px 8px -4px oklch(0% 0 0 / 0.04);
+  --shadow-accent: 0 8px 24px -10px oklch(58% 0.22 285 / 0.45);
+
+  /* Typography */
+  --font-sans: "Inter", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Geist", "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-xs: 0.75rem; /* 12px */
+  --text-sm: 0.8125rem; /* 13px */
+  --text-base: 0.875rem; /* 14px — densidade financeira */
+  --text-md: 0.9375rem; /* 15px */
+  --text-lg: 1.0625rem; /* 17px */
+  --text-xl: 1.25rem; /* 20px */
+  --text-2xl: 1.5rem; /* 24px */
+  --text-3xl: 1.875rem; /* 30px */
+  --text-4xl: 2.25rem; /* 36px */
+  --text-display: clamp(2.25rem, 1.5rem + 2.5vw, 3.5rem);
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Layout */
+  --sidebar-width: 260px;
+  --sidebar-width-collapsed: 64px;
+  --topbar-height: 56px;
+  --content-max-width: 1440px;
+}
+
+.dark {
+  --color-bg: oklch(13% 0.012 264);
+  --color-surface: oklch(17% 0.014 264);
+  --color-surface-2: oklch(21% 0.016 264);
+  --color-surface-3: oklch(25% 0.018 264);
+  --color-border: oklch(28% 0.02 264);
+  --color-border-strong: oklch(36% 0.022 264);
+
+  --color-text: oklch(96% 0.008 264);
+  --color-text-muted: oklch(70% 0.018 264);
+  --color-text-subtle: oklch(55% 0.014 264);
+  --color-text-inverse: oklch(15% 0.012 264);
+
+  --color-accent: oklch(70% 0.2 285);
+  --color-accent-hover: oklch(75% 0.2 285);
+  --color-accent-soft: oklch(28% 0.1 285);
+  --color-accent-foreground: oklch(13% 0.012 264);
+  --color-accent-ring: oklch(70% 0.2 285 / 0.4);
+
+  --color-income: oklch(68% 0.16 158);
+  --color-income-soft: oklch(28% 0.08 158);
+  --color-expense: oklch(70% 0.18 24);
+  --color-expense-soft: oklch(28% 0.08 24);
+  --color-warning: oklch(78% 0.14 75);
+  --color-warning-soft: oklch(28% 0.08 75);
+  --color-info: oklch(70% 0.14 235);
+  --color-info-soft: oklch(28% 0.06 235);
+
+  --gradient-brand: linear-gradient(135deg, oklch(58% 0.22 285) 0%, oklch(60% 0.2 250) 100%);
+
+  --shadow-xs: 0 1px 2px 0 oklch(0% 0 0 / 0.4);
+  --shadow-sm: 0 1px 3px 0 oklch(0% 0 0 / 0.5), 0 1px 2px -1px oklch(0% 0 0 / 0.4);
+  --shadow-md: 0 4px 8px -2px oklch(0% 0 0 / 0.5);
+  --shadow-lg: 0 12px 24px -8px oklch(0% 0 0 / 0.6);
+  --shadow-accent: 0 8px 24px -10px oklch(70% 0.2 285 / 0.55);
+}

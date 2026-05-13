@@ -1,0 +1,2 @@
+echo "→ Running pre-push pre-flight checks..."
+bun run typecheck && bun run test:run

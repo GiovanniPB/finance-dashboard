@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# Conventional commit prefix enforcement (loose)
+commit_regex='^(feat|fix|refactor|perf|docs|test|chore|ci|build|style|revert)(\([a-z0-9-]+\))?!?: .{3,}'
+error_msg='Commit message must follow Conventional Commits format:
+  <type>(<scope>): <message>
+
+Allowed types: feat, fix, refactor, perf, docs, test, chore, ci, build, style, revert
+Examples:
+  feat(transactions): add bulk delete action
+  fix(dre): correct accrual aggregation
+  chore: bump dependencies'
+
+if ! grep -qE "$commit_regex" "$1"; then
+  echo "$error_msg" >&2
+  exit 1
+fi
