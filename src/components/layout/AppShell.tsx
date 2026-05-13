@@ -15,7 +15,7 @@ export function AppShell() {
     <CommandPalette>
       <div className="flex min-h-screen bg-bg">
         {/* Desktop sidebar */}
-        <div className="hidden lg:flex">
+        <div className="sticky top-0 hidden h-screen lg:flex">
           <Sidebar />
         </div>
 
