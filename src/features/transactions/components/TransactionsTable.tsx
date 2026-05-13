@@ -6,8 +6,21 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArrowDownRight, ArrowUpDown, ArrowUpRight } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpDown,
+  ArrowUpRight,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
@@ -23,6 +36,8 @@ interface Props {
   sortOrder: "asc" | "desc";
   onSortChange: (sortBy: string, sortOrder: "asc" | "desc") => void;
   showCompany: boolean;
+  onEdit: (transaction: TransactionWithRelations) => void;
+  onDelete: (transaction: TransactionWithRelations) => void;
 }
 
 export function TransactionsTable({
@@ -32,6 +47,8 @@ export function TransactionsTable({
   sortOrder,
   onSortChange,
   showCompany,
+  onEdit,
+  onDelete,
 }: Props) {
   const sorting = React.useMemo<SortingState>(
     () => [{ id: sortBy, desc: sortOrder === "desc" }],
@@ -135,9 +152,46 @@ export function TransactionsTable({
           );
         },
       },
+      {
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                aria-label="Ações do lançamento"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-text-muted hover:bg-surface-2 hover:text-text"
+              >
+                <MoreHorizontal className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={() => {
+                  onEdit(row.original);
+                }}
+              >
+                <Pencil className="size-4" /> Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  onDelete(row.original);
+                }}
+                className="text-expense"
+              >
+                <Trash2 className="size-4" /> Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
     );
     return cols;
-  }, [showCompany]);
+  }, [showCompany, onEdit, onDelete]);
 
   const table = useReactTable({
     data: rows,
@@ -207,7 +261,10 @@ export function TransactionsTable({
             table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-border transition-colors last:border-0 hover:bg-surface-2/50"
+                onClick={() => {
+                  onEdit(row.original);
+                }}
+                className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-surface-2/50"
               >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="px-4 py-3 align-middle">

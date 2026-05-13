@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import {
   createTransaction,
   fetchTransactions,
+  restoreTransaction,
   softDeleteTransaction,
   updateTransaction,
 } from "./api";
@@ -43,6 +44,14 @@ export function useSoftDeleteTransaction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => softDeleteTransaction(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: transactionKeys.all }),
+  });
+}
+
+export function useRestoreTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => restoreTransaction(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: transactionKeys.all }),
   });
 }
