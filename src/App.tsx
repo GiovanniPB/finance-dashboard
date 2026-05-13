@@ -5,6 +5,7 @@ import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
 import { Toaster } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { PayrollLayout } from "@/components/layout/PayrollLayout";
 import { SettingsLayout } from "@/components/layout/SettingsLayout";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +23,9 @@ const TransactionsPage = lazy(() => import("@/routes/transactions"));
 const DrePage = lazy(() => import("@/routes/dre"));
 const CashflowPage = lazy(() => import("@/routes/cashflow"));
 const ImportPage = lazy(() => import("@/routes/import"));
+const PayrollEmployeesPage = lazy(() => import("@/routes/payroll.employees"));
+const PayrollRunsPage = lazy(() => import("@/routes/payroll.runs"));
+const PayrollRunDetailPage = lazy(() => import("@/routes/payroll.run-detail"));
 const SettingsBanksPage = lazy(() => import("@/routes/settings.banks"));
 const SettingsCostCentersPage = lazy(() => import("@/routes/settings.cost-centers"));
 const SettingsCounterpartiesPage = lazy(() => import("@/routes/settings.counterparties"));
@@ -60,15 +64,12 @@ export default function App() {
                     <Route path="transactions" element={<TransactionsPage />} />
                     <Route path="dre" element={<DrePage />} />
                     <Route path="cashflow" element={<CashflowPage />} />
-                    <Route
-                      path="payroll"
-                      element={
-                        <PlaceholderPage
-                          title="Folha de Pagamento"
-                          description="Cadastro de colaboradores e geração de folha mensal."
-                        />
-                      }
-                    />
+                    <Route path="payroll" element={<PayrollLayout />}>
+                      <Route index element={<Navigate to="runs" replace />} />
+                      <Route path="employees" element={<PayrollEmployeesPage />} />
+                      <Route path="runs" element={<PayrollRunsPage />} />
+                      <Route path="runs/:id" element={<PayrollRunDetailPage />} />
+                    </Route>
                     <Route
                       path="recurring"
                       element={

@@ -1432,6 +1432,10 @@ export type Database = {
           failed_count: number
         }[]
       }
+      create_payroll_run_with_active_employees: {
+        Args: { p_company_id: string; p_reference_month: string }
+        Returns: string
+      }
       dre_by_company: {
         Args: { p_company_id: string; p_end: string; p_start: string }
         Returns: {
@@ -1522,6 +1526,13 @@ export type Database = {
           partner_bonus: number
           partner_reimbursement: number
           revenue_deductions: number
+        }[]
+      }
+      post_payroll_run: {
+        Args: { p_default_account_id: string; p_run_id: string }
+        Returns: {
+          generated_count: number
+          total_amount: number
         }[]
       }
     }
