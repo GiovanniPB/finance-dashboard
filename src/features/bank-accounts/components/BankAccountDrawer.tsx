@@ -8,7 +8,13 @@ import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetBody,
@@ -148,19 +154,17 @@ export function BankAccountDrawer({ open, onOpenChange, account, companyId }: Pr
                   name="accountType"
                   control={control}
                   render={({ field }) => (
-                    <Select
-                      id="accountType"
-                      value={field.value}
-                      onChange={(e) => {
-                        field.onChange(e.target.value);
-                      }}
-                      className="w-full"
-                    >
-                      {BANK_ACCOUNT_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="accountType">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BANK_ACCOUNT_TYPES.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   )}
                 />
@@ -278,13 +282,15 @@ export function BankAccountDrawer({ open, onOpenChange, account, companyId }: Pr
                   render={({ field }) => (
                     <Select
                       value={field.value ? "active" : "inactive"}
-                      onChange={(e) => {
-                        field.onChange(e.target.value === "active");
-                      }}
-                      className="w-full"
+                      onValueChange={(v) => field.onChange(v === "active")}
                     >
-                      <option value="active">Ativa</option>
-                      <option value="inactive">Inativa</option>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Ativa</SelectItem>
+                        <SelectItem value="inactive">Inativa</SelectItem>
+                      </SelectContent>
                     </Select>
                   )}
                 />

@@ -2,7 +2,13 @@ import { Calendar, Globe2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BankBalancesCard } from "@/features/cashflow/components/BankBalancesCard";
 import { CashflowChart } from "@/features/cashflow/components/CashflowChart";
 import { CashflowSummary } from "@/features/cashflow/components/CashflowSummary";
@@ -65,30 +71,34 @@ export default function CashflowPage() {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="granularity">Granularidade</Label>
             <Select
-              id="granularity"
               value={granularity}
-              onChange={(e) =>
-                void setFilters({
-                  granularity: e.target.value as "daily" | "monthly",
-                })
-              }
+              onValueChange={(v) => void setFilters({ granularity: v as "daily" | "monthly" })}
             >
-              <option value="monthly">Mensal</option>
-              <option value="daily">Diária</option>
+              <SelectTrigger id="granularity">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="monthly">Mensal</SelectItem>
+                <SelectItem value="daily">Diária</SelectItem>
+              </SelectContent>
             </Select>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="year">Ano</Label>
             <Select
-              id="year"
               value={String(year)}
-              onChange={(e) => void setFilters({ year: Number(e.target.value) })}
+              onValueChange={(v) => void setFilters({ year: Number(v) })}
             >
-              {[2024, 2025, 2026].map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
+              <SelectTrigger id="year">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026].map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </div>

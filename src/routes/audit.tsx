@@ -6,7 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuditLog } from "@/features/audit/hooks";
 import { cn } from "@/lib/cn";
@@ -75,16 +81,20 @@ export default function AuditPage() {
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="table">Tabela</Label>
           <Select
-            id="table"
-            value={filters.table}
-            onChange={(e) => void setFilters({ table: e.target.value, page: 1 })}
+            value={filters.table || "__all__"}
+            onValueChange={(v) => void setFilters({ table: v === "__all__" ? "" : v, page: 1 })}
           >
-            <option value="">Todas</option>
-            {TABLES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
+            <SelectTrigger id="table" className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas</SelectItem>
+              {TABLES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
         <div className="flex flex-col gap-1.5">

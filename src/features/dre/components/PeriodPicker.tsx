@@ -2,7 +2,13 @@ import { Calendar } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { PRESET_LABELS, resolvePreset, usePeriod, type PeriodPreset } from "../usePeriod";
 
@@ -25,19 +31,23 @@ export function PeriodPicker() {
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="preset">Preset</Label>
           <Select
-            id="preset"
             value={effectivePreset}
-            onChange={(e) => {
-              const next = e.target.value as PeriodPreset;
+            onValueChange={(v) => {
+              const next = v as PeriodPreset;
               const resolved = resolvePreset(next);
               void setPeriod({ preset: next, from: resolved.from, to: resolved.to });
             }}
           >
-            {(Object.entries(PRESET_LABELS) as [PeriodPreset, string][]).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
+            <SelectTrigger id="preset">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.entries(PRESET_LABELS) as [PeriodPreset, string][]).map(([k, v]) => (
+                <SelectItem key={k} value={k}>
+                  {v}
+                </SelectItem>
+              ))}
+            </SelectContent>
           </Select>
         </div>
 

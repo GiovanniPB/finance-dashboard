@@ -7,7 +7,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetBody,
@@ -155,13 +161,15 @@ export function CostCenterDrawer({ open, onOpenChange, costCenter, companyId }: 
                 render={({ field }) => (
                   <Select
                     value={field.value ? "active" : "inactive"}
-                    onChange={(e) => {
-                      field.onChange(e.target.value === "active");
-                    }}
-                    className="w-full"
+                    onValueChange={(v) => field.onChange(v === "active")}
                   >
-                    <option value="active">Ativo</option>
-                    <option value="inactive">Inativo</option>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Ativo</SelectItem>
+                      <SelectItem value="inactive">Inativo</SelectItem>
+                    </SelectContent>
                   </Select>
                 )}
               />

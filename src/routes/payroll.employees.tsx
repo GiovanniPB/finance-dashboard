@@ -10,7 +10,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { type Employee } from "@/features/employees/api";
@@ -69,12 +75,17 @@ export default function PayrollEmployeesPage() {
         </div>
         <div className="flex items-end gap-2">
           {isConsolidated && operational.length > 0 && (
-            <Select value={companyId ?? ""} onChange={(e) => setPickedCompanyId(e.target.value)}>
-              {operational.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.trade_name ?? c.legal_name}
-                </option>
-              ))}
+            <Select value={companyId ?? undefined} onValueChange={(v) => setPickedCompanyId(v)}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
+              <SelectContent>
+                {operational.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.trade_name ?? c.legal_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           )}
           <Button
@@ -99,13 +110,21 @@ export default function PayrollEmployeesPage() {
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="">Todos os status</option>
-          {EMPLOYEE_STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
+        <Select
+          value={statusFilter || "__all__"}
+          onValueChange={(v) => setStatusFilter(v === "__all__" ? "" : v)}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os status</SelectItem>
+            {EMPLOYEE_STATUSES.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
 

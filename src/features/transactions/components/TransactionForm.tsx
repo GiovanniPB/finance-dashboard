@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { AccountCombobox } from "@/features/accounts/AccountCombobox";
@@ -54,16 +60,14 @@ export function TransactionForm({
               name="direction"
               control={control}
               render={({ field }) => (
-                <Select
-                  id="direction"
-                  value={field.value}
-                  onChange={(e) => {
-                    field.onChange(e.target.value);
-                  }}
-                  className="w-full"
-                >
-                  <option value="inflow">Entrada (receita)</option>
-                  <option value="outflow">Saída (despesa)</option>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="direction">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inflow">Entrada (receita)</SelectItem>
+                    <SelectItem value="outflow">Saída (despesa)</SelectItem>
+                  </SelectContent>
                 </Select>
               )}
             />
@@ -75,19 +79,17 @@ export function TransactionForm({
               name="status"
               control={control}
               render={({ field }) => (
-                <Select
-                  id="status"
-                  value={field.value}
-                  onChange={(e) => {
-                    field.onChange(e.target.value);
-                  }}
-                  className="w-full"
-                >
-                  <option value="scheduled">Agendado</option>
-                  <option value="pending">Pendente</option>
-                  <option value="settled">Liquidado</option>
-                  <option value="reconciled">Conciliado</option>
-                  <option value="canceled">Cancelado</option>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">Agendado</SelectItem>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="settled">Liquidado</SelectItem>
+                    <SelectItem value="reconciled">Conciliado</SelectItem>
+                    <SelectItem value="canceled">Cancelado</SelectItem>
+                  </SelectContent>
                 </Select>
               )}
             />

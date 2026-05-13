@@ -3,7 +3,13 @@ import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAccountsByCompany } from "@/features/accounts/hooks";
 
 import { useTransactionFilters } from "../useTransactionFilters";
@@ -65,62 +71,69 @@ export function TransactionsFilters({ companyId }: Props) {
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="direction">Tipo</Label>
         <Select
-          id="direction"
-          value={filters.direction ?? ""}
-          onChange={(e) =>
+          value={filters.direction ?? "__all__"}
+          onValueChange={(v) =>
             void setFilters({
-              direction: e.target.value === "" ? null : (e.target.value as "inflow" | "outflow"),
+              direction: v === "__all__" ? null : (v as "inflow" | "outflow"),
             })
           }
         >
-          <option value="">Todos</option>
-          <option value="inflow">Entrada</option>
-          <option value="outflow">Saída</option>
+          <SelectTrigger id="direction" className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos</SelectItem>
+            <SelectItem value="inflow">Entrada</SelectItem>
+            <SelectItem value="outflow">Saída</SelectItem>
+          </SelectContent>
         </Select>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="status">Status</Label>
         <Select
-          id="status"
-          value={filters.status ?? ""}
-          onChange={(e) =>
+          value={filters.status ?? "__all__"}
+          onValueChange={(v) =>
             void setFilters({
               status:
-                e.target.value === ""
+                v === "__all__"
                   ? null
-                  : (e.target.value as
-                      | "scheduled"
-                      | "pending"
-                      | "settled"
-                      | "reconciled"
-                      | "canceled"),
+                  : (v as "scheduled" | "pending" | "settled" | "reconciled" | "canceled"),
             })
           }
         >
-          <option value="">Todos</option>
-          <option value="scheduled">Agendado</option>
-          <option value="pending">Pendente</option>
-          <option value="settled">Liquidado</option>
-          <option value="reconciled">Conciliado</option>
-          <option value="canceled">Cancelado</option>
+          <SelectTrigger id="status" className="w-[150px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos</SelectItem>
+            <SelectItem value="scheduled">Agendado</SelectItem>
+            <SelectItem value="pending">Pendente</SelectItem>
+            <SelectItem value="settled">Liquidado</SelectItem>
+            <SelectItem value="reconciled">Conciliado</SelectItem>
+            <SelectItem value="canceled">Cancelado</SelectItem>
+          </SelectContent>
         </Select>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="account">Conta</Label>
         <Select
-          id="account"
-          value={filters.accountId}
-          onChange={(e) => void setFilters({ accountId: e.target.value })}
+          value={filters.accountId || "__all__"}
+          onValueChange={(v) => void setFilters({ accountId: v === "__all__" ? "" : v })}
           disabled={!companyId}
         >
-          <option value="">Todas</option>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.code} · {a.name}
-            </option>
-          ))}
+          <SelectTrigger id="account" className="w-[220px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todas</SelectItem>
+            {accounts.map((a) => (
+              <SelectItem key={a.id} value={a.id}>
+                {a.code} · {a.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
       </div>
 

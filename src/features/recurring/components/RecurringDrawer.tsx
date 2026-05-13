@@ -8,7 +8,13 @@ import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetBody,
@@ -146,14 +152,14 @@ export function RecurringDrawer({ open, onOpenChange, template, companyId }: Pro
                   name="direction"
                   control={control}
                   render={({ field }) => (
-                    <Select
-                      id="direction"
-                      value={field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      className="w-full"
-                    >
-                      <option value="outflow">Saída</option>
-                      <option value="inflow">Entrada</option>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="direction">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="outflow">Saída</SelectItem>
+                        <SelectItem value="inflow">Entrada</SelectItem>
+                      </SelectContent>
                     </Select>
                   )}
                 />
@@ -197,17 +203,17 @@ export function RecurringDrawer({ open, onOpenChange, template, companyId }: Pro
                   name="frequency"
                   control={control}
                   render={({ field }) => (
-                    <Select
-                      id="frequency"
-                      value={field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      className="w-full"
-                    >
-                      {RECURRENCE_FREQUENCIES.map((f) => (
-                        <option key={f.value} value={f.value}>
-                          {f.label}
-                        </option>
-                      ))}
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="frequency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RECURRENCE_FREQUENCIES.map((f) => (
+                          <SelectItem key={f.value} value={f.value}>
+                            {f.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   )}
                 />
@@ -259,11 +265,15 @@ export function RecurringDrawer({ open, onOpenChange, template, companyId }: Pro
                   render={({ field }) => (
                     <Select
                       value={field.value ? "auto" : "manual"}
-                      onChange={(e) => field.onChange(e.target.value === "auto")}
-                      className="w-full"
+                      onValueChange={(v) => field.onChange(v === "auto")}
                     >
-                      <option value="auto">Automática</option>
-                      <option value="manual">Manual (precisa aprovar)</option>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Automática</SelectItem>
+                        <SelectItem value="manual">Manual (precisa aprovar)</SelectItem>
+                      </SelectContent>
                     </Select>
                   )}
                 />
@@ -276,11 +286,15 @@ export function RecurringDrawer({ open, onOpenChange, template, companyId }: Pro
                   render={({ field }) => (
                     <Select
                       value={field.value ? "active" : "inactive"}
-                      onChange={(e) => field.onChange(e.target.value === "active")}
-                      className="w-full"
+                      onValueChange={(v) => field.onChange(v === "active")}
                     >
-                      <option value="active">Ativa</option>
-                      <option value="inactive">Pausada</option>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Ativa</SelectItem>
+                        <SelectItem value="inactive">Pausada</SelectItem>
+                      </SelectContent>
                     </Select>
                   )}
                 />

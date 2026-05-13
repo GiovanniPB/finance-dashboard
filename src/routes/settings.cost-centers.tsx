@@ -9,7 +9,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { type CostCenter } from "@/features/cost-centers/api";
@@ -44,12 +50,17 @@ export default function SettingsCostCentersPage() {
         </div>
         <div className="flex items-end gap-2">
           {isConsolidated && operational.length > 0 && (
-            <Select value={companyId ?? ""} onChange={(e) => setPickedCompanyId(e.target.value)}>
-              {operational.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.trade_name ?? c.legal_name}
-                </option>
-              ))}
+            <Select value={companyId ?? undefined} onValueChange={(v) => setPickedCompanyId(v)}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
+              <SelectContent>
+                {operational.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.trade_name ?? c.legal_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           )}
           <Button

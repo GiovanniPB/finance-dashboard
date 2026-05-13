@@ -7,7 +7,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetBody,
@@ -130,19 +136,17 @@ export function CounterpartyDrawer({ open, onOpenChange, counterparty, organizat
                   name="kind"
                   control={control}
                   render={({ field }) => (
-                    <Select
-                      id="kind"
-                      value={field.value}
-                      onChange={(e) => {
-                        field.onChange(e.target.value);
-                      }}
-                      className="w-full"
-                    >
-                      {COUNTERPARTY_KINDS.map((k) => (
-                        <option key={k.value} value={k.value}>
-                          {k.label}
-                        </option>
-                      ))}
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="kind">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COUNTERPARTY_KINDS.map((k) => (
+                          <SelectItem key={k.value} value={k.value}>
+                            {k.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
                     </Select>
                   )}
                 />
@@ -216,13 +220,15 @@ export function CounterpartyDrawer({ open, onOpenChange, counterparty, organizat
                 render={({ field }) => (
                   <Select
                     value={field.value ? "active" : "inactive"}
-                    onChange={(e) => {
-                      field.onChange(e.target.value === "active");
-                    }}
-                    className="w-full"
+                    onValueChange={(v) => field.onChange(v === "active")}
                   >
-                    <option value="active">Ativa</option>
-                    <option value="inactive">Inativa</option>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Ativa</SelectItem>
+                      <SelectItem value="inactive">Inativa</SelectItem>
+                    </SelectContent>
                   </Select>
                 )}
               />
