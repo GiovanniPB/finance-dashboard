@@ -1,0 +1,96 @@
+import * as React from "react";
+import { Plus } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { type BankAccount } from "@/features/bank-accounts/api";
+import { BankAccountDrawer } from "@/features/bank-accounts/components/BankAccountDrawer";
+import { BankAccountsTable } from "@/features/bank-accounts/components/BankAccountsTable";
+import { useBankAccounts, useToggleBankAccountActive } from "@/features/bank-accounts/hooks";
+import { useCompanyScope } from "@/features/companies/CompanyContext";
+
+export default function SettingsBanksPage() {
+  const { companies, selectedCompanyId, isConsolidated } = useCompanyScope();
+  const operational = companies.filter((c) => !c.is_holding);
+
+  // No modo consolidado, pedimos pra escolher uma empresa
+  const [pickedCompanyId, setPickedCompanyId] = React.useState<string | null>(
+    isConsolidated ? (operational[0]?.id ?? null) : selectedCompanyId,
+  );
+
+  React.useEffect(() => {
+    if (!isConsolidated) setPickedCompanyId(selectedCompanyId);
+  }, [isConsolidated, selectedCompanyId]);
+
+  const companyId = pickedCompanyId;
+  const { data: rows = [], isLoading } = useBankAccounts(companyId);
+  const toggleActive = useToggleBankAccountActive();
+
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<BankAccount | null>(null);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Contas bancárias</h2>
+          <p className="mt-1 text-sm text-text-muted">
+            {isConsolidated
+              ? "Escolha uma empresa para gerenciar suas contas."
+              : "Contas vinculadas a esta empresa."}
+          </p>
+        </div>
+        <div className="flex items-end gap-2">
+          {isConsolidated && operational.length > 0 && (
+            <Select value={companyId ?? ""} onChange={(e) => setPickedCompanyId(e.target.value)}>
+              {operational.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.trade_name ?? c.legal_name}
+                </option>
+              ))}
+            </Select>
+          )}
+          <Button
+            disabled={!companyId}
+            onClick={() => {
+              setEditing(null);
+              setDrawerOpen(true);
+            }}
+          >
+            <Plus className="size-4" /> Nova conta
+          </Button>
+        </div>
+      </div>
+
+      {rows.length > 0 && (
+        <div className="flex items-center gap-3 text-xs text-text-muted">
+          <Badge>{rows.length} contas</Badge>
+          <span>
+            {rows.filter((r) => r.is_active).length} ativa(s),{" "}
+            {rows.filter((r) => !r.is_active).length} inativa(s)
+          </span>
+        </div>
+      )}
+
+      <BankAccountsTable
+        rows={rows}
+        loading={isLoading}
+        onEdit={(a) => {
+          setEditing(a);
+          setDrawerOpen(true);
+        }}
+        onToggleActive={(a) => toggleActive.mutate({ id: a.id, isActive: !a.is_active })}
+      />
+
+      {companyId && (
+        <BankAccountDrawer
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          account={editing}
+          companyId={companyId}
+        />
+      )}
+    </div>
+  );
+}

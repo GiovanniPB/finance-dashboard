@@ -5,6 +5,7 @@ import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
 import { Toaster } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { SettingsLayout } from "@/components/layout/SettingsLayout";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthProvider } from "@/features/auth/AuthProvider";
@@ -20,6 +21,9 @@ const DashboardPage = lazy(() => import("@/routes/dashboard"));
 const TransactionsPage = lazy(() => import("@/routes/transactions"));
 const DrePage = lazy(() => import("@/routes/dre"));
 const CashflowPage = lazy(() => import("@/routes/cashflow"));
+const SettingsBanksPage = lazy(() => import("@/routes/settings.banks"));
+const SettingsCostCentersPage = lazy(() => import("@/routes/settings.cost-centers"));
+const SettingsCounterpartiesPage = lazy(() => import("@/routes/settings.counterparties"));
 
 function RouteFallback() {
   return (
@@ -91,15 +95,11 @@ export default function App() {
                         />
                       }
                     />
-                    <Route
-                      path="settings"
-                      element={
-                        <PlaceholderPage
-                          title="Configurações"
-                          description="Plano de contas, centros de custo, contas bancárias."
-                        />
-                      }
-                    />
+                    <Route path="settings" element={<SettingsLayout />}>
+                      <Route path="banks" element={<SettingsBanksPage />} />
+                      <Route path="cost-centers" element={<SettingsCostCentersPage />} />
+                      <Route path="counterparties" element={<SettingsCounterpartiesPage />} />
+                    </Route>
                   </Route>
 
                   <Route path="404" element={<NotFoundPage />} />
