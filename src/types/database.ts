@@ -404,6 +404,27 @@ export type Database = {
           },
         ]
       }
+      company_access: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       counterparties: {
         Row: {
           created_at: string
@@ -1503,6 +1524,14 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      is_super_admin: {
+        Args: never
+        Returns: boolean
+      }
+      has_company_access: {
+        Args: { p_company_id: string }
+        Returns: boolean
+      }
       company_stats: {
         Args: never
         Returns: {
@@ -1690,7 +1719,7 @@ export type Database = {
         | "settled"
         | "reconciled"
         | "canceled"
-      user_role: "admin" | "editor" | "viewer"
+      user_role: "admin" | "editor" | "viewer" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1892,7 +1921,7 @@ export const Constants = {
         "reconciled",
         "canceled",
       ],
-      user_role: ["admin", "editor", "viewer"],
+      user_role: ["admin", "editor", "viewer", "super_admin"],
     },
   },
 } as const

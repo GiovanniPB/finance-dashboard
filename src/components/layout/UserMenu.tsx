@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { LogOut, User as UserIcon } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -29,6 +30,7 @@ function computeInitials(fullName: string | undefined, email: string | undefined
 export function UserMenu() {
   const { user, signOut } = useAuth();
   const { role } = usePermissions();
+  const navigate = useNavigate();
   const fullName =
     typeof user?.user_metadata.full_name === "string" ? user.user_metadata.full_name : undefined;
   const initials = computeInitials(fullName, user?.email);
@@ -55,7 +57,7 @@ export function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => void navigate("/profile")}>
           <UserIcon className="size-4" /> Perfil
         </DropdownMenuItem>
         <DropdownMenuSeparator />
