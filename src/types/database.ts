@@ -2083,6 +2083,17 @@ export type Database = {
           total: number
         }[]
       }
+      forecast_cashflow_daily: {
+        Args: { p_company_id: string; p_from: string; p_to: string }
+        Returns: {
+          day: string
+          inflow_expected: number
+          inflow_recurring: number
+          outflow_expected: number
+          outflow_recurring: number
+          running_balance: number
+        }[]
+      }
       generate_recurring_transactions: {
         Args: { p_through_date?: string }
         Returns: {

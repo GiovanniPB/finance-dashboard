@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   ArrowLeftRight,
   Building2,
+  CalendarRange,
   FileBarChart,
   GitCompare,
   History,
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { to: "/dre", label: "DRE", icon: FileBarChart },
   { to: "/cashflow", label: "Fluxo de Caixa", icon: TrendingUp },
   { to: "/reconciliation", label: "Conciliação", icon: GitCompare },
+  { to: "/forecast", label: "Forecast 90d", icon: CalendarRange },
   { to: "/payroll", label: "Folha", icon: Users },
   { to: "/recurring", label: "Recorrências", icon: Repeat },
   { to: "/import", label: "Importar", icon: Upload },
