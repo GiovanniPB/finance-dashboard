@@ -3,12 +3,14 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { supabase } from "@/lib/supabase";
 
 const schema = z.object({
   email: z.string().email("E-mail inválido"),
@@ -22,6 +24,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [resetSending, setResetSending] = React.useState(false);
 
   const {
     register,
@@ -136,9 +139,34 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="text-2xs mt-8 text-text-subtle">
-            Esqueceu a senha? Fale com o administrador para reset.
-          </p>
+          <button
+            type="button"
+            disabled={resetSending}
+            onClick={async () => {
+              const email = (
+                document.getElementById("email") as HTMLInputElement | null
+              )?.value?.trim();
+              if (!email) {
+                toast.error("Informe seu email no campo acima primeiro");
+                return;
+              }
+              setResetSending(true);
+              const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/reset-password`,
+              });
+              setResetSending(false);
+              if (error) {
+                toast.error("Erro", { description: error.message });
+                return;
+              }
+              toast.success("Link enviado", {
+                description: `Verifique a caixa de entrada de ${email}.`,
+              });
+            }}
+            className="mt-8 text-xs text-text-muted underline-offset-4 hover:text-accent hover:underline disabled:opacity-50"
+          >
+            {resetSending ? "Enviando link…" : "Esqueceu a senha? Receber link por email"}
+          </button>
         </div>
       </div>
     </div>
