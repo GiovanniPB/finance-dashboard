@@ -113,16 +113,16 @@ export function CommandPalette({ children }: { children?: React.ReactNode }) {
         open={open}
         onOpenChange={setOpen}
         label="Command palette"
-        className="data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 fixed inset-0 z-50 grid place-items-start justify-center bg-black/40 pt-[15vh] backdrop-blur-sm"
+        className="data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 fixed inset-0 z-50 flex justify-center bg-black/20 px-4 pt-[15vh]"
       >
-        <div className="w-full max-w-xl overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface shadow-[var(--shadow-lg)]">
-          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-            <Search className="size-4 text-text-subtle" />
+        <div className="h-fit w-full max-w-3xl overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface shadow-[var(--shadow-lg)]">
+          <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+            <Search className="size-4 shrink-0 text-text-subtle" />
             <Command.Input
               value={query}
               onValueChange={setQuery}
               placeholder="Buscar lançamentos, navegar…"
-              className="flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-text-subtle"
+              className="min-w-0 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-text-subtle"
             />
             <kbd className="text-2xs rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-text-muted">
               ESC
