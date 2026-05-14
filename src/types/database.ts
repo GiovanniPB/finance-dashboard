@@ -1480,6 +1480,10 @@ export type Database = {
         Args: { p_run_id: string }
         Returns: undefined
       }
+      delete_employee: {
+        Args: { p_employee_id: string }
+        Returns: undefined
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]

@@ -1,8 +1,10 @@
 import * as React from "react";
-import { MoreHorizontal, Pencil, Plus, Search } from "lucide-react";
+import { MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { type Employee } from "@/features/employees/api";
 import { EmployeeDrawer } from "@/features/employees/components/EmployeeDrawer";
-import { useEmployees } from "@/features/employees/hooks";
+import { useDeleteEmployee, useEmployees } from "@/features/employees/hooks";
 import { EMPLOYEE_STATUSES } from "@/features/employees/schema";
 import { cn } from "@/lib/cn";
 import { formatBRL } from "@/lib/format";
@@ -52,6 +54,19 @@ export default function PayrollEmployeesPage() {
 
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Employee | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState<Employee | null>(null);
+  const deleteEmployee = useDeleteEmployee();
+
+  function handleConfirmDelete() {
+    if (!confirmDelete) return;
+    deleteEmployee.mutate(confirmDelete.id, {
+      onSuccess: () => {
+        toast.success("Colaborador excluído");
+        setConfirmDelete(null);
+      },
+      onError: (err) => toast.error("Erro ao excluir", { description: err.message }),
+    });
+  }
 
   const activeCount = rows.filter((r) => r.status === "active").length;
   const totalFolha = rows
@@ -201,6 +216,12 @@ export default function PayrollEmployeesPage() {
                         >
                           <Pencil className="size-4" /> Editar
                         </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => setConfirmDelete(row)}
+                          className="text-expense focus:bg-expense-soft focus:text-expense"
+                        >
+                          <Trash2 className="size-4" /> Excluir
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -210,6 +231,18 @@ export default function PayrollEmployeesPage() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        onOpenChange={(o) => {
+          if (!o) setConfirmDelete(null);
+        }}
+        title={`Excluir ${confirmDelete?.full_name ?? ""}?`}
+        description="Só é possível excluir colaboradores que nunca foram usados em folhas. Caso contrário, prefira desativar."
+        confirmLabel="Excluir colaborador"
+        pending={deleteEmployee.isPending}
+        onConfirm={handleConfirmDelete}
+      />
 
       {companyId && (
         <EmployeeDrawer

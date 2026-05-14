@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createEmployee,
+  deleteEmployee,
   fetchEmployees,
   updateEmployee,
   type EmployeeFilters,
@@ -34,6 +35,14 @@ export function useUpdateEmployee() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: EmployeeUpdate }) =>
       updateEmployee(id, payload),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["employees"] }),
+  });
+}
+
+export function useDeleteEmployee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteEmployee(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["employees"] }),
   });
 }
