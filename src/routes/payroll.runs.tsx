@@ -1,10 +1,17 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle2, Loader2, Plus } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -25,7 +32,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
-import { useCreatePayrollRun, usePayrollRuns } from "@/features/payroll/hooks";
+import { useCreatePayrollRun, useDeletePayrollRun, usePayrollRuns } from "@/features/payroll/hooks";
 import { cn } from "@/lib/cn";
 import { formatMonthYear } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
@@ -54,6 +61,21 @@ export default function PayrollRunsPage() {
 
   const { data: runs = [], isLoading } = usePayrollRuns(companyId);
   const create = useCreatePayrollRun();
+  const deleteRun = useDeletePayrollRun();
+  const [confirmDelete, setConfirmDelete] = React.useState<{ id: string; label: string } | null>(
+    null,
+  );
+
+  function handleConfirmDelete() {
+    if (!confirmDelete) return;
+    deleteRun.mutate(confirmDelete.id, {
+      onSuccess: () => {
+        toast.success("Folha excluída");
+        setConfirmDelete(null);
+      },
+      onError: (err) => toast.error("Erro ao excluir", { description: err.message }),
+    });
+  }
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [refMonth, setRefMonth] = React.useState(() => {
@@ -156,11 +178,36 @@ export default function PayrollRunsPage() {
                       {formatBRL(row.total_charges)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link to={`/payroll/runs/${row.id}`}>
-                          Abrir <ArrowRight className="size-3.5" />
-                        </Link>
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link to={`/payroll/runs/${row.id}`}>
+                            Abrir <ArrowRight className="size-3.5" />
+                          </Link>
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              aria-label="Ações"
+                              className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-text-muted hover:bg-surface-2 hover:text-text"
+                            >
+                              <MoreHorizontal className="size-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onSelect={() =>
+                                setConfirmDelete({
+                                  id: row.id,
+                                  label: formatMonthYear(row.reference_month),
+                                })
+                              }
+                              className="text-expense focus:bg-expense-soft focus:text-expense"
+                            >
+                              <Trash2 className="size-4" /> Excluir folha
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -169,6 +216,18 @@ export default function PayrollRunsPage() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        onOpenChange={(o) => {
+          if (!o) setConfirmDelete(null);
+        }}
+        title={`Excluir folha de ${confirmDelete?.label ?? ""}?`}
+        description="Os lançamentos vinculados também serão removidos. Esta ação não pode ser desfeita."
+        confirmLabel="Excluir folha"
+        pending={deleteRun.isPending}
+        onConfirm={handleConfirmDelete}
+      />
 
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent size="sm" className="flex flex-col p-0">

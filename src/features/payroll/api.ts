@@ -80,6 +80,11 @@ export async function deletePayrollItem(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function deletePayrollRun(runId: string): Promise<void> {
+  const { error } = await supabase.rpc("delete_payroll_run", { p_run_id: runId });
+  if (error) throw error;
+}
+
 export async function postPayrollRun(
   runId: string,
   defaultAccountId: string,

@@ -1,11 +1,12 @@
 import * as React from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Send, Trash2 } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { AlertTriangle, ArrowLeft, Loader2, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AccountCombobox } from "@/features/accounts/AccountCombobox";
 import {
   useDeletePayrollItem,
+  useDeletePayrollRun,
   usePayrollItems,
   usePayrollRun,
   usePostPayrollRun,
@@ -42,13 +44,16 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
 
 export default function PayrollRunDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: run, isLoading: runLoading } = usePayrollRun(id);
   const { data: items = [], isLoading: itemsLoading } = usePayrollItems(id);
   const update = useUpdatePayrollItem();
   const remove = useDeletePayrollItem();
+  const removeRun = useDeletePayrollRun();
   const post = usePostPayrollRun();
 
   const [postOpen, setPostOpen] = React.useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
   const [defaultAccountId, setDefaultAccountId] = React.useState<string | null>(null);
 
   const isPosted = run?.status === "posted";
@@ -72,6 +77,18 @@ export default function PayrollRunDetailPage() {
     remove.mutate(itemId, {
       onSuccess: () => toast.success("Item removido"),
       onError: (err) => toast.error("Erro", { description: err.message }),
+    });
+  }
+
+  function handleDeleteRun() {
+    if (!id) return;
+    removeRun.mutate(id, {
+      onSuccess: () => {
+        toast.success("Folha excluída");
+        setConfirmDeleteOpen(false);
+        void navigate("/payroll/runs");
+      },
+      onError: (err) => toast.error("Erro ao excluir", { description: err.message }),
     });
   }
 
@@ -121,12 +138,37 @@ export default function PayrollRunDetailPage() {
             )}
           </p>
         </div>
-        {!isPosted && (
-          <Button onClick={() => setPostOpen(true)} disabled={items.length === 0}>
-            <Send className="size-4" /> Postar folha
+        <div className="flex items-center gap-2">
+          {!isPosted && (
+            <Button onClick={() => setPostOpen(true)} disabled={items.length === 0}>
+              <Send className="size-4" /> Postar folha
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => setConfirmDeleteOpen(true)}
+            disabled={removeRun.isPending}
+            className="text-expense hover:bg-expense-soft hover:text-expense"
+          >
+            {removeRun.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Trash2 className="size-4" />
+            )}
+            Excluir folha
           </Button>
-        )}
+        </div>
       </div>
+
+      {isPosted && (
+        <div className="flex items-start gap-2 rounded-[var(--radius-md)] border border-warning/30 bg-warning-soft/20 px-3 py-2 text-xs text-text-muted">
+          <AlertTriangle className="size-3.5 shrink-0 text-warning" />
+          <span>
+            Folha já postada. Edições nos valores (bruto, benefícios) atualizam automaticamente os
+            lançamentos vinculados.
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <SummaryCard label="Bruto total" value={totals.gross} />
@@ -155,7 +197,7 @@ export default function PayrollRunDetailPage() {
                 <Th align="right">Benefícios</Th>
                 <Th align="right">Líquido</Th>
                 <Th align="right">Custo</Th>
-                {!isPosted && <Th align="right">Ações</Th>}
+                <Th align="right">Ações</Th>
               </tr>
             </thead>
             <tbody>
@@ -172,27 +214,22 @@ export default function PayrollRunDetailPage() {
                   </td>
                   <EditableCell
                     value={item.gross_amount}
-                    disabled={isPosted}
                     onCommit={(v) => handleUpdate(item.id, "gross_amount", v)}
                   />
                   <EditableCell
                     value={item.inss}
-                    disabled={isPosted}
                     onCommit={(v) => handleUpdate(item.id, "inss", v)}
                   />
                   <EditableCell
                     value={item.fgts}
-                    disabled={isPosted}
                     onCommit={(v) => handleUpdate(item.id, "fgts", v)}
                   />
                   <EditableCell
                     value={item.irrf}
-                    disabled={isPosted}
                     onCommit={(v) => handleUpdate(item.id, "irrf", v)}
                   />
                   <EditableCell
                     value={item.benefits}
-                    disabled={isPosted}
                     onCommit={(v) => handleUpdate(item.id, "benefits", v)}
                   />
                   <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">
@@ -201,23 +238,31 @@ export default function PayrollRunDetailPage() {
                   <td className="px-3 py-2 text-right font-mono text-xs font-semibold text-accent tabular-nums">
                     {formatBRL(item.employer_cost ?? 0)}
                   </td>
-                  {!isPosted && (
-                    <td className="px-3 py-2 text-right">
-                      <button
-                        aria-label="Remover"
-                        onClick={() => handleRemove(item.id)}
-                        className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-text-muted hover:bg-expense-soft hover:text-expense"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </td>
-                  )}
+                  <td className="px-3 py-2 text-right">
+                    <button
+                      aria-label="Remover"
+                      onClick={() => handleRemove(item.id)}
+                      className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-text-muted hover:bg-expense-soft hover:text-expense"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={`Excluir folha de ${formatMonthYear(run.reference_month)}?`}
+        description="Os lançamentos vinculados também serão removidos. Esta ação não pode ser desfeita."
+        confirmLabel="Excluir folha"
+        pending={removeRun.isPending}
+        onConfirm={handleDeleteRun}
+      />
 
       {/* Post dialog */}
       <Sheet open={postOpen} onOpenChange={setPostOpen}>
@@ -291,29 +336,13 @@ function SummaryCard({ label, value, tone }: { label: string; value: number; ton
   );
 }
 
-function EditableCell({
-  value,
-  disabled,
-  onCommit,
-}: {
-  value: number;
-  disabled: boolean;
-  onCommit: (v: number) => void;
-}) {
+function EditableCell({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(value);
 
   React.useEffect(() => {
     setDraft(value);
   }, [value]);
-
-  if (disabled) {
-    return (
-      <td className="px-3 py-2 text-right font-mono text-xs text-text-muted tabular-nums">
-        {value === 0 ? "—" : formatBRL(value)}
-      </td>
-    );
-  }
 
   if (editing) {
     return (
