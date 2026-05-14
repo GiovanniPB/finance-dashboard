@@ -57,3 +57,4 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 
 export type Tables = Database["public"]["Tables"];
 export type Enums = Database["public"]["Enums"];
+export type Views = Database["public"]["Views"];

@@ -20,6 +20,7 @@ const LoginPage = lazy(() => import("@/routes/login"));
 const DashboardPage = lazy(() => import("@/routes/dashboard"));
 const TransactionsPage = lazy(() => import("@/routes/transactions"));
 const DrePage = lazy(() => import("@/routes/dre"));
+const BillsPage = lazy(() => import("@/routes/bills"));
 const CashflowPage = lazy(() => import("@/routes/cashflow"));
 const ImportPage = lazy(() => import("@/routes/import"));
 const PayrollEmployeesPage = lazy(() => import("@/routes/payroll.employees"));
@@ -69,6 +70,7 @@ export default function App() {
                     <Route index element={<DashboardPage />} />
                     <Route path="transactions" element={<TransactionsPage />} />
                     <Route path="dre" element={<DrePage />} />
+                    <Route path="bills" element={<BillsPage />} />
                     <Route path="cashflow" element={<CashflowPage />} />
                     <Route path="payroll" element={<PayrollLayout />}>
                       <Route index element={<Navigate to="runs" replace />} />
