@@ -1924,6 +1924,39 @@ export type Database = {
           tx_count_ytd: number
         }[]
       }
+      cost_center_analysis: {
+        Args: { p_company_id: string; p_from: string; p_to: string }
+        Returns: {
+          cost_center_code: string
+          cost_center_id: string
+          cost_center_name: string
+          expense: number
+          margin_pct: number
+          net: number
+          revenue: number
+          transaction_count: number
+        }[]
+      }
+      counterparty_analysis: {
+        Args: {
+          p_company_id: string
+          p_from: string
+          p_kind?: string
+          p_limit?: number
+          p_to: string
+        }
+        Returns: {
+          avg_ticket: number
+          counterparty_id: string
+          counterparty_kind: string
+          counterparty_name: string
+          last_movement: string
+          net: number
+          total_inflow: number
+          total_outflow: number
+          transaction_count: number
+        }[]
+      }
       create_installments: {
         Args: {
           p_first_due?: string
@@ -2048,6 +2081,28 @@ export type Database = {
           sign_hint: string
           sort_order: number
           total: number
+        }[]
+      }
+      dre_comparison: {
+        Args: {
+          p_company_id: string
+          p_period_a_from: string
+          p_period_a_to: string
+          p_period_b_from: string
+          p_period_b_to: string
+        }
+        Returns: {
+          account_id: string
+          code: string
+          dre_section: Database["public"]["Enums"]["dre_section"]
+          is_summary: boolean
+          kind: Database["public"]["Enums"]["account_kind"]
+          name: string
+          sort_order: number
+          total_a: number
+          total_b: number
+          variance_abs: number
+          variance_pct: number
         }[]
       }
       dre_consolidated: {
