@@ -1484,6 +1484,17 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: undefined
       }
+      approve_recurring_template: {
+        Args: { p_template_id: string }
+        Returns: string
+      }
+      generate_recurring_transactions: {
+        Args: { p_through_date?: string }
+        Returns: {
+          template_id: string
+          generated_count: number
+        }[]
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
