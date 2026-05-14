@@ -32,16 +32,6 @@ import { cn } from "@/lib/cn";
 import { formatMonthYear } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
-const PAYMENT_TYPE_LABELS: Record<string, string> = {
-  fixed: "Fixo",
-  variable: "Variável",
-  bonus: "Bônus",
-  vacation: "Férias",
-  thirteenth: "13º",
-  severance: "Rescisão",
-  adjustment: "Ajuste",
-};
-
 export default function PayrollRunDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -60,13 +50,26 @@ export default function PayrollRunDetailPage() {
 
   const totals = items.reduce(
     (acc, it) => {
+      acc.fixed += it.fixed_amount;
+      acc.variable += it.variable_amount;
+      acc.bonus += it.bonus_amount;
+      acc.profitSharing += it.profit_sharing_amount;
       acc.gross += it.gross_amount;
       acc.benefits += it.benefits;
       acc.charges += it.fgts + it.inss + it.irrf;
       acc.employerCost += it.employer_cost ?? 0;
       return acc;
     },
-    { gross: 0, benefits: 0, charges: 0, employerCost: 0 },
+    {
+      fixed: 0,
+      variable: 0,
+      bonus: 0,
+      profitSharing: 0,
+      gross: 0,
+      benefits: 0,
+      charges: 0,
+      employerCost: 0,
+    },
   );
 
   function handleUpdate(itemId: string, field: string, value: number) {
@@ -170,7 +173,13 @@ export default function PayrollRunDetailPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <SummaryCard label="Fixo" value={totals.fixed} />
+        <SummaryCard label="Variável" value={totals.variable} />
+        <SummaryCard label="Bônus" value={totals.bonus} />
+        <SummaryCard label="PL" value={totals.profitSharing} />
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <SummaryCard label="Bruto total" value={totals.gross} />
         <SummaryCard label="Benefícios" value={totals.benefits} />
         <SummaryCard label="Encargos (FGTS+INSS+IRRF)" value={totals.charges} />
@@ -189,7 +198,10 @@ export default function PayrollRunDetailPage() {
             <thead className="bg-surface-2/60">
               <tr className="border-b border-border">
                 <Th>Colaborador</Th>
-                <Th>Tipo</Th>
+                <Th align="right">Fixo</Th>
+                <Th align="right">Variável</Th>
+                <Th align="right">Bônus</Th>
+                <Th align="right">PL</Th>
                 <Th align="right">Bruto</Th>
                 <Th align="right">INSS</Th>
                 <Th align="right">FGTS</Th>
@@ -209,13 +221,25 @@ export default function PayrollRunDetailPage() {
                       <div className="text-2xs text-text-subtle">{item.employee.role}</div>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-xs text-text-muted">
-                    {PAYMENT_TYPE_LABELS[item.payment_type] ?? item.payment_type}
-                  </td>
                   <EditableCell
-                    value={item.gross_amount}
-                    onCommit={(v) => handleUpdate(item.id, "gross_amount", v)}
+                    value={item.fixed_amount}
+                    onCommit={(v) => handleUpdate(item.id, "fixed_amount", v)}
                   />
+                  <EditableCell
+                    value={item.variable_amount}
+                    onCommit={(v) => handleUpdate(item.id, "variable_amount", v)}
+                  />
+                  <EditableCell
+                    value={item.bonus_amount}
+                    onCommit={(v) => handleUpdate(item.id, "bonus_amount", v)}
+                  />
+                  <EditableCell
+                    value={item.profit_sharing_amount}
+                    onCommit={(v) => handleUpdate(item.id, "profit_sharing_amount", v)}
+                  />
+                  <td className="px-3 py-2 text-right font-mono text-xs font-semibold tabular-nums">
+                    {formatBRL(item.gross_amount)}
+                  </td>
                   <EditableCell
                     value={item.inss}
                     onCommit={(v) => handleUpdate(item.id, "inss", v)}
