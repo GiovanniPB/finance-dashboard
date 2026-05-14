@@ -27,6 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { AccountCombobox } from "@/features/accounts/AccountCombobox";
 import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
+import { CostCenterSelect } from "@/features/cost-centers/CostCenterSelect";
 
 import { useCreateBill, useCreateInstallments, useUpdateBill } from "../hooks";
 import { billFormSchema, emptyBillForm, type BillFormValues } from "../schema";
@@ -239,6 +240,24 @@ export function BillDrawer({ open, onOpenChange, bill, companyId, direction }: P
               {errors.accountId && (
                 <p className="text-2xs text-expense">{errors.accountId.message}</p>
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="costCenterId">
+                Centro de custo <span className="text-text-subtle">(opcional)</span>
+              </Label>
+              <Controller
+                name="costCenterId"
+                control={control}
+                render={({ field }) => (
+                  <CostCenterSelect
+                    id="costCenterId"
+                    companyId={companyId}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
             </div>
 
             <div className="space-y-1.5">
