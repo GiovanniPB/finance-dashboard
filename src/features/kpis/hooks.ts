@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchExpenseBreakdown, fetchKpiDashboard, fetchKpiDashboardConsolidated } from "./api";
+import {
+  fetchExpenseBreakdown,
+  fetchKpiDashboard,
+  fetchKpiDashboardConsolidated,
+  type KpiAggregate,
+} from "./api";
 
 export const kpiKeys = {
   dashboard: (companyId: string | null | undefined, year: number) =>
@@ -28,6 +33,43 @@ export function useKpiDashboardConsolidated(
     queryFn: () => fetchKpiDashboardConsolidated(organizationId ?? "", year),
     enabled: Boolean(organizationId),
   });
+}
+
+export interface YoYKpis {
+  current: KpiAggregate | undefined;
+  previous: KpiAggregate | undefined;
+  isLoading: boolean;
+}
+
+/**
+ * Fetches current + previous year KPIs in parallel for YoY comparisons.
+ * Works for both single company and consolidated scope.
+ */
+export function useKpiYoY(opts: {
+  companyId: string | null | undefined;
+  organizationId: string | null | undefined;
+  year: number;
+  consolidated: boolean;
+}): YoYKpis {
+  const currentSingle = useKpiDashboard(opts.consolidated ? null : opts.companyId, opts.year);
+  const previousSingle = useKpiDashboard(opts.consolidated ? null : opts.companyId, opts.year - 1);
+  const currentConsolidated = useKpiDashboardConsolidated(
+    opts.consolidated ? opts.organizationId : null,
+    opts.year,
+  );
+  const previousConsolidated = useKpiDashboardConsolidated(
+    opts.consolidated ? opts.organizationId : null,
+    opts.year - 1,
+  );
+
+  const current = opts.consolidated ? currentConsolidated : currentSingle;
+  const previous = opts.consolidated ? previousConsolidated : previousSingle;
+
+  return {
+    current: current.data,
+    previous: previous.data,
+    isLoading: current.isLoading || previous.isLoading,
+  };
 }
 
 export function useExpenseBreakdown(opts: {

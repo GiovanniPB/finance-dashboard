@@ -113,7 +113,7 @@ export function CommandPalette({ children }: { children?: React.ReactNode }) {
         open={open}
         onOpenChange={setOpen}
         label="Command palette"
-        className="data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 fixed inset-0 z-50 flex justify-center bg-black/20 px-4 pt-[15vh]"
+        className="fixed inset-0 z-50 flex justify-center bg-black/20 px-4 pt-[15vh] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
       >
         <div className="h-fit w-full max-w-3xl overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface shadow-[var(--shadow-lg)]">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
