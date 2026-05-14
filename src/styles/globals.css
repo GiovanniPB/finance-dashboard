@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "./tokens.css";
 
 /* ─── Tailwind v4 theme bridge ─────────────────────────────── */
@@ -74,6 +75,21 @@
     letter-spacing: -0.02em;
     font-weight: 600;
     color: var(--color-text);
+  }
+
+  /* Tailwind v4 removed the default cursor:pointer on buttons. Restore it
+     globally for any clickable element with role/type=button. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
   }
 
   /* Números monetários: fonte mono com tabular figures (alinhamento perfeito) */
