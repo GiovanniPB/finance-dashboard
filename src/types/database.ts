@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      attachments: {
+        Row: {
+          company_id: string
+          created_at: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["attachment_entity_type"]
+          file_name: string
+          id: string
+          mime_type: string
+          notes: string | null
+          size_bytes: number
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["attachment_entity_type"]
+          file_name: string
+          id?: string
+          mime_type: string
+          notes?: string | null
+          size_bytes: number
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["attachment_entity_type"]
+          file_name?: string
+          id?: string
+          mime_type?: string
+          notes?: string | null
+          size_bytes?: number
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -2009,6 +2059,12 @@ export type Database = {
         | "equity"
         | "tax_on_profit"
         | "summary"
+      attachment_entity_type:
+        | "transaction"
+        | "counterparty"
+        | "company"
+        | "payroll_run"
+        | "employee"
       bank_account_type:
         | "checking"
         | "savings"
@@ -2210,6 +2266,13 @@ export const Constants = {
         "equity",
         "tax_on_profit",
         "summary",
+      ],
+      attachment_entity_type: [
+        "transaction",
+        "counterparty",
+        "company",
+        "payroll_run",
+        "employee",
       ],
       bank_account_type: [
         "checking",

@@ -16,6 +16,7 @@ import {
 import { SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { AccountCombobox } from "@/features/accounts/AccountCombobox";
+import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
 
 import { transactionFormSchema, type TransactionFormValues } from "../schema";
 import type { TransactionWithRelations } from "../types";
@@ -224,6 +225,16 @@ export function TransactionForm({
             )}
           />
         </div>
+
+        {isEditing && existingTransaction ? (
+          <div className="rounded-[var(--radius-md)] border border-border bg-surface-2 p-3">
+            <AttachmentsSection
+              entityType="transaction"
+              entityId={existingTransaction.id}
+              companyId={existingTransaction.company_id}
+            />
+          </div>
+        ) : null}
       </SheetBody>
 
       <SheetFooter>
