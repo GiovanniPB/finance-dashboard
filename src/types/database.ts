@@ -1168,6 +1168,102 @@ export type Database = {
           },
         ]
       }
+      tax_obligations: {
+        Row: {
+          amount_estimated: number
+          amount_paid: number
+          base_amount: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string
+          id: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata: Json
+          notes: string | null
+          paid_at: string | null
+          rate_pct: number | null
+          reference_period: string
+          status: Database["public"]["Enums"]["tax_obligation_status"]
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_estimated?: number
+          amount_paid?: number
+          base_amount?: number | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date: string
+          id?: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata?: Json
+          notes?: string | null
+          paid_at?: string | null
+          rate_pct?: number | null
+          reference_period: string
+          status?: Database["public"]["Enums"]["tax_obligation_status"]
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_estimated?: number
+          amount_paid?: number
+          base_amount?: number | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata?: Json
+          notes?: string | null
+          paid_at?: string | null
+          rate_pct?: number | null
+          reference_period?: string
+          status?: Database["public"]["Enums"]["tax_obligation_status"]
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_obligations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_obligations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_obligations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_obligations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_obligations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_signed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           account_id: string
@@ -1885,6 +1981,17 @@ export type Database = {
           nickname: string
         }[]
       }
+      calculate_simples_anexo_iii: {
+        Args: { p_period_revenue: number; p_rbt12: number }
+        Returns: {
+          amount_due: number
+          deduction: number
+          effective_rate: number
+          nominal_rate: number
+          period_revenue: number
+          rbt12: number
+        }[]
+      }
       cashflow_daily: {
         Args: { p_company_id: string; p_end: string; p_start: string }
         Returns: {
@@ -1923,6 +2030,14 @@ export type Database = {
           tx_count: number
           tx_count_ytd: number
         }[]
+      }
+      compute_company_period_revenue: {
+        Args: { p_company_id: string; p_reference_period: string }
+        Returns: number
+      }
+      compute_company_rbt12: {
+        Args: { p_company_id: string; p_reference_period: string }
+        Returns: number
       }
       cost_center_analysis: {
         Args: { p_company_id: string; p_from: string; p_to: string }
@@ -2156,6 +2271,34 @@ export type Database = {
           template_id: string
         }[]
       }
+      generate_tax_obligations: {
+        Args: { p_company_id: string; p_reference_period: string }
+        Returns: {
+          amount_estimated: number
+          amount_paid: number
+          base_amount: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string
+          id: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata: Json
+          notes: string | null
+          paid_at: string | null
+          rate_pct: number | null
+          reference_period: string
+          status: Database["public"]["Enums"]["tax_obligation_status"]
+          transaction_id: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "tax_obligations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_company_access: { Args: { p_company_id: string }; Returns: boolean }
       ignore_statement_line: {
         Args: { p_line_id: string }
@@ -2230,6 +2373,44 @@ export type Database = {
           partner_reimbursement: number
           revenue_deductions: number
         }[]
+      }
+      mark_overdue_obligations: {
+        Args: { p_company_id: string }
+        Returns: number
+      }
+      mark_tax_paid: {
+        Args: {
+          p_account_id: string
+          p_actual_amount?: number
+          p_bank_account_id: string
+          p_obligation_id: string
+          p_paid_at: string
+        }
+        Returns: {
+          amount_estimated: number
+          amount_paid: number
+          base_amount: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string
+          id: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata: Json
+          notes: string | null
+          paid_at: string | null
+          rate_pct: number | null
+          reference_period: string
+          status: Database["public"]["Enums"]["tax_obligation_status"]
+          transaction_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tax_obligations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       match_statement_line: {
         Args: { p_line_id: string; p_transaction_id: string }
@@ -2444,6 +2625,20 @@ export type Database = {
         | "semiannual"
         | "yearly"
       statement_line_status: "unmatched" | "matched" | "created" | "ignored"
+      tax_obligation_kind:
+        | "das_simples"
+        | "darf_irpj"
+        | "darf_csll"
+        | "darf_pis"
+        | "darf_cofins"
+        | "gps_inss"
+        | "fgts"
+        | "icms"
+        | "iss"
+        | "irrf_retencao"
+        | "inss_retencao"
+        | "custom"
+      tax_obligation_status: "pending" | "paid" | "overdue" | "waived"
       transaction_direction: "inflow" | "outflow"
       transaction_status:
         | "scheduled"
@@ -2653,6 +2848,21 @@ export const Constants = {
         "yearly",
       ],
       statement_line_status: ["unmatched", "matched", "created", "ignored"],
+      tax_obligation_kind: [
+        "das_simples",
+        "darf_irpj",
+        "darf_csll",
+        "darf_pis",
+        "darf_cofins",
+        "gps_inss",
+        "fgts",
+        "icms",
+        "iss",
+        "irrf_retencao",
+        "inss_retencao",
+        "custom",
+      ],
+      tax_obligation_status: ["pending", "paid", "overdue", "waived"],
       transaction_direction: ["inflow", "outflow"],
       transaction_status: [
         "scheduled",
