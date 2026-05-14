@@ -1488,6 +1488,10 @@ export type Database = {
         Args: { p_template_id: string }
         Returns: string
       }
+      backfill_recurring_template: {
+        Args: { p_template_id: string; p_through_date?: string }
+        Returns: number
+      }
       generate_recurring_transactions: {
         Args: { p_through_date?: string }
         Returns: {

@@ -108,8 +108,13 @@ export function RecurringDrawer({ open, onOpenChange, template, companyId }: Pro
       );
     } else {
       create.mutate(payload, {
-        onSuccess: () => {
-          toast.success("Recorrência criada");
+        onSuccess: ({ backfilledCount }) => {
+          toast.success("Recorrência criada", {
+            description:
+              backfilledCount > 0
+                ? `${backfilledCount} lançamento(s) retroativo(s) gerado(s)`
+                : undefined,
+          });
           onOpenChange(false);
         },
         onError: (err) => toast.error("Erro", { description: err.message }),

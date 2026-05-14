@@ -29,16 +29,28 @@ export async function fetchRecurringTemplates(
   return (data ?? []) satisfies RecurringTemplateWithJoins[];
 }
 
+export interface CreateRecurringResult {
+  template: RecurringTemplate;
+  backfilledCount: number;
+}
+
 export async function createRecurringTemplate(
   payload: RecurringTemplateInsert,
-): Promise<RecurringTemplate> {
+): Promise<CreateRecurringResult> {
   const { data, error } = await supabase
     .from("recurring_templates")
     .insert(payload)
     .select()
     .single();
   if (error) throw error;
-  return data;
+
+  // Auto-backfill occurrences from start_date up to today (covers retroactive templates).
+  const { data: count, error: backfillError } = await supabase.rpc("backfill_recurring_template", {
+    p_template_id: data.id,
+  });
+  if (backfillError) throw backfillError;
+
+  return { template: data, backfilledCount: count ?? 0 };
 }
 
 export async function updateRecurringTemplate(

@@ -26,7 +26,12 @@ export function useCreateRecurringTemplate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: RecurringTemplateInsert) => createRecurringTemplate(payload),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["recurring"] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["recurring"] });
+      void qc.invalidateQueries({ queryKey: ["transactions"] });
+      void qc.invalidateQueries({ queryKey: ["cashflow"] });
+      void qc.invalidateQueries({ queryKey: ["dre"] });
+    },
   });
 }
 
