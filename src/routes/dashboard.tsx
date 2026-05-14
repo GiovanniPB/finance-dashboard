@@ -4,6 +4,7 @@ import { parseAsInteger, useQueryState } from "nuqs";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InsightCallout } from "@/components/ui/insight-callout";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -14,15 +15,18 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
-import { useExpenseBreakdown, useKpiDashboard, useKpiDashboardConsolidated } from "@/features/kpis";
+import { useExpenseBreakdown, useKpiYoY } from "@/features/kpis";
 import {
   ExpenseDonut,
   HeroRevenueChart,
   RevenueVsResultChart,
+  YoYAreaChart,
+  YoYBarChart,
 } from "@/features/kpis/components/lazy";
 import { cn } from "@/lib/cn";
 import { formatMonthYear } from "@/lib/dates";
 import { formatBRL, formatPercent } from "@/lib/format";
+import { buildExpenseInsight, buildMarginInsight, buildYoYInsight } from "@/lib/insights";
 
 const ORGANIZATION_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -34,10 +38,16 @@ export default function DashboardPage() {
 
   const companyId = isConsolidated ? null : (selectedCompany?.id ?? null);
 
-  const perCompany = useKpiDashboard(companyId, year);
-  const consolidated = useKpiDashboardConsolidated(isConsolidated ? ORGANIZATION_ID : null, year);
-  const kpis = isConsolidated ? consolidated.data : perCompany.data;
-  const kpisLoading = isConsolidated ? consolidated.isLoading : perCompany.isLoading;
+  const {
+    current: kpis,
+    previous: kpisPrev,
+    isLoading: kpisLoading,
+  } = useKpiYoY({
+    companyId,
+    organizationId: ORGANIZATION_ID,
+    year,
+    consolidated: isConsolidated,
+  });
 
   const expenses = useExpenseBreakdown({
     companyId,
@@ -57,6 +67,113 @@ export default function DashboardPage() {
         resultado: m.net_result,
       })),
     [kpis?.monthly],
+  );
+
+  /** YoY data: merge current + previous monthly arrays by month index (0-11). */
+  const yoyData = useMemo(() => {
+    const months = [
+      "jan",
+      "fev",
+      "mar",
+      "abr",
+      "mai",
+      "jun",
+      "jul",
+      "ago",
+      "set",
+      "out",
+      "nov",
+      "dez",
+    ];
+    const cur = kpis?.monthly ?? [];
+    const prev = kpisPrev?.monthly ?? [];
+    const byIdx = (arr: typeof cur, i: number) => {
+      return arr.find((m) => Number(m.month_start.slice(5, 7)) === i + 1);
+    };
+    return months
+      .map((label, i) => ({
+        label,
+        idx: i,
+        currentRow: byIdx(cur, i),
+        previousRow: byIdx(prev, i),
+      }))
+      .filter((row) => row.currentRow != null || row.previousRow != null);
+  }, [kpis?.monthly, kpisPrev?.monthly]);
+
+  const grossYoY = useMemo(
+    () =>
+      yoyData.map((r) => ({
+        month: r.label,
+        current: r.currentRow?.gross_revenue ?? 0,
+        previous: r.previousRow?.gross_revenue ?? 0,
+      })),
+    [yoyData],
+  );
+
+  const grossYoYAcc = useMemo(() => {
+    let curAcc = 0;
+    let prevAcc = 0;
+    return yoyData.map((r) => {
+      curAcc += r.currentRow?.gross_revenue ?? 0;
+      prevAcc += r.previousRow?.gross_revenue ?? 0;
+      return { month: r.label, current: curAcc, previous: prevAcc };
+    });
+  }, [yoyData]);
+
+  const grossInsight = useMemo(
+    () =>
+      buildYoYInsight(
+        {
+          current: (kpis?.monthly ?? []).map((m) => ({
+            month_start: m.month_start,
+            value: m.gross_revenue,
+          })),
+          previous: (kpisPrev?.monthly ?? []).map((m) => ({
+            month_start: m.month_start,
+            value: m.gross_revenue,
+          })),
+        },
+        "Receita bruta",
+      ),
+    [kpis?.monthly, kpisPrev?.monthly],
+  );
+
+  const profitInsight = useMemo(
+    () =>
+      buildYoYInsight(
+        {
+          current: (kpis?.monthly ?? []).map((m) => ({
+            month_start: m.month_start,
+            value: m.net_result,
+          })),
+          previous: (kpisPrev?.monthly ?? []).map((m) => ({
+            month_start: m.month_start,
+            value: m.net_result,
+          })),
+        },
+        "Lucro líquido",
+      ),
+    [kpis?.monthly, kpisPrev?.monthly],
+  );
+
+  const marginInsight = useMemo(() => {
+    if (!kpis?.ytd) return null;
+    return buildMarginInsight({
+      current: (kpis.monthly ?? []).map((m) => ({
+        month_start: m.month_start,
+        gross_margin_pct: m.gross_margin_pct,
+        net_margin_pct: m.net_margin_pct,
+      })),
+      ytdGross: kpis.ytd.gross_margin_pct,
+      ytdNet: kpis.ytd.net_margin_pct,
+      previousYtdGross: kpisPrev?.ytd.gross_margin_pct ?? null,
+      previousYtdNet: kpisPrev?.ytd.net_margin_pct ?? null,
+    });
+  }, [kpis, kpisPrev]);
+
+  const expenseInsight = useMemo(
+    () => (expenses.data ? buildExpenseInsight(expenses.data) : null),
+    [expenses.data],
   );
 
   const showSkeleton = kpisLoading || !ytd;
@@ -170,7 +287,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Receita & Resultado · {year}</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             {chartData.length === 0 && showSkeleton ? (
               <Skeleton className="h-[260px] w-full" />
             ) : (
@@ -179,6 +296,11 @@ export default function DashboardPage() {
                   <RevenueVsResultChart data={chartData} />
                 </Suspense>
               </div>
+            )}
+            {marginInsight && (
+              <InsightCallout direction={marginInsight.direction}>
+                {marginInsight.message}
+              </InsightCallout>
             )}
           </CardContent>
         </Card>
@@ -210,10 +332,107 @@ export default function DashboardPage() {
                     </li>
                   ))}
                 </ul>
+                {expenseInsight && (
+                  <InsightCallout tone="info">{expenseInsight.message}</InsightCallout>
+                )}
               </div>
             ) : (
               <p className="py-8 text-center text-sm text-text-muted">Sem despesas no período.</p>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* YoY comparison section */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Receita Bruta — {year} vs {year - 1}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {showSkeleton ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : grossYoY.length > 0 ? (
+              <div className="h-[260px]">
+                <Suspense fallback={<Skeleton className="h-full w-full" />}>
+                  <YoYBarChart
+                    data={grossYoY}
+                    currentLabel={String(year)}
+                    previousLabel={String(year - 1)}
+                  />
+                </Suspense>
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-text-muted">Sem dados no período.</p>
+            )}
+            <InsightCallout direction={grossInsight.direction}>
+              {grossInsight.message}
+            </InsightCallout>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Receita Acumulada — {year} vs {year - 1}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {showSkeleton ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : grossYoYAcc.length > 0 ? (
+              <div className="h-[260px]">
+                <Suspense fallback={<Skeleton className="h-full w-full" />}>
+                  <YoYAreaChart
+                    data={grossYoYAcc}
+                    currentLabel={`${year} acumulado`}
+                    previousLabel={`${year - 1} acumulado`}
+                    showLegend
+                  />
+                </Suspense>
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-text-muted">Sem dados no período.</p>
+            )}
+            <InsightCallout tone="info">
+              Comparação mês a mês do acumulado: cada ponto representa a soma do início do ano até
+              aquele mês.
+            </InsightCallout>
+          </CardContent>
+        </Card>
+
+        <Card className="xl:col-span-2">
+          <CardHeader>
+            <CardTitle>
+              Lucro Líquido Mensal — {year} vs {year - 1}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {showSkeleton ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : yoyData.length > 0 ? (
+              <div className="h-[260px]">
+                <Suspense fallback={<Skeleton className="h-full w-full" />}>
+                  <YoYBarChart
+                    data={yoyData.map((r) => ({
+                      month: r.label,
+                      current: r.currentRow?.net_result ?? 0,
+                      previous: r.previousRow?.net_result ?? 0,
+                    }))}
+                    currentLabel={String(year)}
+                    previousLabel={String(year - 1)}
+                    currentColor="oklch(64% 0.18 158)"
+                  />
+                </Suspense>
+              </div>
+            ) : (
+              <p className="py-8 text-center text-sm text-text-muted">Sem dados no período.</p>
+            )}
+            <InsightCallout direction={profitInsight.direction}>
+              {profitInsight.message}
+            </InsightCallout>
           </CardContent>
         </Card>
       </div>

@@ -50,8 +50,8 @@ export const SheetContent = React.forwardRef<
         "data-[state=open]:animate-in data-[state=open]:duration-200",
         "data-[state=closed]:animate-out data-[state=closed]:duration-200",
         side === "right"
-          ? "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right right-0"
-          : "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left left-0",
+          ? "right-0 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right"
+          : "left-0 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
         SIZE_MAP[size],
         "max-w-[100vw]",
         className,
