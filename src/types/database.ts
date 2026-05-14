@@ -1468,6 +1468,19 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      company_stats: {
+        Args: never
+        Returns: {
+          company_id: string
+          tx_count: number
+          tx_count_ytd: number
+          revenue_ytd: number
+          expense_ytd: number
+          last_activity: string | null
+          bank_account_count: number
+          employee_count_active: number
+        }[]
+      }
       dre_by_company: {
         Args: { p_company_id: string; p_end: string; p_start: string }
         Returns: {
