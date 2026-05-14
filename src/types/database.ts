@@ -363,6 +363,35 @@ export type Database = {
           },
         ]
       }
+      company_access: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_access_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_centers: {
         Row: {
           code: string
@@ -403,27 +432,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      company_access: {
-        Row: {
-          company_id: string
-          created_at: string
-          created_by: string | null
-          user_id: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          user_id: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          user_id?: string
-        }
-        Relationships: []
       }
       counterparties: {
         Row: {
@@ -737,7 +745,7 @@ export type Database = {
           employer_cost?: number | null
           fgts?: number
           fixed_amount?: number
-          gross_amount?: number
+          gross_amount: number
           id?: string
           inss?: number
           irrf?: number
@@ -1432,6 +1440,18 @@ export type Database = {
       }
     }
     Functions: {
+      advance_recurrence_date: {
+        Args: {
+          p_current: string
+          p_day_of_month?: number
+          p_frequency: string
+        }
+        Returns: string
+      }
+      approve_recurring_template: {
+        Args: { p_template_id: string }
+        Returns: string
+      }
       audit_log_list: {
         Args: {
           p_changed_by?: string
@@ -1456,6 +1476,10 @@ export type Database = {
           table_name: string
           total_count: number
         }[]
+      }
+      backfill_recurring_template: {
+        Args: { p_template_id: string; p_through_date?: string }
+        Returns: number
       }
       bank_balances: {
         Args: { p_company_id: string; p_reference_month: string }
@@ -1493,58 +1517,33 @@ export type Database = {
           failed_count: number
         }[]
       }
+      company_stats: {
+        Args: never
+        Returns: {
+          bank_account_count: number
+          company_id: string
+          employee_count_active: number
+          expense_ytd: number
+          last_activity: string
+          revenue_ytd: number
+          tx_count: number
+          tx_count_ytd: number
+        }[]
+      }
       create_payroll_run_with_active_employees: {
         Args: { p_company_id: string; p_reference_month: string }
         Returns: string
-      }
-      delete_payroll_run: {
-        Args: { p_run_id: string }
-        Returns: undefined
-      }
-      delete_employee: {
-        Args: { p_employee_id: string }
-        Returns: undefined
-      }
-      approve_recurring_template: {
-        Args: { p_template_id: string }
-        Returns: string
-      }
-      backfill_recurring_template: {
-        Args: { p_template_id: string; p_through_date?: string }
-        Returns: number
-      }
-      generate_recurring_transactions: {
-        Args: { p_through_date?: string }
-        Returns: {
-          template_id: string
-          generated_count: number
-        }[]
       }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
-      is_super_admin: {
-        Args: never
-        Returns: boolean
+      delete_chart_account: {
+        Args: { p_account_id: string }
+        Returns: undefined
       }
-      has_company_access: {
-        Args: { p_company_id: string }
-        Returns: boolean
-      }
-      company_stats: {
-        Args: never
-        Returns: {
-          company_id: string
-          tx_count: number
-          tx_count_ytd: number
-          revenue_ytd: number
-          expense_ytd: number
-          last_activity: string | null
-          bank_account_count: number
-          employee_count_active: number
-        }[]
-      }
+      delete_employee: { Args: { p_employee_id: string }; Returns: undefined }
+      delete_payroll_run: { Args: { p_run_id: string }; Returns: undefined }
       dre_by_company: {
         Args: { p_company_id: string; p_end: string; p_start: string }
         Returns: {
@@ -1594,7 +1593,16 @@ export type Database = {
           total: number
         }[]
       }
+      generate_recurring_transactions: {
+        Args: { p_through_date?: string }
+        Returns: {
+          generated_count: number
+          template_id: string
+        }[]
+      }
+      has_company_access: { Args: { p_company_id: string }; Returns: boolean }
       is_financial_user: { Args: never; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
       kpi_dashboard: {
         Args: { p_company_id: string; p_year: number }
         Returns: {
@@ -1636,6 +1644,10 @@ export type Database = {
           partner_reimbursement: number
           revenue_deductions: number
         }[]
+      }
+      materialize_recurring_occurrence: {
+        Args: { p_template_id: string }
+        Returns: string
       }
       post_payroll_run: {
         Args: { p_default_account_id: string; p_run_id: string }
