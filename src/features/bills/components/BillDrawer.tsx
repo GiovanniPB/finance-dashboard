@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { AccountCombobox } from "@/features/accounts/AccountCombobox";
+import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
 
 import { useCreateBill, useCreateInstallments, useUpdateBill } from "../hooks";
 import { billFormSchema, emptyBillForm, type BillFormValues } from "../schema";
@@ -331,6 +332,16 @@ export function BillDrawer({ open, onOpenChange, bill, companyId, direction }: P
                 <Input id="accrualDate" type="date" {...register("accrualDate")} />
               </div>
             </div>
+
+            {isEditing && bill?.id ? (
+              <div className="rounded-[var(--radius-md)] border border-border bg-surface-2 p-3">
+                <AttachmentsSection
+                  entityType="transaction"
+                  entityId={bill.id}
+                  companyId={companyId}
+                />
+              </div>
+            ) : null}
           </SheetBody>
 
           <SheetFooter>
