@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createPayrollRun,
   deletePayrollItem,
+  deletePayrollRun,
   fetchPayrollItems,
   fetchPayrollRun,
   fetchPayrollRuns,
@@ -64,6 +65,20 @@ export function useDeletePayrollItem() {
   return useMutation({
     mutationFn: (id: string) => deletePayrollItem(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["payroll"] }),
+  });
+}
+
+export function useDeletePayrollRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => deletePayrollRun(runId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["payroll"] });
+      void qc.invalidateQueries({ queryKey: ["transactions"] });
+      void qc.invalidateQueries({ queryKey: ["kpis"] });
+      void qc.invalidateQueries({ queryKey: ["dre"] });
+      void qc.invalidateQueries({ queryKey: ["cashflow"] });
+    },
   });
 }
 

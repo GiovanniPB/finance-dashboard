@@ -44,3 +44,8 @@ export async function updateEmployee(id: string, payload: EmployeeUpdate): Promi
   if (error) throw error;
   return data;
 }
+
+export async function deleteEmployee(id: string): Promise<void> {
+  const { error } = await supabase.rpc("delete_employee", { p_employee_id: id });
+  if (error) throw error;
+}

@@ -77,11 +77,16 @@ export function EmployeeDrawer({ open, onOpenChange, employee, companyId }: Prop
     register,
     control,
     handleSubmit,
+    reset,
     formState: { errors, isDirty },
   } = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: initialValues,
   });
+
+  React.useEffect(() => {
+    reset(initialValues);
+  }, [initialValues, reset]);
 
   const onSubmit = handleSubmit((values) => {
     const payload = {

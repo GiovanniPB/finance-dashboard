@@ -689,10 +689,12 @@ export type Database = {
       payroll_items: {
         Row: {
           benefits: number
+          bonus_amount: number
           created_at: string
           employee_id: string
           employer_cost: number | null
           fgts: number
+          fixed_amount: number
           gross_amount: number
           id: string
           inss: number
@@ -702,15 +704,19 @@ export type Database = {
           other_deductions: number
           payment_type: Database["public"]["Enums"]["payroll_payment_type"]
           payroll_run_id: string
+          profit_sharing_amount: number
           updated_at: string
+          variable_amount: number
         }
         Insert: {
           benefits?: number
+          bonus_amount?: number
           created_at?: string
           employee_id: string
           employer_cost?: number | null
           fgts?: number
-          gross_amount: number
+          fixed_amount?: number
+          gross_amount?: number
           id?: string
           inss?: number
           irrf?: number
@@ -719,14 +725,18 @@ export type Database = {
           other_deductions?: number
           payment_type: Database["public"]["Enums"]["payroll_payment_type"]
           payroll_run_id: string
+          profit_sharing_amount?: number
           updated_at?: string
+          variable_amount?: number
         }
         Update: {
           benefits?: number
+          bonus_amount?: number
           created_at?: string
           employee_id?: string
           employer_cost?: number | null
           fgts?: number
+          fixed_amount?: number
           gross_amount?: number
           id?: string
           inss?: number
@@ -736,7 +746,9 @@ export type Database = {
           other_deductions?: number
           payment_type?: Database["public"]["Enums"]["payroll_payment_type"]
           payroll_run_id?: string
+          profit_sharing_amount?: number
           updated_at?: string
+          variable_amount?: number
         }
         Relationships: [
           {
@@ -1463,6 +1475,14 @@ export type Database = {
       create_payroll_run_with_active_employees: {
         Args: { p_company_id: string; p_reference_month: string }
         Returns: string
+      }
+      delete_payroll_run: {
+        Args: { p_run_id: string }
+        Returns: undefined
+      }
+      delete_employee: {
+        Args: { p_employee_id: string }
+        Returns: undefined
       }
       current_user_role: {
         Args: never
