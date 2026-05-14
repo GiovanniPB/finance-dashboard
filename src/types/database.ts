@@ -159,6 +159,115 @@ export type Database = {
           },
         ]
       }
+      bank_statement_lines: {
+        Row: {
+          amount: number
+          balance_after: number | null
+          bank_account_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          document_ref: string | null
+          fit_id: string | null
+          id: string
+          import_batch_id: string | null
+          import_source: string
+          matched_at: string | null
+          matched_by: string | null
+          matched_transaction_id: string | null
+          notes: string | null
+          posted_at: string
+          raw: Json
+          status: Database["public"]["Enums"]["statement_line_status"]
+        }
+        Insert: {
+          amount: number
+          balance_after?: number | null
+          bank_account_id: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          document_ref?: string | null
+          fit_id?: string | null
+          id?: string
+          import_batch_id?: string | null
+          import_source?: string
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_transaction_id?: string | null
+          notes?: string | null
+          posted_at: string
+          raw?: Json
+          status?: Database["public"]["Enums"]["statement_line_status"]
+        }
+        Update: {
+          amount?: number
+          balance_after?: number | null
+          bank_account_id?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          document_ref?: string | null
+          fit_id?: string | null
+          id?: string
+          import_batch_id?: string | null
+          import_source?: string
+          matched_at?: string | null
+          matched_by?: string | null
+          matched_transaction_id?: string | null
+          notes?: string | null
+          posted_at?: string
+          raw?: Json
+          status?: Database["public"]["Enums"]["statement_line_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statement_lines_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_transaction_id_fkey"
+            columns: ["matched_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_transaction_id_fkey"
+            columns: ["matched_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_transaction_id_fkey"
+            columns: ["matched_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_transaction_id_fkey"
+            columns: ["matched_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_signed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_balance_snapshots: {
         Row: {
           bank_account_id: string
@@ -1867,6 +1976,54 @@ export type Database = {
         Args: { p_company_id: string; p_reference_month: string }
         Returns: string
       }
+      create_transaction_from_line: {
+        Args: {
+          p_account_id: string
+          p_cost_center_id?: string
+          p_counterparty_id?: string
+          p_line_id: string
+        }
+        Returns: {
+          account_id: string
+          accrual_date: string
+          amount: number
+          bank_account_id: string | null
+          cash_date: string | null
+          company_id: string
+          cost_center_id: string | null
+          counterparty_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string
+          direction: Database["public"]["Enums"]["transaction_direction"]
+          discount_amount: number
+          document_ref: string | null
+          due_date: string | null
+          fine_amount: number
+          id: string
+          import_batch_id: string | null
+          installment_n: number | null
+          installment_total: number | null
+          interest_amount: number
+          metadata: Json
+          notes: string | null
+          paid_amount: number
+          parent_id: string | null
+          payroll_item_id: string | null
+          recurring_template_id: string | null
+          status: Database["public"]["Enums"]["transaction_status"]
+          tags: string[]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "transactions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
@@ -1934,6 +2091,36 @@ export type Database = {
         }[]
       }
       has_company_access: { Args: { p_company_id: string }; Returns: boolean }
+      ignore_statement_line: {
+        Args: { p_line_id: string }
+        Returns: {
+          amount: number
+          balance_after: number | null
+          bank_account_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          document_ref: string | null
+          fit_id: string | null
+          id: string
+          import_batch_id: string | null
+          import_source: string
+          matched_at: string | null
+          matched_by: string | null
+          matched_transaction_id: string | null
+          notes: string | null
+          posted_at: string
+          raw: Json
+          status: Database["public"]["Enums"]["statement_line_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bank_statement_lines"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       is_financial_user: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
       kpi_dashboard: {
@@ -1977,6 +2164,36 @@ export type Database = {
           partner_reimbursement: number
           revenue_deductions: number
         }[]
+      }
+      match_statement_line: {
+        Args: { p_line_id: string; p_transaction_id: string }
+        Returns: {
+          amount: number
+          balance_after: number | null
+          bank_account_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          document_ref: string | null
+          fit_id: string | null
+          id: string
+          import_batch_id: string | null
+          import_source: string
+          matched_at: string | null
+          matched_by: string | null
+          matched_transaction_id: string | null
+          notes: string | null
+          posted_at: string
+          raw: Json
+          status: Database["public"]["Enums"]["statement_line_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bank_statement_lines"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       materialize_recurring_occurrence: {
         Args: { p_template_id: string }
@@ -2036,6 +2253,52 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "transactions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      suggest_match_candidates: {
+        Args: { p_line_id: string; p_max?: number }
+        Returns: {
+          account_code: string
+          account_name: string
+          accrual_date: string
+          amount: number
+          cash_date: string
+          counterparty_name: string
+          description: string
+          direction: Database["public"]["Enums"]["transaction_direction"]
+          due_date: string
+          score: number
+          transaction_id: string
+        }[]
+      }
+      unmatch_statement_line: {
+        Args: { p_line_id: string }
+        Returns: {
+          amount: number
+          balance_after: number | null
+          bank_account_id: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          document_ref: string | null
+          fit_id: string | null
+          id: string
+          import_batch_id: string | null
+          import_source: string
+          matched_at: string | null
+          matched_by: string | null
+          matched_transaction_id: string | null
+          notes: string | null
+          posted_at: string
+          raw: Json
+          status: Database["public"]["Enums"]["statement_line_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bank_statement_lines"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -2114,6 +2377,7 @@ export type Database = {
         | "quarterly"
         | "semiannual"
         | "yearly"
+      statement_line_status: "unmatched" | "matched" | "created" | "ignored"
       transaction_direction: "inflow" | "outflow"
       transaction_status:
         | "scheduled"
@@ -2322,6 +2586,7 @@ export const Constants = {
         "semiannual",
         "yearly",
       ],
+      statement_line_status: ["unmatched", "matched", "created", "ignored"],
       transaction_direction: ["inflow", "outflow"],
       transaction_status: [
         "scheduled",
