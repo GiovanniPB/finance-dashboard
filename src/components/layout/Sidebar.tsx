@@ -7,11 +7,13 @@ import {
   LayoutDashboard,
   Repeat,
   Settings,
+  ShieldCheck,
   TrendingUp,
   Upload,
   Users,
 } from "lucide-react";
 
+import { usePermissions } from "@/features/auth/usePermissions";
 import { cn } from "@/lib/cn";
 
 interface NavItem {
@@ -37,12 +39,15 @@ const adminItems: NavItem[] = [
   { to: "/settings", label: "Configurações", icon: Settings },
 ];
 
+const superAdminItems: NavItem[] = [{ to: "/users", label: "Usuários", icon: ShieldCheck }];
+
 interface Props {
   /** When provided, clicking a link triggers this (for mobile drawer dismiss). */
   onNavigate?: () => void;
 }
 
 export function Sidebar({ onNavigate }: Props) {
+  const { isSuperAdmin } = usePermissions();
   return (
     <aside className="flex h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex h-[var(--topbar-height)] items-center gap-2.5 border-b border-border px-5">
@@ -80,6 +85,24 @@ export function Sidebar({ onNavigate }: Props) {
             </li>
           ))}
         </ul>
+
+        {isSuperAdmin && (
+          <>
+            <div className="text-2xs mt-6 px-2 pt-3 pb-2 font-medium tracking-wide text-text-subtle uppercase">
+              Sistema
+            </div>
+            <ul className="space-y-0.5">
+              {superAdminItems.map((item) => (
+                <li key={item.to}>
+                  <NavLink to={item.to} onClick={onNavigate} className={navLinkClass}>
+                    <item.icon className="size-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </nav>
 
       <div className="border-t border-border p-4">

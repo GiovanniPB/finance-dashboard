@@ -31,6 +31,7 @@ const SettingsBanksPage = lazy(() => import("@/routes/settings.banks"));
 const SettingsCostCentersPage = lazy(() => import("@/routes/settings.cost-centers"));
 const SettingsCounterpartiesPage = lazy(() => import("@/routes/settings.counterparties"));
 const CompaniesPage = lazy(() => import("@/routes/companies"));
+const UsersPage = lazy(() => import("@/routes/users"));
 
 function RouteFallback() {
   return (
@@ -76,6 +77,7 @@ export default function App() {
                     <Route path="audit" element={<AuditPage />} />
                     <Route path="import" element={<ImportPage />} />
                     <Route path="companies" element={<CompaniesPage />} />
+                    <Route path="users" element={<UsersPage />} />
                     <Route path="settings" element={<SettingsLayout />}>
                       <Route path="banks" element={<SettingsBanksPage />} />
                       <Route path="cost-centers" element={<SettingsCostCentersPage />} />
