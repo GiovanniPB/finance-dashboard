@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 @import "./tokens.css";
 
 /* ─── Tailwind v4 theme bridge ─────────────────────────────── */
