@@ -679,6 +679,13 @@ export type Database = {
             foreignKeyName: "import_rows_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_rows_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
             referencedRelation: "v_transactions"
             referencedColumns: ["id"]
           },
@@ -1018,12 +1025,19 @@ export type Database = {
           deleted_by: string | null
           description: string
           direction: Database["public"]["Enums"]["transaction_direction"]
+          discount_amount: number
           document_ref: string | null
           due_date: string | null
+          fine_amount: number
           id: string
           import_batch_id: string | null
+          installment_n: number | null
+          installment_total: number | null
+          interest_amount: number
           metadata: Json
           notes: string | null
+          paid_amount: number
+          parent_id: string | null
           payroll_item_id: string | null
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
@@ -1045,12 +1059,19 @@ export type Database = {
           deleted_by?: string | null
           description: string
           direction: Database["public"]["Enums"]["transaction_direction"]
+          discount_amount?: number
           document_ref?: string | null
           due_date?: string | null
+          fine_amount?: number
           id?: string
           import_batch_id?: string | null
+          installment_n?: number | null
+          installment_total?: number | null
+          interest_amount?: number
           metadata?: Json
           notes?: string | null
+          paid_amount?: number
+          parent_id?: string | null
           payroll_item_id?: string | null
           recurring_template_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
@@ -1072,12 +1093,19 @@ export type Database = {
           deleted_by?: string | null
           description?: string
           direction?: Database["public"]["Enums"]["transaction_direction"]
+          discount_amount?: number
           document_ref?: string | null
           due_date?: string | null
+          fine_amount?: number
           id?: string
           import_batch_id?: string | null
+          installment_n?: number | null
+          installment_total?: number | null
+          interest_amount?: number
           metadata?: Json
           notes?: string | null
+          paid_amount?: number
+          parent_id?: string | null
           payroll_item_id?: string | null
           recurring_template_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
@@ -1141,10 +1169,217 @@ export type Database = {
             referencedRelation: "counterparties"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_signed"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
+      v_bills: {
+        Row: {
+          account_id: string | null
+          accrual_date: string | null
+          amount: number | null
+          bank_account_id: string | null
+          cash_date: string | null
+          company_id: string | null
+          cost_center_id: string | null
+          counterparty_id: string | null
+          created_at: string | null
+          days_overdue: number | null
+          description: string | null
+          direction: Database["public"]["Enums"]["transaction_direction"] | null
+          discount_amount: number | null
+          document_ref: string | null
+          due_date: string | null
+          effective_status: string | null
+          fine_amount: number | null
+          id: string | null
+          installment_n: number | null
+          installment_total: number | null
+          interest_amount: number | null
+          notes: string | null
+          open_amount: number | null
+          paid_amount: number | null
+          parent_id: string | null
+          status: Database["public"]["Enums"]["transaction_status"] | null
+          tags: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          accrual_date?: string | null
+          amount?: number | null
+          bank_account_id?: string | null
+          cash_date?: string | null
+          company_id?: string | null
+          cost_center_id?: string | null
+          counterparty_id?: string | null
+          created_at?: string | null
+          days_overdue?: never
+          description?: string | null
+          direction?:
+            | Database["public"]["Enums"]["transaction_direction"]
+            | null
+          discount_amount?: number | null
+          document_ref?: string | null
+          due_date?: string | null
+          effective_status?: never
+          fine_amount?: number | null
+          id?: string | null
+          installment_n?: number | null
+          installment_total?: number | null
+          interest_amount?: number | null
+          notes?: string | null
+          open_amount?: never
+          paid_amount?: number | null
+          parent_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          accrual_date?: string | null
+          amount?: number | null
+          bank_account_id?: string | null
+          cash_date?: string | null
+          company_id?: string | null
+          cost_center_id?: string | null
+          counterparty_id?: string | null
+          created_at?: string | null
+          days_overdue?: never
+          description?: string | null
+          direction?:
+            | Database["public"]["Enums"]["transaction_direction"]
+            | null
+          discount_amount?: number | null
+          document_ref?: string | null
+          due_date?: string | null
+          effective_status?: never
+          fine_amount?: number | null
+          id?: string | null
+          installment_n?: number | null
+          installment_total?: number | null
+          interest_amount?: number | null
+          notes?: string | null
+          open_amount?: never
+          paid_amount?: number | null
+          parent_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "counterparties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_signed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_bills_aging: {
+        Row: {
+          bucket: string | null
+          company_id: string | null
+          count: number | null
+          direction: Database["public"]["Enums"]["transaction_direction"] | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_transactions: {
         Row: {
           account_id: string | null
@@ -1530,6 +1765,54 @@ export type Database = {
           tx_count_ytd: number
         }[]
       }
+      create_installments: {
+        Args: {
+          p_first_due?: string
+          p_installments: number
+          p_interval_days?: number
+          p_template: Json
+        }
+        Returns: {
+          account_id: string
+          accrual_date: string
+          amount: number
+          bank_account_id: string | null
+          cash_date: string | null
+          company_id: string
+          cost_center_id: string | null
+          counterparty_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string
+          direction: Database["public"]["Enums"]["transaction_direction"]
+          discount_amount: number
+          document_ref: string | null
+          due_date: string | null
+          fine_amount: number
+          id: string
+          import_batch_id: string | null
+          installment_n: number | null
+          installment_total: number | null
+          interest_amount: number
+          metadata: Json
+          notes: string | null
+          paid_amount: number
+          parent_id: string | null
+          payroll_item_id: string | null
+          recurring_template_id: string | null
+          status: Database["public"]["Enums"]["transaction_status"]
+          tags: string[]
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "transactions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       create_payroll_run_with_active_employees: {
         Args: { p_company_id: string; p_reference_month: string }
         Returns: string
@@ -1655,6 +1938,57 @@ export type Database = {
           generated_count: number
           total_amount: number
         }[]
+      }
+      register_payment: {
+        Args: {
+          p_amount: number
+          p_bank_account_id?: string
+          p_discount?: number
+          p_fine?: number
+          p_interest?: number
+          p_paid_at?: string
+          p_transaction_id: string
+        }
+        Returns: {
+          account_id: string
+          accrual_date: string
+          amount: number
+          bank_account_id: string | null
+          cash_date: string | null
+          company_id: string
+          cost_center_id: string | null
+          counterparty_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string
+          direction: Database["public"]["Enums"]["transaction_direction"]
+          discount_amount: number
+          document_ref: string | null
+          due_date: string | null
+          fine_amount: number
+          id: string
+          import_batch_id: string | null
+          installment_n: number | null
+          installment_total: number | null
+          interest_amount: number
+          metadata: Json
+          notes: string | null
+          paid_amount: number
+          parent_id: string | null
+          payroll_item_id: string | null
+          recurring_template_id: string | null
+          status: Database["public"]["Enums"]["transaction_status"]
+          tags: string[]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "transactions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {

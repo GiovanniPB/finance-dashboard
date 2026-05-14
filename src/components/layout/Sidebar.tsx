@@ -5,6 +5,7 @@ import {
   FileBarChart,
   History,
   LayoutDashboard,
+  Receipt,
   Repeat,
   Settings,
   ShieldCheck,
@@ -26,6 +27,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: "/", label: "Visão geral", icon: LayoutDashboard, end: true },
   { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
+  { to: "/bills", label: "Contas a Pagar/Receber", icon: Receipt },
   { to: "/dre", label: "DRE", icon: FileBarChart },
   { to: "/cashflow", label: "Fluxo de Caixa", icon: TrendingUp },
   { to: "/payroll", label: "Folha", icon: Users },
