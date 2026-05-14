@@ -23,6 +23,7 @@ const DrePage = lazy(() => import("@/routes/dre"));
 const BillsPage = lazy(() => import("@/routes/bills"));
 const ReconciliationPage = lazy(() => import("@/routes/reconciliation"));
 const ForecastPage = lazy(() => import("@/routes/forecast"));
+const ReportsPage = lazy(() => import("@/routes/reports"));
 const CashflowPage = lazy(() => import("@/routes/cashflow"));
 const ImportPage = lazy(() => import("@/routes/import"));
 const PayrollEmployeesPage = lazy(() => import("@/routes/payroll.employees"));
@@ -75,6 +76,7 @@ export default function App() {
                     <Route path="bills" element={<BillsPage />} />
                     <Route path="reconciliation" element={<ReconciliationPage />} />
                     <Route path="forecast" element={<ForecastPage />} />
+                    <Route path="reports" element={<ReportsPage />} />
                     <Route path="cashflow" element={<CashflowPage />} />
                     <Route path="payroll" element={<PayrollLayout />}>
                       <Route index element={<Navigate to="runs" replace />} />
