@@ -17,7 +17,10 @@ export const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 w-72 rounded-[var(--radius-md)] border border-border bg-surface p-0 shadow-[var(--shadow-lg)] outline-none",
+        // pointer-events-auto: required when Popover is rendered inside a modal
+        // Radix Dialog/Sheet, which sets pointer-events:none on <body>.
+        // Without this, wheel/click events fall through and the list won't scroll.
+        "pointer-events-auto z-50 w-72 rounded-[var(--radius-md)] border border-border bg-surface p-0 shadow-[var(--shadow-lg)] outline-none",
         "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
         className,
       )}
