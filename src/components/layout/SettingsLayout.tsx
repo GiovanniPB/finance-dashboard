@@ -6,6 +6,7 @@ const NAV = [
   { to: "/settings/banks", label: "Contas bancárias" },
   { to: "/settings/cost-centers", label: "Centros de custo" },
   { to: "/settings/counterparties", label: "Contrapartes" },
+  { to: "/settings/payroll", label: "Folha de pagamento" },
 ] as const;
 
 export function SettingsLayout() {
