@@ -87,7 +87,17 @@ export function AccountCombobox({
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-text-subtle"
           />
         </div>
-        <div className="max-h-[280px] overflow-y-auto p-1">
+        <div
+          className="max-h-[280px] overflow-y-auto p-1"
+          onWheel={(e) => {
+            // Radix Dialog/Sheet (modal) uses react-remove-scroll which
+            // preventDefaults wheel events outside the Dialog tree. Since this
+            // Popover is portal-mounted at body level (sibling of Dialog),
+            // the browser's default scroll is cancelled before reaching us.
+            // Apply the scroll programmatically as a workaround.
+            e.currentTarget.scrollTop += e.deltaY;
+          }}
+        >
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-6 text-xs text-text-subtle">
               <Loader2 className="size-3.5 animate-spin" /> Carregando contas…
