@@ -881,6 +881,64 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_account_mappings: {
+        Row: {
+          account_id: string
+          company_id: string
+          component: Database["public"]["Enums"]["payroll_component"]
+          cost_center_id: string | null
+          created_at: string
+          employee_kind: Database["public"]["Enums"]["employee_kind"]
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          company_id: string
+          component: Database["public"]["Enums"]["payroll_component"]
+          cost_center_id?: string | null
+          created_at?: string
+          employee_kind: Database["public"]["Enums"]["employee_kind"]
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          company_id?: string
+          component?: Database["public"]["Enums"]["payroll_component"]
+          cost_center_id?: string | null
+          created_at?: string
+          employee_kind?: Database["public"]["Enums"]["employee_kind"]
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_account_mappings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_account_mappings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_account_mappings_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_items: {
         Row: {
           benefits: number
@@ -1930,6 +1988,10 @@ export type Database = {
       }
     }
     Functions: {
+      _find_company_account: {
+        Args: { p_code: string; p_company_id: string }
+        Returns: string
+      }
       advance_recurrence_date: {
         Args: {
           p_current: string
@@ -2453,6 +2515,18 @@ export type Database = {
           total_amount: number
         }[]
       }
+      preview_payroll_posting: {
+        Args: { p_run_id: string }
+        Returns: {
+          account_code: string
+          account_name: string
+          amount: number
+          component: Database["public"]["Enums"]["payroll_component"]
+          employee_kind: Database["public"]["Enums"]["employee_kind"]
+          employee_name: string
+          has_mapping: boolean
+        }[]
+      }
       register_payment: {
         Args: {
           p_amount: number
@@ -2502,6 +2576,26 @@ export type Database = {
           to: "transactions"
           isOneToOne: true
           isSetofReturn: false
+        }
+      }
+      setup_payroll_mappings_defaults: {
+        Args: { p_company_id: string }
+        Returns: {
+          account_id: string
+          company_id: string
+          component: Database["public"]["Enums"]["payroll_component"]
+          cost_center_id: string | null
+          created_at: string
+          employee_kind: Database["public"]["Enums"]["employee_kind"]
+          id: string
+          notes: string | null
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "payroll_account_mappings"
+          isOneToOne: false
+          isSetofReturn: true
         }
       }
       suggest_match_candidates: {
@@ -2609,6 +2703,14 @@ export type Database = {
         | "previewed"
         | "committed"
         | "failed"
+      payroll_component:
+        | "salary_fixed"
+        | "salary_variable"
+        | "salary_bonus"
+        | "fgts"
+        | "benefits"
+        | "irrf_withheld"
+        | "inss_withheld"
       payroll_payment_type:
         | "fixed"
         | "variable"
@@ -2830,6 +2932,15 @@ export const Constants = {
       employee_kind: ["clt", "pj", "intern", "partner"],
       employee_status: ["active", "on_leave", "terminated"],
       import_status: ["uploaded", "mapped", "previewed", "committed", "failed"],
+      payroll_component: [
+        "salary_fixed",
+        "salary_variable",
+        "salary_bonus",
+        "fgts",
+        "benefits",
+        "irrf_withheld",
+        "inss_withheld",
+      ],
       payroll_payment_type: [
         "fixed",
         "variable",

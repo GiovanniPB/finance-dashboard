@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountCombobox } from "@/features/accounts/AccountCombobox";
+import { COMPONENT_META, KIND_META } from "@/features/payroll-mappings/constants";
+import { usePayrollPostingPreview } from "@/features/payroll-mappings/hooks";
 import {
   useDeletePayrollItem,
   useDeletePayrollRun,
@@ -291,54 +293,153 @@ export default function PayrollRunDetailPage() {
       {/* Post dialog */}
       <Sheet open={postOpen} onOpenChange={setPostOpen}>
         <SheetContent size="md" className="flex flex-col p-0">
-          <SheetHeader>
-            <SheetTitle>Postar folha de {formatMonthYear(run.reference_month)}</SheetTitle>
-            <SheetDescription>
-              Cada item vira um lançamento (outflow) com o valor do custo empregador. Escolha a
-              conta contábil padrão para imputar.
-            </SheetDescription>
-          </SheetHeader>
-          <SheetBody className="space-y-4">
-            <Card className="border-warning/30 bg-warning-soft/20">
-              <CardContent className="p-4 text-sm">
-                <p className="font-medium text-warning">⚠️ Esta ação é irreversível</p>
-                <p className="mt-1 text-text-muted">
-                  Após postar, os itens não podem mais ser editados e {items.length} lançamento(s)
-                  totalizando{" "}
-                  <span className="font-mono font-semibold text-text">
-                    {formatBRL(totals.employerCost)}
-                  </span>{" "}
-                  serão criados.
-                </p>
-              </CardContent>
-            </Card>
-
-            <div className="space-y-1.5">
-              <Label>Conta padrão para imputação</Label>
-              <AccountCombobox
-                companyId={run.company_id}
-                value={defaultAccountId}
-                onChange={setDefaultAccountId}
-                kindFilter={["cogs", "personnel_expense", "operating_expense"]}
-              />
-              <p className="text-2xs text-text-subtle">
-                Filtros: contas de CMV, Pessoal ou Despesa operacional. Recomendado: código 6.1.01
-                (Salários) ou 4.01 (CMV) dependendo do regime.
-              </p>
-            </div>
-          </SheetBody>
-          <SheetFooter>
-            <Button variant="ghost" onClick={() => setPostOpen(false)} disabled={post.isPending}>
-              Cancelar
-            </Button>
-            <Button onClick={handlePost} disabled={!defaultAccountId || post.isPending}>
-              {post.isPending && <Loader2 className="size-4 animate-spin" />}
-              Postar {items.length} lançamento(s)
-            </Button>
-          </SheetFooter>
+          <PostPayrollSheetContent
+            runId={run.id}
+            companyId={run.company_id}
+            referenceMonth={run.reference_month}
+            defaultAccountId={defaultAccountId}
+            setDefaultAccountId={setDefaultAccountId}
+            onCancel={() => setPostOpen(false)}
+            onConfirm={handlePost}
+            isPending={post.isPending}
+          />
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+interface PostSheetProps {
+  runId: string;
+  companyId: string;
+  referenceMonth: string;
+  defaultAccountId: string | null;
+  setDefaultAccountId: (id: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+  isPending: boolean;
+}
+
+function PostPayrollSheetContent({
+  runId,
+  companyId,
+  referenceMonth,
+  defaultAccountId,
+  setDefaultAccountId,
+  onCancel,
+  onConfirm,
+  isPending,
+}: PostSheetProps) {
+  const { data: preview = [], isLoading } = usePayrollPostingPreview(runId);
+
+  const missingCount = preview.filter((p) => !p.has_mapping).length;
+  const totalAmount = preview.reduce((a, r) => a + r.amount, 0);
+
+  return (
+    <>
+      <SheetHeader>
+        <SheetTitle>Postar folha de {formatMonthYear(referenceMonth)}</SheetTitle>
+        <SheetDescription>
+          Cada componente da folha (salário, FGTS, benefícios, retenções) é postado na conta DRE
+          configurada em <strong>Configurações → Folha de pagamento</strong>.
+        </SheetDescription>
+      </SheetHeader>
+      <SheetBody className="space-y-4">
+        <Card className="border-warning/30 bg-warning-soft/20">
+          <CardContent className="p-4 text-sm">
+            <p className="font-medium text-warning">⚠️ Esta ação é irreversível</p>
+            <p className="mt-1 text-text-muted">
+              Serão criados <strong>{preview.length}</strong> lançamento(s) totalizando{" "}
+              <span className="font-mono font-semibold text-text">{formatBRL(totalAmount)}</span>.
+            </p>
+          </CardContent>
+        </Card>
+
+        {missingCount > 0 && (
+          <Card className="border-expense/30 bg-expense-soft/20">
+            <CardContent className="p-4 text-sm">
+              <p className="font-medium text-expense">
+                <AlertTriangle className="mr-1 inline size-4" />
+                {missingCount} componente(s) sem mapeamento configurado
+              </p>
+              <p className="mt-1 text-text-muted">
+                Eles serão postados na <strong>conta padrão</strong> abaixo (fallback). Para
+                granularidade correta no DRE, configure os mapeamentos em{" "}
+                <Link to="/settings/payroll" className="text-accent underline">
+                  Configurações → Folha
+                </Link>
+                .
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="space-y-1.5">
+          <Label>Conta padrão (fallback)</Label>
+          <AccountCombobox
+            companyId={companyId}
+            value={defaultAccountId}
+            onChange={setDefaultAccountId}
+            kindFilter={["cogs", "personnel_expense", "operating_expense"]}
+          />
+          <p className="text-2xs text-text-subtle">
+            Usada apenas para componentes que ainda não têm mapeamento configurado.
+          </p>
+        </div>
+
+        {!isLoading && preview.length > 0 && (
+          <div className="rounded-[var(--radius-md)] border border-border bg-surface-2 p-2">
+            <div className="text-2xs mb-2 px-2 pt-1 font-semibold tracking-wide text-text-subtle uppercase">
+              Preview da postagem
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-surface">
+                  <tr className="text-2xs text-text-subtle">
+                    <th className="px-2 py-1.5 text-left">Funcionário</th>
+                    <th className="px-2 py-1.5 text-left">Componente</th>
+                    <th className="px-2 py-1.5 text-right">Valor</th>
+                    <th className="px-2 py-1.5 text-left">Conta</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {preview.map((p, i) => (
+                    <tr key={i}>
+                      <td className="px-2 py-1">{p.employee_name}</td>
+                      <td className="px-2 py-1">
+                        <span className="text-text">{COMPONENT_META[p.component].label}</span>{" "}
+                        <span className="text-2xs text-text-subtle">
+                          ({KIND_META[p.employee_kind].label})
+                        </span>
+                      </td>
+                      <td className="px-2 py-1 text-right font-mono">{formatBRL(p.amount)}</td>
+                      <td className="px-2 py-1">
+                        {p.account_code ? (
+                          <span className="text-2xs text-income">
+                            {p.account_code} · {p.account_name}
+                          </span>
+                        ) : (
+                          <span className="text-2xs text-expense">⚠ fallback</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </SheetBody>
+      <SheetFooter>
+        <Button variant="ghost" onClick={onCancel} disabled={isPending}>
+          Cancelar
+        </Button>
+        <Button onClick={onConfirm} disabled={!defaultAccountId || isPending}>
+          {isPending && <Loader2 className="size-4 animate-spin" />}
+          Postar {preview.length} lançamento(s)
+        </Button>
+      </SheetFooter>
+    </>
   );
 }
 
