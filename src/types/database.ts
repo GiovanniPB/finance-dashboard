@@ -2033,6 +2033,15 @@ export type Database = {
         Args: { p_template_id: string; p_through_date?: string }
         Returns: number
       }
+      bank_account_usage: {
+        Args: { p_id: string }
+        Returns: {
+          recurring_templates: number
+          snapshots: number
+          statement_lines: number
+          transactions: number
+        }[]
+      }
       bank_balances: {
         Args: { p_company_id: string; p_reference_month: string }
         Returns: {
