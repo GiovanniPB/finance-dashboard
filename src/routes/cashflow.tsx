@@ -16,7 +16,22 @@ import { CashflowTable } from "@/features/cashflow/components/CashflowTable";
 import { useBankBalances, useCashflowDaily, useCashflowMonthly } from "@/features/cashflow/hooks";
 import { useCashflowFilters } from "@/features/cashflow/useCashflowFilters";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
-import { isoDate } from "@/lib/dates";
+import { isoDate, monthBounds } from "@/lib/dates";
+
+const MONTH_LABELS = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
 
 export default function CashflowPage() {
   const { selectedCompanyId, selectedCompany, isConsolidated, companies } = useCompanyScope();
@@ -26,18 +41,27 @@ export default function CashflowPage() {
   const operational = companies.filter((c) => !c.is_holding);
   const effectiveCompanyId = isConsolidated ? (operational[0]?.id ?? null) : selectedCompanyId;
 
-  const { year, granularity } = filters;
-  const periodFrom = `${year}-01-01`;
-  const periodTo = `${year}-12-31`;
+  const { year, granularity, month } = filters;
+  const monthSelected = month >= 1 && month <= 12;
 
-  const monthly = useCashflowMonthly(granularity === "monthly" ? effectiveCompanyId : null, year);
+  // A specific month forces a daily view bounded to that month; otherwise the
+  // selected granularity drives the whole-year range.
+  const effectiveGranularity = monthSelected ? "daily" : granularity;
+  const range = monthSelected
+    ? monthBounds(new Date(year, month - 1, 1))
+    : { start: `${year}-01-01`, end: `${year}-12-31` };
+
+  const monthly = useCashflowMonthly(
+    effectiveGranularity === "monthly" ? effectiveCompanyId : null,
+    year,
+  );
   const daily = useCashflowDaily(
-    granularity === "daily" ? effectiveCompanyId : null,
-    periodFrom,
-    periodTo,
+    effectiveGranularity === "daily" ? effectiveCompanyId : null,
+    range.start,
+    range.end,
   );
 
-  const active = granularity === "monthly" ? monthly : daily;
+  const active = effectiveGranularity === "monthly" ? monthly : daily;
 
   const banks = useBankBalances(effectiveCompanyId, isoDate(new Date(year, 0, 1)));
 
@@ -67,12 +91,13 @@ export default function CashflowPage() {
           <Calendar className="size-4" />
           <span className="text-xs font-medium tracking-wide uppercase">Período</span>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:max-w-md sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:max-w-2xl sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="granularity">Granularidade</Label>
             <Select
               value={granularity}
               onValueChange={(v) => void setFilters({ granularity: v as "daily" | "monthly" })}
+              disabled={monthSelected}
             >
               <SelectTrigger id="granularity">
                 <SelectValue />
@@ -101,6 +126,25 @@ export default function CashflowPage() {
               </SelectContent>
             </Select>
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="month">Mês</Label>
+            <Select
+              value={String(month)}
+              onValueChange={(v) => void setFilters({ month: Number(v) })}
+            >
+              <SelectTrigger id="month">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Ano inteiro</SelectItem>
+                {MONTH_LABELS.map((label, i) => (
+                  <SelectItem key={label} value={String(i + 1)}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -109,7 +153,7 @@ export default function CashflowPage() {
       <CashflowChart
         data={active.data ?? null}
         loading={active.isLoading}
-        granularity={granularity}
+        granularity={effectiveGranularity}
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -117,7 +161,7 @@ export default function CashflowPage() {
           <CashflowTable
             data={active.data ?? null}
             loading={active.isLoading}
-            granularity={granularity}
+            granularity={effectiveGranularity}
             companyId={effectiveCompanyId}
           />
         </div>
