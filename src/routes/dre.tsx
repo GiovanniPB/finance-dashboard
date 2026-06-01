@@ -83,8 +83,13 @@ export default function DrePage() {
                   { key: "kind", header: "Tipo", getValue: (r) => r.kind },
                   {
                     key: "total",
-                    header: "Total",
+                    header: "Competência",
                     getValue: (r) => r.effective_total.toFixed(2),
+                  },
+                  {
+                    key: "total_cash",
+                    header: "Caixa",
+                    getValue: (r) => r.effective_total_cash.toFixed(2),
                   },
                 ]);
                 const scope = isConsolidated
@@ -95,7 +100,7 @@ export default function DrePage() {
             >
               <Download className="size-3.5" /> Exportar CSV
             </Button>
-            <Badge tone="info">Regime de competência</Badge>
+            <Badge tone="info">Competência + Caixa</Badge>
           </div>
         )}
       </div>

@@ -39,5 +39,6 @@ export async function fetchDreConsolidated(
     sign_hint: r.sign_hint as DreRow["sign_hint"],
     sort_order: r.sort_order,
     total: r.total,
+    total_cash: r.total_cash,
   })) satisfies DreRow[];
 }

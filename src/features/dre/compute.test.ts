@@ -16,6 +16,7 @@ function row(partial: Partial<DreRow>): DreRow {
     sign_hint: partial.sign_hint ?? null,
     sort_order: partial.sort_order ?? 0,
     total: partial.total ?? 0,
+    total_cash: partial.total_cash ?? 0,
   };
 }
 
@@ -131,6 +132,28 @@ describe("computeDreTotals", () => {
     ]);
     // 8 = result above-the-line only = 1000 (dividend not counted)
     expect(out.find((r) => r.code === "8")!.effective_total).toBe(1000);
+  });
+
+  it("computes accrual and cash bases independently", () => {
+    const out = computeDreTotals([
+      row({ account_id: "1", code: "1", is_summary: true, sort_order: 100 }),
+      row({
+        account_id: "1.01",
+        parent_id: "1",
+        code: "1.01",
+        sort_order: 110,
+        total: 1000,
+        total_cash: 600,
+      }),
+      row({ account_id: "8", code: "8", is_summary: true, sort_order: 800 }),
+    ]);
+    const summary = out.find((r) => r.account_id === "1")!;
+    expect(summary.effective_total).toBe(1000);
+    expect(summary.effective_total_cash).toBe(600);
+    // Standalone running totalizer reflects each basis.
+    const totalizer = out.find((r) => r.code === "8")!;
+    expect(totalizer.effective_total).toBe(1000);
+    expect(totalizer.effective_total_cash).toBe(600);
   });
 
   it("computes depth from parent chain", () => {

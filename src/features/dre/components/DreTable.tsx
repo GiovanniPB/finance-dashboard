@@ -58,6 +58,22 @@ function Section({ rows, drillDown }: { rows: DreComputedRow[]; drillDown?: Prop
   return (
     <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface">
       <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border bg-surface-2/60">
+            <th className="text-2xs py-2 pl-4 text-left font-medium tracking-wide text-text-subtle uppercase">
+              Conta
+            </th>
+            <th className="text-2xs hidden px-3 py-2 text-left font-medium tracking-wide text-text-subtle uppercase md:table-cell">
+              Código
+            </th>
+            <th className="text-2xs py-2 pr-4 pl-3 text-right font-medium tracking-wide text-text-subtle uppercase">
+              Competência
+            </th>
+            <th className="text-2xs py-2 pr-4 pl-3 text-right font-medium tracking-wide text-text-subtle uppercase">
+              Caixa
+            </th>
+          </tr>
+        </thead>
         <tbody>
           {rows.map((row) => (
             <DreRowItem key={row.account_id} row={row} drillDown={drillDown} />
@@ -76,8 +92,8 @@ function DreRowItem({ row, drillDown }: { row: DreComputedRow; drillDown?: Props
 
   const SignIcon = isPositiveSign ? ArrowUpRight : isNegativeSign ? ArrowDownRight : Minus;
 
+  // Name styling keys off the accrual (competência) total.
   const isZero = row.effective_total === 0;
-  const isNegative = row.effective_total < 0;
 
   const showDrill =
     drillDown && !row.is_summary && row.parent_id !== null
@@ -136,22 +152,43 @@ function DreRowItem({ row, drillDown }: { row: DreComputedRow; drillDown?: Props
       <td className="hidden px-3 py-2.5 align-middle md:table-cell">
         <span className="text-2xs font-mono text-text-subtle">{row.code}</span>
       </td>
-      <td className="py-2.5 pr-4 pl-3 text-right align-middle">
-        <span
-          className={cn(
-            "font-mono text-sm tabular-nums",
-            row.is_summary && "font-semibold",
-            isTotalizer && "text-accent",
-            isZero && !row.is_summary && "text-text-subtle",
-            !isTotalizer && isNegative && "text-expense",
-            !isTotalizer && !isNegative && !isZero && !row.is_summary && "text-text",
-            !isTotalizer && row.is_summary && !isNegative && "text-text",
-          )}
-        >
-          {formatBRL(row.effective_total)}
-        </span>
-      </td>
+      <ValueCell value={row.effective_total} isSummary={row.is_summary} isTotalizer={isTotalizer} />
+      <ValueCell
+        value={row.effective_total_cash}
+        isSummary={row.is_summary}
+        isTotalizer={isTotalizer}
+      />
     </tr>
+  );
+}
+
+function ValueCell({
+  value,
+  isSummary,
+  isTotalizer,
+}: {
+  value: number;
+  isSummary: boolean;
+  isTotalizer: boolean;
+}) {
+  const isZero = value === 0;
+  const isNegative = value < 0;
+  return (
+    <td className="py-2.5 pr-4 pl-3 text-right align-middle">
+      <span
+        className={cn(
+          "font-mono text-sm tabular-nums",
+          isSummary && "font-semibold",
+          isTotalizer && "text-accent",
+          isZero && !isSummary && "text-text-subtle",
+          !isTotalizer && isNegative && "text-expense",
+          !isTotalizer && !isNegative && !isZero && !isSummary && "text-text",
+          !isTotalizer && isSummary && !isNegative && "text-text",
+        )}
+      >
+        {formatBRL(value)}
+      </span>
+    </td>
   );
 }
 

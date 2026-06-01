@@ -2267,6 +2267,7 @@ export type Database = {
           sign_hint: string
           sort_order: number
           total: number
+          total_cash: number
         }[]
       }
       dre_comparison: {
@@ -2305,6 +2306,7 @@ export type Database = {
           sign_hint: string
           sort_order: number
           total: number
+          total_cash: number
         }[]
       }
       expense_breakdown: {
