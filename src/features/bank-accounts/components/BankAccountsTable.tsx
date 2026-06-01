@@ -1,4 +1,4 @@
-import { MoreHorizontal, Pencil, Power } from "lucide-react";
+import { MoreHorizontal, Pencil, Power, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,9 +28,10 @@ interface Props {
   loading: boolean;
   onEdit: (a: BankAccount) => void;
   onToggleActive: (a: BankAccount) => void;
+  onDelete: (a: BankAccount) => void;
 }
 
-export function BankAccountsTable({ rows, loading, onEdit, onToggleActive }: Props) {
+export function BankAccountsTable({ rows, loading, onEdit, onToggleActive, onDelete }: Props) {
   if (loading) {
     return (
       <div className="space-y-2">
@@ -102,6 +103,12 @@ export function BankAccountsTable({ rows, loading, onEdit, onToggleActive }: Pro
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => onToggleActive(row)}>
                       <Power className="size-4" /> {row.is_active ? "Desativar" : "Ativar"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => onDelete(row)}
+                      className="text-expense focus:bg-expense-soft focus:text-expense"
+                    >
+                      <Trash2 className="size-4" /> Excluir
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

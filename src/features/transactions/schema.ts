@@ -14,6 +14,13 @@ export const transactionFormSchema = z.object({
     .string()
     .min(1, "Data de competência obrigatória")
     .regex(/^\d{4}-\d{2}-\d{2}$/u, "Data inválida"),
+  // Data de vencimento
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/u, "Data inválida")
+    .nullable()
+    .optional(),
+  // Data de pagamento (movimentação de caixa)
   cashDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/u, "Data inválida")
@@ -40,6 +47,7 @@ export function emptyFormValues(companyId: string): TransactionFormValues {
     direction: "outflow",
     amount: 0,
     accrualDate: today,
+    dueDate: null,
     cashDate: today,
     status: "settled",
     description: "",

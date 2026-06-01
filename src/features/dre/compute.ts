@@ -1,7 +1,7 @@
 import type { DreComputedRow, DreRow } from "./types";
 
 /**
- * Computes display totals for a DRE.
+ * Computes the effective display totals for a single value basis.
  *
  * Two strategies are blended:
  *
@@ -9,26 +9,14 @@ import type { DreComputedRow, DreRow } from "./types";
  *    its total is the sum of its descendants' effective totals.
  *
  * 2. **Standalone summary** (e.g. "(=) Venda Líquida", "(=) Margem de
- *    Contribuição"): no children — these are running-balance markers. Their
- *    total equals the running sum of all preceding top-level rows (ignoring
- *    below-the-line entries).
- *
- * The chart is iterated in `sort_order`. Top-level (parent_id null) summaries
- * with children contribute their own total to the running sum; child rows
- * are not double-counted because they live under their summary parent.
+ *    Contribuição"): no children — running-balance markers whose total equals
+ *    the running sum of preceding top-level rows (ignoring below-the-line).
  */
-export function computeDreTotals(rows: DreRow[]): DreComputedRow[] {
-  const sorted = [...rows].sort((a, b) => a.sort_order - b.sort_order);
-  const byId = new Map(sorted.map((r) => [r.account_id, r]));
-  const childrenOf = new Map<string, DreRow[]>();
-  for (const r of sorted) {
-    if (r.parent_id) {
-      const list = childrenOf.get(r.parent_id) ?? [];
-      list.push(r);
-      childrenOf.set(r.parent_id, list);
-    }
-  }
-
+function computeBasis(
+  sorted: DreRow[],
+  childrenOf: Map<string, DreRow[]>,
+  pick: (row: DreRow) => number,
+): Map<string, number> {
   const totalsMap = new Map<string, number>();
 
   function effectiveTotal(row: DreRow): number {
@@ -37,15 +25,10 @@ export function computeDreTotals(rows: DreRow[]): DreComputedRow[] {
 
     let total: number;
     if (!row.is_summary) {
-      total = row.total;
+      total = pick(row);
     } else {
       const children = childrenOf.get(row.account_id) ?? [];
-      if (children.length > 0) {
-        total = children.reduce((sum, c) => sum + effectiveTotal(c), 0);
-      } else {
-        // Standalone — temporarily 0; will be overwritten in the running pass.
-        total = 0;
-      }
+      total = children.length > 0 ? children.reduce((sum, c) => sum + effectiveTotal(c), 0) : 0;
     }
     totalsMap.set(row.account_id, total);
     return total;
@@ -56,7 +39,7 @@ export function computeDreTotals(rows: DreRow[]): DreComputedRow[] {
     if (r.is_summary && (childrenOf.get(r.account_id) ?? []).length > 0) {
       effectiveTotal(r);
     } else if (!r.is_summary) {
-      totalsMap.set(r.account_id, r.total);
+      totalsMap.set(r.account_id, pick(r));
     }
   }
 
@@ -76,6 +59,33 @@ export function computeDreTotals(rows: DreRow[]): DreComputedRow[] {
     }
   }
 
+  return totalsMap;
+}
+
+/**
+ * Computes display totals for a DRE on both the accrual basis (regime de
+ * competência, by accrual_date → `effective_total`) and the cash basis (regime
+ * de caixa, by cash_date → `effective_total_cash`).
+ *
+ * The chart is iterated in `sort_order`. Top-level (parent_id null) summaries
+ * with children contribute their own total to the running sum; child rows are
+ * not double-counted because they live under their summary parent.
+ */
+export function computeDreTotals(rows: DreRow[]): DreComputedRow[] {
+  const sorted = [...rows].sort((a, b) => a.sort_order - b.sort_order);
+  const byId = new Map(sorted.map((r) => [r.account_id, r]));
+  const childrenOf = new Map<string, DreRow[]>();
+  for (const r of sorted) {
+    if (r.parent_id) {
+      const list = childrenOf.get(r.parent_id) ?? [];
+      list.push(r);
+      childrenOf.set(r.parent_id, list);
+    }
+  }
+
+  const accrualTotals = computeBasis(sorted, childrenOf, (r) => r.total);
+  const cashTotals = computeBasis(sorted, childrenOf, (r) => r.total_cash);
+
   // Depth computation by walking parent chain.
   function depth(row: DreRow): number {
     let d = 0;
@@ -90,7 +100,8 @@ export function computeDreTotals(rows: DreRow[]): DreComputedRow[] {
 
   return sorted.map((r) => ({
     ...r,
-    effective_total: totalsMap.get(r.account_id) ?? 0,
+    effective_total: accrualTotals.get(r.account_id) ?? 0,
+    effective_total_cash: cashTotals.get(r.account_id) ?? 0,
     depth: depth(r),
   }));
 }

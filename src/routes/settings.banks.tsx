@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { type BankAccount } from "@/features/bank-accounts/api";
+import { BankAccountDeleteDialog } from "@/features/bank-accounts/components/BankAccountDeleteDialog";
 import { BankAccountDrawer } from "@/features/bank-accounts/components/BankAccountDrawer";
 import { BankAccountsTable } from "@/features/bank-accounts/components/BankAccountsTable";
 import { useBankAccounts, useToggleBankAccountActive } from "@/features/bank-accounts/hooks";
@@ -35,6 +36,7 @@ export default function SettingsBanksPage() {
 
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<BankAccount | null>(null);
+  const [deleting, setDeleting] = React.useState<BankAccount | null>(null);
 
   return (
     <div className="space-y-4">
@@ -92,6 +94,7 @@ export default function SettingsBanksPage() {
           setDrawerOpen(true);
         }}
         onToggleActive={(a) => toggleActive.mutate({ id: a.id, isActive: !a.is_active })}
+        onDelete={(a) => setDeleting(a)}
       />
 
       {companyId && (
@@ -102,6 +105,8 @@ export default function SettingsBanksPage() {
           companyId={companyId}
         />
       )}
+
+      <BankAccountDeleteDialog account={deleting} onClose={() => setDeleting(null)} />
     </div>
   );
 }

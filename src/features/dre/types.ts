@@ -11,12 +11,17 @@ export interface DreRow {
   below_the_line: boolean;
   sign_hint: "+" | "-" | "+/-" | "=" | null;
   sort_order: number;
+  /** Total on accrual basis (regime de competência), by accrual_date. */
   total: number;
+  /** Total on cash basis (regime de caixa), by cash_date. */
+  total_cash: number;
 }
 
 export interface DreComputedRow extends DreRow {
-  /** Computed display total (children sum or running balance). */
+  /** Computed display total on accrual basis (children sum or running balance). */
   effective_total: number;
+  /** Computed display total on cash basis. */
+  effective_total_cash: number;
   /** Depth in the chart of accounts (0-based) — used for indentation. */
   depth: number;
 }

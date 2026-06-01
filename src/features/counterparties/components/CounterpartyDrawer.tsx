@@ -23,6 +23,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { formatDocument } from "@/lib/document";
 
 import type { Counterparty } from "../api";
 import { useCreateCounterparty, useUpdateCounterparty } from "../hooks";
@@ -161,13 +162,20 @@ export function CounterpartyDrawer({ open, onOpenChange, counterparty, organizat
                   render={({ field }) => (
                     <Input
                       id="document"
+                      inputMode="numeric"
+                      placeholder="CNPJ ou CPF"
                       value={field.value ?? ""}
+                      aria-invalid={Boolean(errors.document)}
                       onChange={(e) => {
-                        field.onChange(e.target.value === "" ? null : e.target.value);
+                        const masked = formatDocument(e.target.value);
+                        field.onChange(masked === "" ? null : masked);
                       }}
                     />
                   )}
                 />
+                {errors.document && (
+                  <p className="text-2xs text-expense">{errors.document.message}</p>
+                )}
               </div>
             </div>
 
