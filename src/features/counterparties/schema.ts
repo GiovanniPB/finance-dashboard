@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isValidDocument } from "@/lib/document";
+
 export const COUNTERPARTY_KINDS = [
   { value: "customer", label: "Cliente" },
   { value: "supplier", label: "Fornecedor" },
@@ -12,7 +14,14 @@ export const COUNTERPARTY_KINDS = [
 export const counterpartyFormSchema = z.object({
   organizationId: z.string().uuid(),
   name: z.string().min(2, "Nome obrigatório").max(200),
-  document: z.string().max(40).nullable().optional(),
+  document: z
+    .string()
+    .max(40)
+    .nullable()
+    .optional()
+    .refine((val) => val == null || val === "" || isValidDocument(val), {
+      message: "CPF/CNPJ inválido",
+    }),
   kind: z.enum(["customer", "supplier", "employee", "partner", "government", "other"]),
   email: z.string().email("E-mail inválido").max(200).nullable().optional().or(z.literal("")),
   phone: z.string().max(40).nullable().optional(),
