@@ -169,8 +169,8 @@ export default function PayrollRunDetailPage() {
         <div className="flex items-start gap-2 rounded-[var(--radius-md)] border border-warning/30 bg-warning-soft/20 px-3 py-2 text-xs text-text-muted">
           <AlertTriangle className="size-3.5 shrink-0 text-warning" />
           <span>
-            Folha já postada. Edições nos valores (bruto, benefícios) atualizam automaticamente os
-            lançamentos vinculados.
+            Folha já postada. Editar qualquer valor (salário, encargos, retenções ou benefícios)
+            re-sincroniza automaticamente os lançamentos contábeis vinculados a cada componente.
           </span>
         </div>
       )}

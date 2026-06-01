@@ -1028,6 +1028,7 @@ export type Database = {
           id: string
           notes: string | null
           posted_at: string | null
+          posted_default_account_id: string | null
           reference_month: string
           status: string
           total_benefits: number
@@ -1043,6 +1044,7 @@ export type Database = {
           id?: string
           notes?: string | null
           posted_at?: string | null
+          posted_default_account_id?: string | null
           reference_month: string
           status?: string
           total_benefits?: number
@@ -1058,6 +1060,7 @@ export type Database = {
           id?: string
           notes?: string | null
           posted_at?: string | null
+          posted_default_account_id?: string | null
           reference_month?: string
           status?: string
           total_benefits?: number
@@ -1072,6 +1075,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_posted_default_account_id_fkey"
+            columns: ["posted_default_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
             referencedColumns: ["id"]
           },
         ]
