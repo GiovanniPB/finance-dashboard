@@ -17,7 +17,10 @@ import { SheetBody, SheetFooter } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { AccountCombobox } from "@/features/accounts/AccountCombobox";
 import { AttachmentsSection } from "@/features/attachments/components/AttachmentsSection";
+import { BankAccountSelect } from "@/features/bank-accounts/BankAccountSelect";
+import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { CostCenterSelect } from "@/features/cost-centers/CostCenterSelect";
+import { CounterpartyCombobox } from "@/features/counterparties/CounterpartyCombobox";
 
 import { transactionFormSchema, type TransactionFormValues } from "../schema";
 import type { TransactionWithRelations } from "../types";
@@ -50,6 +53,10 @@ export function TransactionForm({
 
   const companyId = watch("companyId");
   const isEditing = Boolean(existingTransaction);
+
+  // Counterparties are organization-scoped; resolve the org from the company.
+  const { companies } = useCompanyScope();
+  const organizationId = companies.find((c) => c.id === companyId)?.organization_id ?? null;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
@@ -154,8 +161,47 @@ export function TransactionForm({
           />
         </div>
 
+        {/* Counterparty (fornecedor/cliente) */}
+        <div className="space-y-1.5">
+          <Label htmlFor="counterpartyId">
+            Fornecedor / Cliente <span className="text-text-subtle">(opcional)</span>
+          </Label>
+          <Controller
+            name="counterpartyId"
+            control={control}
+            render={({ field }) => (
+              <CounterpartyCombobox
+                id="counterpartyId"
+                organizationId={organizationId}
+                value={field.value ?? null}
+                onChange={field.onChange}
+                disabled={isPending}
+              />
+            )}
+          />
+        </div>
+
+        {/* Bank account */}
+        <div className="space-y-1.5">
+          <Label htmlFor="bankAccountId">
+            Conta bancária <span className="text-text-subtle">(opcional)</span>
+          </Label>
+          <Controller
+            name="bankAccountId"
+            control={control}
+            render={({ field }) => (
+              <BankAccountSelect
+                id="bankAccountId"
+                companyId={companyId}
+                value={field.value ?? null}
+                onChange={field.onChange}
+              />
+            )}
+          />
+        </div>
+
         {/* Dates */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="accrualDate">Competência</Label>
             <Input
@@ -169,8 +215,27 @@ export function TransactionForm({
             )}
           </div>
           <div className="space-y-1.5">
+            <Label htmlFor="dueDate">
+              Vencimento <span className="text-text-subtle">(opcional)</span>
+            </Label>
+            <Controller
+              name="dueDate"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    field.onChange(e.target.value === "" ? null : e.target.value);
+                  }}
+                />
+              )}
+            />
+          </div>
+          <div className="space-y-1.5">
             <Label htmlFor="cashDate">
-              Caixa <span className="text-text-subtle">(opcional)</span>
+              Pagamento <span className="text-text-subtle">(opcional)</span>
             </Label>
             <Controller
               name="cashDate"
