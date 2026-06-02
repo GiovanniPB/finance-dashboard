@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       attachments: {
@@ -723,6 +718,110 @@ export type Database = {
           },
         ]
       }
+      fiscal_company_settings: {
+        Row: {
+          aliquota_iss: number | null
+          ambiente: Database["public"]["Enums"]["nfse_ambiente"]
+          codigo_tributario_municipio: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          emission_mode: Database["public"]["Enums"]["nfse_emission_mode"]
+          enabled: boolean
+          focus_token_ref: string | null
+          id: string
+          inscricao_municipal: string | null
+          iss_retido: boolean
+          item_lista_servico: string | null
+          metadata: Json
+          municipio_ibge: string
+          nfse_padrao: Database["public"]["Enums"]["nfse_padrao"]
+          optante_simples: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          aliquota_iss?: number | null
+          ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          codigo_tributario_municipio?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          emission_mode?: Database["public"]["Enums"]["nfse_emission_mode"]
+          enabled?: boolean
+          focus_token_ref?: string | null
+          id?: string
+          inscricao_municipal?: string | null
+          iss_retido?: boolean
+          item_lista_servico?: string | null
+          metadata?: Json
+          municipio_ibge?: string
+          nfse_padrao?: Database["public"]["Enums"]["nfse_padrao"]
+          optante_simples?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          aliquota_iss?: number | null
+          ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          codigo_tributario_municipio?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          emission_mode?: Database["public"]["Enums"]["nfse_emission_mode"]
+          enabled?: boolean
+          focus_token_ref?: string | null
+          id?: string
+          inscricao_municipal?: string | null
+          iss_retido?: boolean
+          item_lista_servico?: string | null
+          metadata?: Json
+          municipio_ibge?: string
+          nfse_padrao?: Database["public"]["Enums"]["nfse_padrao"]
+          optante_simples?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_company_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      focus_events: {
+        Row: {
+          dedup_key: string
+          focus_ref: string | null
+          id: string
+          payload: Json
+          process_error: string | null
+          processed_at: string | null
+          received_at: string
+          status: string | null
+        }
+        Insert: {
+          dedup_key: string
+          focus_ref?: string | null
+          id?: string
+          payload: Json
+          process_error?: string | null
+          processed_at?: string | null
+          received_at?: string
+          status?: string | null
+        }
+        Update: {
+          dedup_key?: string
+          focus_ref?: string | null
+          id?: string
+          payload?: Json
+          process_error?: string | null
+          processed_at?: string | null
+          received_at?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       import_batches: {
         Row: {
           column_mapping: Json | null
@@ -857,6 +956,164 @@ export type Database = {
           },
         ]
       }
+      invoice_jobs: {
+        Row: {
+          aliquota_iss: number | null
+          ambiente: Database["public"]["Enums"]["nfse_ambiente"]
+          approved_at: string | null
+          approved_by: string | null
+          attempts: number
+          chave_nfse: string | null
+          codigo_tributario_municipio: string | null
+          company_id: string
+          created_at: string
+          danfse_path: string | null
+          erros: Json | null
+          focus_ref: string
+          focus_status: string | null
+          id: string
+          item_lista_servico: string | null
+          last_attempt_at: string | null
+          mensagem_sefaz: string | null
+          metadata: Json
+          next_attempt_at: string | null
+          numero_nfse: string | null
+          organization_id: string
+          pagarme_charge_id: string | null
+          pagarme_recipient_id: string | null
+          sales_event_id: string | null
+          status: Database["public"]["Enums"]["invoice_job_status"]
+          tomador_documento: string | null
+          tomador_email: string | null
+          tomador_endereco: Json | null
+          tomador_nome: string | null
+          transaction_id: string | null
+          updated_at: string
+          valor_servicos: number
+          xml_path: string | null
+        }
+        Insert: {
+          aliquota_iss?: number | null
+          ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          approved_at?: string | null
+          approved_by?: string | null
+          attempts?: number
+          chave_nfse?: string | null
+          codigo_tributario_municipio?: string | null
+          company_id: string
+          created_at?: string
+          danfse_path?: string | null
+          erros?: Json | null
+          focus_ref?: string
+          focus_status?: string | null
+          id?: string
+          item_lista_servico?: string | null
+          last_attempt_at?: string | null
+          mensagem_sefaz?: string | null
+          metadata?: Json
+          next_attempt_at?: string | null
+          numero_nfse?: string | null
+          organization_id: string
+          pagarme_charge_id?: string | null
+          pagarme_recipient_id?: string | null
+          sales_event_id?: string | null
+          status?: Database["public"]["Enums"]["invoice_job_status"]
+          tomador_documento?: string | null
+          tomador_email?: string | null
+          tomador_endereco?: Json | null
+          tomador_nome?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+          valor_servicos: number
+          xml_path?: string | null
+        }
+        Update: {
+          aliquota_iss?: number | null
+          ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          approved_at?: string | null
+          approved_by?: string | null
+          attempts?: number
+          chave_nfse?: string | null
+          codigo_tributario_municipio?: string | null
+          company_id?: string
+          created_at?: string
+          danfse_path?: string | null
+          erros?: Json | null
+          focus_ref?: string
+          focus_status?: string | null
+          id?: string
+          item_lista_servico?: string | null
+          last_attempt_at?: string | null
+          mensagem_sefaz?: string | null
+          metadata?: Json
+          next_attempt_at?: string | null
+          numero_nfse?: string | null
+          organization_id?: string
+          pagarme_charge_id?: string | null
+          pagarme_recipient_id?: string | null
+          sales_event_id?: string | null
+          status?: Database["public"]["Enums"]["invoice_job_status"]
+          tomador_documento?: string | null
+          tomador_email?: string | null
+          tomador_endereco?: Json | null
+          tomador_nome?: string | null
+          transaction_id?: string | null
+          updated_at?: string
+          valor_servicos?: number
+          xml_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_jobs_sales_event_id_fkey"
+            columns: ["sales_event_id"]
+            isOneToOne: false
+            referencedRelation: "sales_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_jobs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_jobs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_jobs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_jobs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_signed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -880,6 +1137,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      pagarme_recipient_map: {
+        Row: {
+          active: boolean
+          ambiente: Database["public"]["Enums"]["nfse_ambiente"]
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json
+          pagarme_recipient_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          pagarme_recipient_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          pagarme_recipient_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_recipient_map_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payroll_account_mappings: {
         Row: {
@@ -1232,6 +1533,101 @@ export type Database = {
             columns: ["counterparty_id"]
             isOneToOne: false
             referencedRelation: "counterparties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json
+          process_error: string | null
+          processed_at: string | null
+          provider: string
+          received_at: string
+          resource_id: string | null
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          id?: string
+          payload: Json
+          process_error?: string | null
+          processed_at?: string | null
+          provider?: string
+          received_at?: string
+          resource_id?: string | null
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          process_error?: string | null
+          processed_at?: string | null
+          provider?: string
+          received_at?: string
+          resource_id?: string | null
+        }
+        Relationships: []
+      }
+      service_catalog: {
+        Row: {
+          active: boolean
+          aliquota_iss: number | null
+          cnae: string | null
+          codigo_tributario_municipio: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          descricao: string
+          id: string
+          item_lista_servico: string
+          metadata: Json
+          pagarme_item_code: string | null
+          pagarme_plan_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          aliquota_iss?: number | null
+          cnae?: string | null
+          codigo_tributario_municipio?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          id?: string
+          item_lista_servico: string
+          metadata?: Json
+          pagarme_item_code?: string | null
+          pagarme_plan_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          aliquota_iss?: number | null
+          cnae?: string | null
+          codigo_tributario_municipio?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          item_lista_servico?: string
+          metadata?: Json
+          pagarme_item_code?: string | null
+          pagarme_plan_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_catalog_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -2724,6 +3120,20 @@ export type Database = {
         | "previewed"
         | "committed"
         | "failed"
+      invoice_job_status:
+        | "pending_review"
+        | "approved"
+        | "queued"
+        | "submitting"
+        | "processing_authorization"
+        | "authorized"
+        | "rejected"
+        | "cancelling"
+        | "cancelled"
+        | "failed"
+      nfse_ambiente: "homologacao" | "producao"
+      nfse_emission_mode: "manual" | "automatic"
+      nfse_padrao: "municipal" | "nacional"
       payroll_component:
         | "salary_fixed"
         | "salary_variable"
@@ -2953,6 +3363,21 @@ export const Constants = {
       employee_kind: ["clt", "pj", "intern", "partner"],
       employee_status: ["active", "on_leave", "terminated"],
       import_status: ["uploaded", "mapped", "previewed", "committed", "failed"],
+      invoice_job_status: [
+        "pending_review",
+        "approved",
+        "queued",
+        "submitting",
+        "processing_authorization",
+        "authorized",
+        "rejected",
+        "cancelling",
+        "cancelled",
+        "failed",
+      ],
+      nfse_ambiente: ["homologacao", "producao"],
+      nfse_emission_mode: ["manual", "automatic"],
+      nfse_padrao: ["municipal", "nacional"],
       payroll_component: [
         "salary_fixed",
         "salary_variable",
@@ -3007,3 +3432,4 @@ export const Constants = {
     },
   },
 } as const
+
