@@ -56,6 +56,8 @@ src/
 └── types/             # database.ts (gerado do Supabase — NÃO editar à mão)
 supabase/
 ├── migrations/        # fonte da verdade do schema (versionado)
+├── functions/         # Edge Functions (Deno) — webhooks/orquestração
+│   └── _shared/       # código puro compartilhado entre functions (Deno)
 └── config.toml
 docs/
 ├── database/migrations.md             # workflow de migrations
@@ -98,6 +100,15 @@ create policy "<t>_scoped" on public.<t>
 
 - Acesso é por `company_access` (usuário ↔ empresa). Super admin bypassa.
 - Tabelas de ingest/segredo: política restrita a `is_super_admin()`; escrita pelas Edge Functions usa **service role** (bypassa RLS).
+
+## Edge Functions (Deno)
+
+Webhooks e orquestração server-side (ex.: esteira NFS-e) vivem em `supabase/functions/` (runtime Deno).
+
+- **Importação restrita:** uma function só importa de dentro de `supabase/functions/` — **não** de `src/` (o runtime não monta `src`). Código puro compartilhado vai em `supabase/functions/_shared/` (Deno-puro, imports com extensão `.ts` explícita).
+- O código em `_shared/` é validado por **Vitest** (testes rodam de qualquer pasta) e pelo **Deno** (no deploy); **não** pelo `tsc` do app (que cobre só `src/`).
+- Segredos só via `Deno.env` (Vault/secrets) — nunca hardcoded. Webhooks **verificam origem** (segredo na URL/header) e são **idempotentes** (dedup por id do evento).
+- Testar local: `supabase functions serve <nome> --no-verify-jwt` + POST de fixture.
 
 ## Padrões de código
 
@@ -142,3 +153,6 @@ Emissão de NFS-e municipal (Barueri) a partir de assinaturas do pagar.me, com *
 Ver [`docs/integrations/nfse-pagarme-architecture.md`](docs/integrations/nfse-pagarme-architecture.md) e
 [`docs/integrations/nfse-implementation-plan.md`](docs/integrations/nfse-implementation-plan.md).
 Referências das APIs: `focusnfe.md` e `pagarme.md` (raiz).
+
+**Estado:** Camada 0 pronta (schema + explosão do split + Edge Function `pagarme-webhook`, validados local).
+As migrations do NFS-e ainda **não foram aplicadas no remoto** (`db push` pendente, após merge dos PRs). Parsing do payload bruto do pagar.me será confirmado contra a sandbox na Fase 2.
