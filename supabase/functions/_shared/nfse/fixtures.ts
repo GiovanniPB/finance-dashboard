@@ -6,7 +6,7 @@
  * bruto do pagar.me será validado contra a sandbox na Fase 2.
  */
 
-import type { ChargePaidEvent, ExplodeContext } from "./types";
+import type { ChargePaidEvent, ExplodeContext } from "./types.ts";
 
 const ORG = "00000000-0000-0000-0000-0000000000aa";
 const COMPANY_A = "00000000-0000-0000-0000-0000000000a1";

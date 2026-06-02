@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { toCents } from "@/lib/money";
+import { baseContext, baseEvent, IDS } from "./fixtures.ts";
+import { allocateShares, explodeChargePaid, resolveTomador } from "./split.ts";
+import type { PagarmeSplit } from "./types.ts";
 
-import { baseContext, baseEvent, IDS } from "./fixtures";
-import { allocateShares, explodeChargePaid, resolveTomador } from "./split";
-import type { PagarmeSplit } from "./types";
+/** Inline (módulo _shared não depende de src/lib). */
+const toCents = (reais: number): number => Math.round(reais * 100);
 
 describe("allocateShares", () => {
   it("divide um split percentual preservando a soma exata", () => {

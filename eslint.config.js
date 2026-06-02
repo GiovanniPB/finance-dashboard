@@ -15,6 +15,7 @@ export default tseslint.config(
       "node_modules",
       "coverage",
       ".wrangler",
+      "supabase",
       "src/types/database.ts",
       "*.config.{js,ts}",
       "vite.config.ts",

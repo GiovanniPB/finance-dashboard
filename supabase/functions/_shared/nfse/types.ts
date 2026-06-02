@@ -4,6 +4,9 @@
  * `ChargePaidEvent` é a forma **normalizada** do webhook `charge.paid` do
  * pagar.me (o parsing do payload bruto vive na Edge Function — Fase 2). A
  * lógica de explosão do split opera sobre esta forma, pura e testável.
+ *
+ * Mora em `_shared` para ser importável pelas Edge Functions (Deno) e pelos
+ * testes (Vitest).
  */
 
 export type NfseAmbiente = "homologacao" | "producao";

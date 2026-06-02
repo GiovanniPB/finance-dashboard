@@ -11,11 +11,12 @@
  * Premissa do domínio: o split cobre o valor inteiro da cobrança entre
  * empresas cadastradas (assinatura dividida entre 2+ empresas). Logo a soma
  * das fatias dos jobs = total da cobrança.
+ *
+ * Vive em `_shared` (Deno-puro) para ser usado pelas Edge Functions e testado
+ * pelo Vitest.
  */
 
-import { isValidDocument } from "@/lib/document";
-import { fromCents } from "@/lib/money";
-
+import { isValidDocument } from "./document.ts";
 import type {
   ChargePaidEvent,
   ExplodeContext,
@@ -27,7 +28,12 @@ import type {
   PagarmeCustomer,
   PagarmeSplit,
   ServiceCatalogEntry,
-} from "./types";
+} from "./types.ts";
+
+/** Centavos -> reais (numeric(18,2)). Inline para manter o módulo sem deps. */
+function fromCents(cents: number): number {
+  return cents / 100;
+}
 
 /**
  * Distribui o valor total (centavos) entre as entradas do split, preservando
