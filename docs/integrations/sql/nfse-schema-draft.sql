@@ -1,8 +1,12 @@
 -- =============================================================================
--- RASCUNHO — Schema NFS-e (Focus × pagar.me)  ·  REVISAR ANTES DE APLICAR
+-- ⚠️ SUPERADO — este rascunho foi substituído pela migration real:
+--    supabase/migrations/20260602144027_nfse_schema.sql
+-- Diferenças da versão final: usa enums de domínio; fila baseada em STATUS na
+-- invoice_jobs (sem pgmq). Mantido apenas como registro histórico do desenho.
+-- =============================================================================
+-- RASCUNHO — Schema NFS-e (Focus × pagar.me)
 -- Projeto Supabase: vbeevkjenvgvnattzszt (Postgres 17, sa-east-1)
 -- Convenções do repo: snake_case, uuid PK, RLS, audit_log, numeric(18,2)
--- NÃO aplicado ao banco. Validar nomes/colunas com o time antes de migrar.
 -- =============================================================================
 
 -- Extensão de fila (mensageria no Postgres)

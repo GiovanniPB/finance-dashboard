@@ -2,7 +2,7 @@
 
 > **Status:** desenho aprovado · pré-implementação
 > **Contexto:** emitir NFS-e municipal (Barueri) automaticamente a partir das vendas/assinaturas do pagar.me, com split entre empresas do grupo.
-> **Stack alvo:** Supabase (Postgres 17 + Edge Functions + pgmq + Vault + Storage) — sem infra nova.
+> **Stack alvo:** Supabase (Postgres 17 + Edge Functions + Vault + Storage) — sem infra nova. Fila baseada em status na própria `invoice_jobs` (sem pgmq).
 
 ---
 
@@ -27,7 +27,7 @@ Avaliadas três opções; **escolhida a Supabase-nativa**.
 | Estado junto dos dados financeiros | Sim (write atômico em `transactions`/`audit_log`) | Não (hop de rede)              | Não                            |
 | Reuso de RLS/Auth/Storage          | Total                                             | Parcial (service role)         | Parcial                        |
 | Certificado/assinatura             | Irrelevante (Focus faz)                           | Irrelevante                    | Irrelevante                    |
-| Fila retry/DLQ                     | pgmq (bom)                                        | Excelente                      | Excelente                      |
+| Fila retry/DLQ                     | fila por status (KISS, sem extensão)              | Excelente                      | Excelente                      |
 | Custo / superfície de segurança    | Menor                                             | Baixo                          | Maior                          |
 
 **Racional:** como o Focus elimina a assinatura local, o trabalho é puramente orquestração de I/O. Colocar a máquina de estados no mesmo Postgres dos dados financeiros dá integridade transacional, reaproveita toda a RLS existente e mantém a superfície operacional mínima (princípio "DevOps antes de feature"). Opção B é o plano B caso bata em limite de Edge Function. Opção C foi descartada (assumir uptime de caminho fiscal crítico sem ganho real).
@@ -47,8 +47,8 @@ Avaliadas três opções; **escolhida a Supabase-nativa**.
         │                 │  └────────────────┘    │        ▼         │    │
         │                 │                         │  invoice_jobs    │    │
         │                 │  ┌────────────────┐    │  (1 por empresa  │    │
-        │                 │  │  pgmq           │◄───┤   do split)      │    │
-        │                 │  │  nfse_emit      │    │  + recipient_map │    │
+        │                 │  │ fila por status │◄───┤   do split)      │    │
+        │                 │  │ (status=queued) │    │  + recipient_map │    │
         │                 │  └───────┬────────┘    │  + fiscal_settings│   │
         │                 │          │             │  + service_catalog│   │
    Focus NFe ◄────────────┼──┌───────▼────────┐    │  Vault: tokens   │    │
@@ -74,12 +74,12 @@ Avaliadas três opções; **escolhida a Supabase-nativa**.
 
 ### Componentes
 
-| Componente        | Tipo                        | Responsabilidade                                                                                                                         |
-| ----------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `pagarme-webhook` | Edge Function (pública)     | Verifica origem, grava `sales_events` (idempotente), explode `split[]` em `invoice_jobs`, enfileira os elegíveis. Responde 2xx rápido.   |
-| `nfse-worker`     | Edge Function (via pg_cron) | Drena `nfse_emit`, monta payload NFS-e, `POST /v2/nfse?ref=`, marca `processing_authorization`.                                          |
-| `focus-webhook`   | Edge Function (pública)     | Grava `focus_events` (idempotente), atualiza `invoice_jobs` pelo `ref`, baixa XML/DANFSe → Storage, escreve `transaction` + `audit_log`. |
-| `nfse-reconcile`  | pg_cron (5 min)             | Varre jobs presos em `processing_authorization` sem webhook → `GET /v2/nfse/{ref}`. Aplica retry/DLQ.                                    |
+| Componente        | Tipo                        | Responsabilidade                                                                                                                           |
+| ----------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pagarme-webhook` | Edge Function (pública)     | Verifica origem, grava `sales_events` (idempotente), explode `split[]` em `invoice_jobs`, enfileira os elegíveis. Responde 2xx rápido.     |
+| `nfse-worker`     | Edge Function (via pg_cron) | Reivindica jobs `status='queued'` (`FOR UPDATE SKIP LOCKED`), monta payload NFS-e, `POST /v2/nfse?ref=`, marca `processing_authorization`. |
+| `focus-webhook`   | Edge Function (pública)     | Grava `focus_events` (idempotente), atualiza `invoice_jobs` pelo `ref`, baixa XML/DANFSe → Storage, escreve `transaction` + `audit_log`.   |
+| `nfse-reconcile`  | pg_cron (5 min)             | Varre jobs presos em `processing_authorization` sem webhook → `GET /v2/nfse/{ref}`. Aplica retry/DLQ.                                      |
 
 ---
 
@@ -92,14 +92,14 @@ Avaliadas três opções; **escolhida a Supabase-nativa**.
    - calcula a **fatia de valor** daquele recebedor;
    - resolve a classificação fiscal via `service_catalog` (LC116, código tributário municipal, alíquota ISS);
    - cria **um `invoice_job`** com a fatia, o tomador (assinante) e o `ambiente` da empresa.
-4. **Modo manual** → job nasce `pending_review` (gate no dashboard). **Modo automático** → entra direto em `queued` → pgmq.
+4. **Modo manual** → job nasce `pending_review` (gate no dashboard). **Modo automático** → entra direto em `queued`. As linhas `queued` **são** a fila (o `nfse-worker` as reivindica com `FOR UPDATE SKIP LOCKED`).
 5. **Invariante:** a soma das fatias dos jobs = valor total do charge.
 
 ---
 
 ## 5. Modelo de dados
 
-Schema `public`, RLS por `company_access`/`has_company_access` (leitura) e service role (escrita). Rascunho completo em [`sql/nfse-schema-draft.sql`](./sql/nfse-schema-draft.sql).
+Schema `public`, RLS por `has_company_access` (leitura/operação no dashboard) e service role das Edge Functions (escrita). **Implementado** na migration [`supabase/migrations/20260602144027_nfse_schema.sql`](../../supabase/migrations/20260602144027_nfse_schema.sql) (enums `nfse_ambiente`, `nfse_padrao`, `nfse_emission_mode`, `invoice_job_status`). A **fila é baseada em status**: `invoice_jobs` com `status='queued'` são o trabalho; o worker reivindica com `FOR UPDATE SKIP LOCKED`. O rascunho original em [`sql/nfse-schema-draft.sql`](./sql/nfse-schema-draft.sql) está **superado** por esta migration.
 
 | Tabela                    | Papel                                                                                                                                                          |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -167,7 +167,7 @@ Schema `public`, RLS por `company_access`/`has_company_access` (leitura) e servi
 - ✅ NFS-e **municipal** (Barueri), não Nacional.
 - ✅ **Cancelamento fora de escopo** nesta fase.
 - ✅ **Começar em homologação**, validar em camadas (ver plano).
-- ✅ Infra **Supabase-nativa** (Edge Functions + pgmq).
+- ✅ Infra **Supabase-nativa** (Edge Functions + fila por status na `invoice_jobs`, sem pgmq).
 - ✅ Esteira única para `manual` + `automatic` (flag por empresa).
 
 ## 10. Em aberto / próximos refinamentos

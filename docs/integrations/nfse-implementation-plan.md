@@ -18,11 +18,11 @@
 
 **Objetivo:** schema + segredos prontos, sem nenhuma chamada externa.
 
-- [ ] Revisar e aplicar migrations (`fiscal_company_settings`, `pagarme_recipient_map`, `service_catalog`, `sales_events`, `invoice_jobs`, `focus_events`).
-- [ ] Habilitar extensão **pgmq**; criar fila `nfse_emit`.
-- [ ] RLS policies + triggers `updated_at` + `audit_log` nas tabelas novas.
+- [x] Migration das 6 tabelas (`fiscal_company_settings`, `pagarme_recipient_map`, `service_catalog`, `sales_events`, `invoice_jobs`, `focus_events`) + enums — `supabase/migrations/20260602144027_nfse_schema.sql`, validada com `db reset` local. _(falta `db push` ao remoto após PR)_
+- [x] Fila **baseada em status** na `invoice_jobs` (`status='queued'` + `FOR UPDATE SKIP LOCKED`) — decisão KISS, sem pgmq.
+- [x] RLS policies + triggers `updated_at` + `audit_log` nas tabelas novas.
+- [x] `gen types` → `src/types/database.ts` atualizado.
 - [ ] Vault: cadastrar `secret_key` pagar.me (teste) e estrutura para tokens Focus por empresa.
-- [ ] `gen types` → atualizar `src/types/database.ts`.
 
 **Saída:** banco pronto, tipado no frontend.
 
@@ -95,14 +95,14 @@
 
 ## Riscos e mitigações
 
-| Risco                                      | Mitigação                                                            |
-| ------------------------------------------ | -------------------------------------------------------------------- |
-| Código LC116/tributário errado p/ Barueri  | Validar na Fase 3 com rejeição controlada; confirmar com contador.   |
-| Cadastro do tomador incompleto no pagar.me | Validação na explosão do split; job vai a `failed` com motivo claro. |
-| Webhook duplicado (ambos terceiros)        | Idempotência por `event_id` / `focus_ref`.                           |
-| Webhook Focus não assinado                 | Token-segredo na URL + validação.                                    |
-| Job preso (sem webhook)                    | `nfse-reconcile` via polling.                                        |
-| Pico de volume (>6k/mês)                   | pgmq + worker idempotente; plano B = Cloudflare Queues.              |
+| Risco                                      | Mitigação                                                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| Código LC116/tributário errado p/ Barueri  | Validar na Fase 3 com rejeição controlada; confirmar com contador.                         |
+| Cadastro do tomador incompleto no pagar.me | Validação na explosão do split; job vai a `failed` com motivo claro.                       |
+| Webhook duplicado (ambos terceiros)        | Idempotência por `event_id` / `focus_ref`.                                                 |
+| Webhook Focus não assinado                 | Token-segredo na URL + validação.                                                          |
+| Job preso (sem webhook)                    | `nfse-reconcile` via polling.                                                              |
+| Pico de volume (>6k/mês)                   | fila por status + worker idempotente (`SKIP LOCKED`); plano B = pgmq ou Cloudflare Queues. |
 
 ---
 
