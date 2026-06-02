@@ -18,7 +18,17 @@
     "test:coverage": "vitest run --coverage",
     "preflight": "bun run typecheck && bun run lint && bun run format:check && bun run test:run",
     "prepare": "husky",
-    "supabase:types": "supabase gen types typescript --project-id vbeevkjenvgvnattzszt --schema public > src/types/database.ts"
+    "supabase:types": "supabase gen types typescript --project-id vbeevkjenvgvnattzszt --schema public > src/types/database.ts",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:status": "supabase status",
+    "db:pull": "supabase db pull",
+    "db:push": "supabase db push",
+    "db:diff": "supabase db diff -f",
+    "db:new": "supabase migration new",
+    "db:reset": "supabase db reset",
+    "db:lint": "supabase db lint",
+    "db:types:local": "supabase gen types typescript --local --schema public > src/types/database.ts"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
