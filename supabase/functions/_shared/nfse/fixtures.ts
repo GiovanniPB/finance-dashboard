@@ -80,4 +80,41 @@ export function baseContext(): ExplodeContext {
   };
 }
 
+/**
+ * Webhook BRUTO do pagar.me (charge.paid) — envelope v5, split em
+ * `data.last_transaction.split`. Espelha `baseEvent()`.
+ * ⚠️ FASE 2: confirmar a forma exata contra a sandbox.
+ */
+export function rawChargePaidWebhook(): Record<string, unknown> {
+  return {
+    id: "hook_test_0001",
+    type: "charge.paid",
+    created_at: "2026-06-03T12:00:00Z",
+    data: {
+      id: "ch_test_0001",
+      amount: 29900,
+      status: "paid",
+      plan_id: "plan_assinatura_basica",
+      customer: {
+        name: "Cliente Teste",
+        email: "cliente@example.com",
+        document: VALID_CPF,
+        address: {
+          line_1: "100, Rua Exemplo, Centro",
+          zip_code: "06401000",
+          city: "Barueri",
+          state: "SP",
+          country: "BR",
+        },
+      },
+      last_transaction: {
+        split: [
+          { amount: 60, recipient_id: "rp_company_a", type: "percentage" },
+          { amount: 40, recipient_id: "rp_company_b", type: "percentage" },
+        ],
+      },
+    },
+  };
+}
+
 export const IDS = { ORG, COMPANY_A, COMPANY_B };
