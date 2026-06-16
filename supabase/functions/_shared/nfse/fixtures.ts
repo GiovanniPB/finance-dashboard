@@ -80,4 +80,61 @@ export function baseContext(): ExplodeContext {
   };
 }
 
+/**
+ * Webhook BRUTO do pagar.me (charge.paid) — formato confirmado contra um
+ * payload real de produção (2026-06): envelope v5, split em
+ * `data.last_transaction.split[]` com `recipient` ANINHADO (`recipient.id`),
+ * sem `plan_id` no charge (a assinatura vem em `data.invoice.subscriptionId`).
+ * Dados do tomador/recebedor aqui são SINTÉTICOS (sem PII real no repo).
+ */
+export function rawChargePaidWebhook(): Record<string, unknown> {
+  return {
+    id: "hook_test_0001",
+    type: "charge.paid",
+    created_at: "2026-06-03T12:00:00Z",
+    data: {
+      id: "ch_test_0001",
+      amount: 29900,
+      status: "paid",
+      customer: {
+        name: "Cliente Teste",
+        email: "cliente@example.com",
+        document: VALID_CPF,
+        document_type: "cpf",
+        type: "individual",
+        address: {
+          line_1: "100, Rua Exemplo, Centro",
+          zip_code: "06401000",
+          city: "Barueri",
+          state: "SP",
+          country: "BR",
+        },
+      },
+      invoice: {
+        id: "in_test_0001",
+        subscriptionId: "sub_test_0001",
+        status: "paid",
+      },
+      last_transaction: {
+        amount: 29900,
+        status: "captured",
+        split: [
+          {
+            amount: 60,
+            type: "percentage",
+            id: "sr_test_a",
+            recipient: { id: "rp_company_a", document: "11111111000111", type: "company" },
+          },
+          {
+            amount: 40,
+            type: "percentage",
+            id: "sr_test_b",
+            recipient: { id: "rp_company_b", document: "22222222000122", type: "company" },
+          },
+        ],
+      },
+    },
+  };
+}
+
 export const IDS = { ORG, COMPANY_A, COMPANY_B };

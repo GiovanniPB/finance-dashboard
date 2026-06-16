@@ -53,7 +53,8 @@ export interface ChargePaidEvent {
   eventId: string; // id do webhook (hook_...) — idempotência
   chargeId: string; // ch_...
   amountCents: number; // total da cobrança, em centavos
-  planId?: string | null; // plano da assinatura (mapeia serviço)
+  planId?: string | null; // plano (não vem no charge.paid; reservado p/ lookup futuro)
+  subscriptionId?: string | null; // sub_... (de data.invoice.subscriptionId)
   customer: PagarmeCustomer; // tomador
   split: PagarmeSplit[];
 }

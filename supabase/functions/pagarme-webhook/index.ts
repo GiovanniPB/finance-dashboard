@@ -17,15 +17,14 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { parseChargePaidWebhook } from "../_shared/nfse/parse.ts";
 import { explodeChargePaid } from "../_shared/nfse/split.ts";
 import type {
-  ChargePaidEvent,
   ExplodeContext,
   FiscalCompanySettings,
   InvoiceJobDraft,
   NfseAmbiente,
   NfseEmissionMode,
-  PagarmeSplit,
   RecipientMapEntry,
   ServiceCatalogEntry,
 } from "../_shared/nfse/types.ts";
@@ -39,42 +38,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json" },
   });
-}
-
-/** Parsing best-effort do webhook charge.paid -> evento normalizado (VERIFICAR na Fase 2). */
-function parseChargePaid(payload: Record<string, unknown>): ChargePaidEvent | null {
-  const data = (payload.data ?? {}) as Record<string, unknown>;
-  const chargeId = typeof data.id === "string" ? data.id : "";
-  const amount = typeof data.amount === "number" ? data.amount : 0;
-  if (!chargeId || amount <= 0) return null;
-
-  const lastTx = (data.last_transaction ?? {}) as Record<string, unknown>;
-  const rawSplit = (
-    Array.isArray(data.split) ? data.split : Array.isArray(lastTx.split) ? lastTx.split : []
-  ) as Array<Record<string, unknown>>;
-
-  const split: PagarmeSplit[] = rawSplit.map((s) => ({
-    recipientId: String(s.recipient_id ?? ""),
-    amount: typeof s.amount === "number" ? s.amount : 0,
-    type: s.type === "flat" ? "flat" : "percentage",
-  }));
-
-  const customer = (data.customer ?? {}) as Record<string, unknown>;
-  const address = (customer.address ?? null) as ChargePaidEvent["customer"]["address"];
-
-  return {
-    eventId: String(payload.id ?? ""),
-    chargeId,
-    amountCents: amount,
-    planId: typeof data.plan_id === "string" ? data.plan_id : null,
-    customer: {
-      name: typeof customer.name === "string" ? customer.name : null,
-      email: typeof customer.email === "string" ? customer.email : null,
-      document: typeof customer.document === "string" ? customer.document : null,
-      address,
-    },
-    split,
-  };
 }
 
 async function loadContext(
@@ -222,7 +185,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ status: "ignored", eventType, eventId });
   }
 
-  const event = parseChargePaid(payload);
+  const event = parseChargePaidWebhook(payload);
   if (!event || event.split.length === 0) {
     await markProcessed(supabase, eventId, "no_split");
     return json({ status: "no_split", eventId });
