@@ -1,0 +1,104 @@
+import * as React from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { Company } from "@/features/companies/api";
+
+import { AMBIENTE_META, EMISSION_MODE_OPTIONS } from "../constants";
+import { useFiscalSettings } from "../hooks";
+import { FiscalSettingsDrawer } from "./FiscalSettingsDrawer";
+
+export function FiscalSettingsPanel({ companies }: { companies: Company[] }) {
+  const { data: settings = [], isLoading } = useFiscalSettings();
+  const [editing, setEditing] = React.useState<Company | null>(null);
+
+  const byCompany = React.useMemo(
+    () => new Map(settings.map((s) => [s.company_id, s])),
+    [settings],
+  );
+
+  const modeLabel = (v: string) => EMISSION_MODE_OPTIONS.find((o) => o.value === v)?.label ?? v;
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-text-muted">
+        Parâmetros de emissão da NFS-e por empresa (ambiente, token Focus, ISS, kill-switch).
+      </p>
+
+      {isLoading ? (
+        <Skeleton className="h-48 w-full" />
+      ) : companies.length === 0 ? (
+        <div className="rounded-[var(--radius-md)] border border-dashed border-border bg-surface p-12 text-center text-sm text-text-muted">
+          Nenhuma empresa cadastrada.
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-2">
+              <tr className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
+                <th className="px-3 py-2.5 text-left">Empresa</th>
+                <th className="px-3 py-2.5 text-left">Ambiente</th>
+                <th className="px-3 py-2.5 text-left">Modo</th>
+                <th className="px-3 py-2.5 text-left">Token Focus</th>
+                <th className="px-3 py-2.5 text-left">Emissão</th>
+                <th className="w-28 px-3 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {companies.map((c) => {
+                const s = byCompany.get(c.id) ?? null;
+                const amb = s ? AMBIENTE_META[s.ambiente] : null;
+                return (
+                  <tr key={c.id} className="hover:bg-surface-2/60">
+                    <td className="px-3 py-2.5 font-medium">{c.trade_name ?? c.legal_name}</td>
+                    <td className="px-3 py-2.5">
+                      {amb ? <Badge tone={amb.tone}>{amb.label}</Badge> : <Dash />}
+                    </td>
+                    <td className="px-3 py-2.5 text-text-muted">
+                      {s ? modeLabel(s.emission_mode) : <Dash />}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {!s ? (
+                        <Dash />
+                      ) : s.focus_token_ref ? (
+                        <Badge tone="info">configurado</Badge>
+                      ) : (
+                        <Badge tone="warning">pendente</Badge>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {!s ? (
+                        <Badge tone="default">não configurada</Badge>
+                      ) : s.enabled ? (
+                        <Badge tone="income">habilitada</Badge>
+                      ) : (
+                        <Badge tone="warning">desligada</Badge>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(c)}>
+                        {s ? "Editar" : "Configurar"}
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <FiscalSettingsDrawer
+        open={Boolean(editing)}
+        onOpenChange={(o) => !o && setEditing(null)}
+        company={editing}
+        settings={editing ? (byCompany.get(editing.id) ?? null) : null}
+      />
+    </div>
+  );
+}
+
+function Dash() {
+  return <span className="text-text-subtle">—</span>;
+}
