@@ -11,6 +11,7 @@ import type { ChargePaidEvent, ExplodeContext } from "./types.ts";
 const ORG = "00000000-0000-0000-0000-0000000000aa";
 const COMPANY_A = "00000000-0000-0000-0000-0000000000a1";
 const COMPANY_B = "00000000-0000-0000-0000-0000000000b2";
+const ACCOUNT = "00000000-0000-0000-0000-0000000000ac";
 
 /** CPF válido (mesmo usado nos testes de `lib/document`). */
 export const VALID_CPF = "52998224725";
@@ -43,6 +44,13 @@ export function baseEvent(): ChargePaidEvent {
 
 export function baseContext(): ExplodeContext {
   return {
+    account: {
+      id: ACCOUNT,
+      slug: "conta-teste",
+      ownerCompanyId: COMPANY_A, // dona: usada em cobrança sem split
+      organizationId: ORG,
+      ambiente: "homologacao",
+    },
     recipients: [
       { pagarmeRecipientId: "rp_company_a", companyId: COMPANY_A, organizationId: ORG },
       { pagarmeRecipientId: "rp_company_b", companyId: COMPANY_B, organizationId: ORG },
@@ -137,4 +145,4 @@ export function rawChargePaidWebhook(): Record<string, unknown> {
   };
 }
 
-export const IDS = { ORG, COMPANY_A, COMPANY_B };
+export const IDS = { ORG, COMPANY_A, COMPANY_B, ACCOUNT };

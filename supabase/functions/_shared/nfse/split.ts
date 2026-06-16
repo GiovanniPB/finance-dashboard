@@ -24,6 +24,7 @@ import type {
   FiscalCompanySettings,
   InvoiceJobDraft,
   InvoiceJobStatus,
+  PagarmeAccount,
   PagarmeAddress,
   PagarmeCustomer,
   PagarmeSplit,
@@ -124,16 +125,93 @@ function initialStatus(
   return settings.emissionMode === "automatic" ? "queued" : "pending_review";
 }
 
-/** Explode um `charge.paid` em rascunhos de invoice_jobs (um por recebedor mapeado). */
+interface JobInput {
+  account: PagarmeAccount;
+  companyId: string;
+  organizationId: string;
+  recipientId: string | null;
+  valorCents: number;
+  planId: string | null | undefined;
+  tomador: ResolvedTomador;
+  eventId: string;
+  chargeId: string;
+  noSplit: boolean;
+}
+
+/** Monta um `InvoiceJobDraft` resolvendo classificação fiscal (service_catalog > settings). */
+function buildJob(
+  input: JobInput,
+  services: readonly ServiceCatalogEntry[],
+  settings: FiscalCompanySettings | undefined,
+): InvoiceJobDraft {
+  const service = resolveService(services, input.companyId, input.planId);
+
+  const itemListaServico = service?.itemListaServico ?? settings?.itemListaServico ?? null;
+  const aliquotaIss = service?.aliquotaIss ?? settings?.aliquotaIss ?? null;
+  const codigoTributarioMunicipio =
+    service?.codigoTributarioMunicipio ?? settings?.codigoTributarioMunicipio ?? null;
+
+  const metadata: Record<string, unknown> = { sourceEventId: input.eventId };
+  if (input.noSplit) metadata.noSplit = true;
+  if (input.tomador.warnings.length > 0) metadata.validationWarnings = input.tomador.warnings;
+
+  return {
+    organizationId: input.organizationId,
+    companyId: input.companyId,
+    pagarmeAccountId: input.account.id,
+    pagarmeChargeId: input.chargeId,
+    pagarmeRecipientId: input.recipientId,
+    ambiente: settings?.ambiente ?? input.account.ambiente,
+    status: initialStatus(settings, input.tomador.valid),
+    valorServicos: fromCents(input.valorCents),
+    tomadorDocumento: input.tomador.documento,
+    tomadorNome: input.tomador.nome,
+    tomadorEmail: input.tomador.email,
+    tomadorEndereco: input.tomador.endereco,
+    itemListaServico,
+    codigoTributarioMunicipio,
+    aliquotaIss,
+    metadata,
+  };
+}
+
+/**
+ * Explode um `charge.paid` em rascunhos de invoice_jobs:
+ *  - COM split  -> um job por recebedor mapeado na conta, cada um com sua fatia;
+ *  - SEM split  -> um único job para a empresa DONA da conta, com o valor cheio.
+ */
 export function explodeChargePaid(event: ChargePaidEvent, ctx: ExplodeContext): ExplodeResult {
   const recipientById = new Map(ctx.recipients.map((r) => [r.pagarmeRecipientId, r]));
   const settingsByCompany = new Map(ctx.settings.map((s) => [s.companyId, s]));
-
-  const shares = allocateShares(event.amountCents, event.split);
   const tomador = resolveTomador(event.customer);
 
   const jobs: InvoiceJobDraft[] = [];
   const skipped: ExplodeResult["skipped"] = [];
+
+  // Cobrança sem split -> nota da empresa dona da conta (valor integral).
+  if (event.split.length === 0) {
+    jobs.push(
+      buildJob(
+        {
+          account: ctx.account,
+          companyId: ctx.account.ownerCompanyId,
+          organizationId: ctx.account.organizationId,
+          recipientId: null,
+          valorCents: event.amountCents,
+          planId: event.planId,
+          tomador,
+          eventId: event.eventId,
+          chargeId: event.chargeId,
+          noSplit: true,
+        },
+        ctx.services,
+        settingsByCompany.get(ctx.account.ownerCompanyId),
+      ),
+    );
+    return { jobs, skipped };
+  }
+
+  const shares = allocateShares(event.amountCents, event.split);
 
   event.split.forEach((entry, index) => {
     const recipient = recipientById.get(entry.recipientId);
@@ -142,34 +220,24 @@ export function explodeChargePaid(event: ChargePaidEvent, ctx: ExplodeContext): 
       return;
     }
 
-    const settings = settingsByCompany.get(recipient.companyId);
-    const service = resolveService(ctx.services, recipient.companyId, event.planId);
-
-    const itemListaServico = service?.itemListaServico ?? settings?.itemListaServico ?? null;
-    const aliquotaIss = service?.aliquotaIss ?? settings?.aliquotaIss ?? null;
-    const codigoTributarioMunicipio =
-      service?.codigoTributarioMunicipio ?? settings?.codigoTributarioMunicipio ?? null;
-
-    const metadata: Record<string, unknown> = { sourceEventId: event.eventId };
-    if (tomador.warnings.length > 0) metadata.validationWarnings = tomador.warnings;
-
-    jobs.push({
-      organizationId: recipient.organizationId,
-      companyId: recipient.companyId,
-      pagarmeChargeId: event.chargeId,
-      pagarmeRecipientId: entry.recipientId,
-      ambiente: settings?.ambiente ?? "homologacao",
-      status: initialStatus(settings, tomador.valid),
-      valorServicos: fromCents(shares[index]),
-      tomadorDocumento: tomador.documento,
-      tomadorNome: tomador.nome,
-      tomadorEmail: tomador.email,
-      tomadorEndereco: tomador.endereco,
-      itemListaServico,
-      codigoTributarioMunicipio,
-      aliquotaIss,
-      metadata,
-    });
+    jobs.push(
+      buildJob(
+        {
+          account: ctx.account,
+          companyId: recipient.companyId,
+          organizationId: recipient.organizationId,
+          recipientId: entry.recipientId,
+          valorCents: shares[index],
+          planId: event.planId,
+          tomador,
+          eventId: event.eventId,
+          chargeId: event.chargeId,
+          noSplit: false,
+        },
+        ctx.services,
+        settingsByCompany.get(recipient.companyId),
+      ),
+    );
   });
 
   return { jobs, skipped };

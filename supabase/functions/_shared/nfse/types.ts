@@ -59,6 +59,15 @@ export interface ChargePaidEvent {
   split: PagarmeSplit[];
 }
 
+/** Conta pagar.me (conexão). Resolvida pela Edge Function a partir do slug na URL. */
+export interface PagarmeAccount {
+  id: string;
+  slug: string;
+  ownerCompanyId: string; // empresa dona — fallback p/ cobrança sem split
+  organizationId: string;
+  ambiente: NfseAmbiente;
+}
+
 export interface RecipientMapEntry {
   pagarmeRecipientId: string;
   companyId: string;
@@ -87,8 +96,9 @@ export interface FiscalCompanySettings {
 export interface InvoiceJobDraft {
   organizationId: string;
   companyId: string;
+  pagarmeAccountId: string;
   pagarmeChargeId: string;
-  pagarmeRecipientId: string;
+  pagarmeRecipientId: string | null; // null em cobrança sem split (nota da empresa dona)
   ambiente: NfseAmbiente;
   status: InvoiceJobStatus;
   valorServicos: number; // reais — numeric(18,2)
@@ -110,6 +120,7 @@ export interface SkippedSplit {
 }
 
 export interface ExplodeContext {
+  account: PagarmeAccount;
   recipients: RecipientMapEntry[];
   services: ServiceCatalogEntry[];
   settings: FiscalCompanySettings[];
