@@ -12,9 +12,11 @@ describe("parseChargePaidWebhook", () => {
     expect(event?.eventId).toBe("hook_test_0001");
     expect(event?.chargeId).toBe("ch_test_0001");
     expect(event?.amountCents).toBe(29900);
-    expect(event?.planId).toBe("plan_assinatura_basica");
+    expect(event?.planId).toBeNull(); // não vem no charge.paid
+    expect(event?.subscriptionId).toBe("sub_test_0001"); // de data.invoice.subscriptionId
     expect(event?.customer.document).toBe("52998224725");
     expect(event?.customer.address?.city).toBe("Barueri");
+    // recebedor extraído de split[].recipient.id (objeto aninhado)
     expect(event?.split).toEqual([
       { recipientId: "rp_company_a", amount: 60, type: "percentage" },
       { recipientId: "rp_company_b", amount: 40, type: "percentage" },

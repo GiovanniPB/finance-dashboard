@@ -81,9 +81,11 @@ export function baseContext(): ExplodeContext {
 }
 
 /**
- * Webhook BRUTO do pagar.me (charge.paid) — envelope v5, split em
- * `data.last_transaction.split`. Espelha `baseEvent()`.
- * ⚠️ FASE 2: confirmar a forma exata contra a sandbox.
+ * Webhook BRUTO do pagar.me (charge.paid) — formato confirmado contra um
+ * payload real de produção (2026-06): envelope v5, split em
+ * `data.last_transaction.split[]` com `recipient` ANINHADO (`recipient.id`),
+ * sem `plan_id` no charge (a assinatura vem em `data.invoice.subscriptionId`).
+ * Dados do tomador/recebedor aqui são SINTÉTICOS (sem PII real no repo).
  */
 export function rawChargePaidWebhook(): Record<string, unknown> {
   return {
@@ -94,11 +96,12 @@ export function rawChargePaidWebhook(): Record<string, unknown> {
       id: "ch_test_0001",
       amount: 29900,
       status: "paid",
-      plan_id: "plan_assinatura_basica",
       customer: {
         name: "Cliente Teste",
         email: "cliente@example.com",
         document: VALID_CPF,
+        document_type: "cpf",
+        type: "individual",
         address: {
           line_1: "100, Rua Exemplo, Centro",
           zip_code: "06401000",
@@ -107,10 +110,27 @@ export function rawChargePaidWebhook(): Record<string, unknown> {
           country: "BR",
         },
       },
+      invoice: {
+        id: "in_test_0001",
+        subscriptionId: "sub_test_0001",
+        status: "paid",
+      },
       last_transaction: {
+        amount: 29900,
+        status: "captured",
         split: [
-          { amount: 60, recipient_id: "rp_company_a", type: "percentage" },
-          { amount: 40, recipient_id: "rp_company_b", type: "percentage" },
+          {
+            amount: 60,
+            type: "percentage",
+            id: "sr_test_a",
+            recipient: { id: "rp_company_a", document: "11111111000111", type: "company" },
+          },
+          {
+            amount: 40,
+            type: "percentage",
+            id: "sr_test_b",
+            recipient: { id: "rp_company_b", document: "22222222000122", type: "company" },
+          },
         ],
       },
     },

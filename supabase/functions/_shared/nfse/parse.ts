@@ -33,7 +33,9 @@ function parseSplit(charge: Record<string, unknown>): PagarmeSplit[] {
   const out: PagarmeSplit[] = [];
   for (const item of raw as unknown[]) {
     const entry = asRecord(item);
-    const recipientId = asString(entry.recipient_id);
+    // No charge.paid real o recebedor vem aninhado: split[].recipient.id (re_...).
+    // Mantemos fallback para recipient_id (outras formas de evento).
+    const recipientId = asString(asRecord(entry.recipient).id) ?? asString(entry.recipient_id);
     if (!recipientId) continue;
     out.push({
       recipientId,
@@ -71,12 +73,14 @@ export function parseChargePaidWebhook(payload: Record<string, unknown>): Charge
   if (!chargeId || amount <= 0) return null;
 
   const customer = asRecord(charge.customer);
+  const invoice = asRecord(charge.invoice);
 
   return {
     eventId,
     chargeId,
     amountCents: amount,
-    planId: asString(charge.plan_id),
+    planId: asString(charge.plan_id), // ausente no charge.paid hoje (reservado)
+    subscriptionId: asString(invoice.subscriptionId),
     customer: {
       name: asString(customer.name),
       email: asString(customer.email),
