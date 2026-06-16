@@ -381,6 +381,15 @@ port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
 
+# NFS-e — endpoints chamados por terceiros (pagar.me/Focus) e por pg_cron,
+# que NÃO carregam JWT do Supabase. A origem é verificada por segredo
+# compartilhado na URL/header (PAGARME_WEBHOOK_SECRET / NFSE_WORKER_SECRET).
+[functions.pagarme-webhook]
+verify_jwt = false
+
+[functions.nfse-worker]
+verify_jwt = false
+
 # Experimental features may be deprecated any time
 [experimental]
 # Configures Postgres storage engine to use OrioleDB (S3)
