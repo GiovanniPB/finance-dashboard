@@ -1,18 +1,19 @@
 /**
  * Edge Function: pagarme-webhook
  *
- * Recebe webhooks do pagar.me, grava o evento bruto (idempotente) em
- * `sales_events`, e para `charge.paid` explode o split em `invoice_jobs`
- * (uma NFS-e por empresa-recebedor). Wrapper fino: a lógica de explosão é a
- * função pura `explodeChargePaid` (testada em src/features/nfse).
+ * Recebe webhooks de UMA conta pagar.me (endereçada por `?account=<slug>`),
+ * grava o evento bruto (idempotente) em `sales_events` e, para `charge.paid`,
+ * explode em `invoice_jobs`:
+ *   - COM split -> uma NFS-e por empresa-recebedor mapeado na conta;
+ *   - SEM split -> uma NFS-e da empresa dona da conta (owner_company).
+ * Wrapper fino: a lógica pura vive em `_shared/nfse` (testada por Vitest).
+ *
+ * Origem: cada conta tem segredo de webhook PRÓPRIO no Vault, lido via RPC
+ * `get_pagarme_webhook_secret(slug)` (service_role). Sem conta/segredo -> rejeita.
  *
  * Idempotência:
  *   - `sales_events` (provider, event_id) único -> evento repetido é ignorado;
  *   - `invoice_jobs` (charge, recipient) único -> upsert ignoreDuplicates.
- *
- * NOTA (Fase 2): o parsing do payload BRUTO do pagar.me (`parseChargePaid`)
- * deve ser validado contra a sandbox — a forma exata do split no webhook ainda
- * será confirmada. A lógica de negócio (explosão) já está coberta por testes.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -25,13 +26,13 @@ import type {
   InvoiceJobDraft,
   NfseAmbiente,
   NfseEmissionMode,
+  PagarmeAccount,
   RecipientMapEntry,
   ServiceCatalogEntry,
 } from "../_shared/nfse/types.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const WEBHOOK_SECRET = Deno.env.get("PAGARME_WEBHOOK_SECRET") ?? "";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -40,18 +41,40 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+/** Resolve a conta pagar.me pelo slug (?account=). Retorna null se inexistente/inativa. */
+async function loadAccount(supabase: SupabaseClient, slug: string): Promise<PagarmeAccount | null> {
+  const { data } = await supabase
+    .from("pagarme_accounts")
+    .select("id, slug, owner_company_id, organization_id, ambiente, active")
+    .eq("slug", slug)
+    .eq("active", true)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    id: data.id as string,
+    slug: data.slug as string,
+    ownerCompanyId: data.owner_company_id as string,
+    organizationId: data.organization_id as string,
+    ambiente: data.ambiente as NfseAmbiente,
+  };
+}
+
 async function loadContext(
   supabase: SupabaseClient,
+  account: PagarmeAccount,
   recipientIds: string[],
 ): Promise<ExplodeContext> {
+  // recebedores são escopados à conta de origem (mesmo re_ pode existir em contas distintas)
   const { data: recRows } = await supabase
     .from("pagarme_recipient_map")
     .select("pagarme_recipient_id, company_id, active")
-    .in("pagarme_recipient_id", recipientIds)
+    .eq("pagarme_account_id", account.id)
+    .in("pagarme_recipient_id", recipientIds.length > 0 ? recipientIds : ["__none__"])
     .eq("active", true);
 
   const recipients: RecipientMapEntry[] = [];
-  const companyIds: string[] = [];
+  // empresa dona entra sempre (cobrança sem split -> nota dela)
+  const companyIds: string[] = [account.ownerCompanyId];
   for (const r of recRows ?? []) {
     // organization_id vem de companies
     companyIds.push(r.company_id as string);
@@ -110,13 +133,14 @@ async function loadContext(
     aliquotaIss: (s.aliquota_iss as number | null) ?? null,
   }));
 
-  return { recipients, services, settings };
+  return { account, recipients, services, settings };
 }
 
 function toRow(draft: InvoiceJobDraft): Record<string, unknown> {
   return {
     organization_id: draft.organizationId,
     company_id: draft.companyId,
+    pagarme_account_id: draft.pagarmeAccountId,
     pagarme_charge_id: draft.pagarmeChargeId,
     pagarme_recipient_id: draft.pagarmeRecipientId,
     ambiente: draft.ambiente,
@@ -136,10 +160,24 @@ function toRow(draft: InvoiceJobDraft): Record<string, unknown> {
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-  // verificação de origem (segredo na URL/header) — obrigatória em produção
+  // a conta de origem é endereçada pelo slug na URL (?account=<slug>)
   const url = new URL(req.url);
+  const slug = url.searchParams.get("account") ?? "";
   const provided = req.headers.get("x-webhook-secret") ?? url.searchParams.get("secret") ?? "";
-  if (WEBHOOK_SECRET && provided !== WEBHOOK_SECRET) {
+  if (!slug) return json({ error: "missing_account" }, 400);
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  });
+
+  // verificação de origem: segredo PRÓPRIO da conta (no Vault). Sem conta/segredo -> rejeita.
+  const account = await loadAccount(supabase, slug);
+  if (!account) return json({ error: "unknown_account" }, 404);
+
+  const { data: expectedSecret } = await supabase.rpc("get_pagarme_webhook_secret", {
+    p_slug: slug,
+  });
+  if (!expectedSecret || provided !== expectedSecret) {
     return json({ error: "unauthorized" }, 401);
   }
 
@@ -154,18 +192,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const eventType = typeof payload.type === "string" ? payload.type : "";
   if (!eventId) return json({ error: "missing_event_id" }, 400);
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  });
-
   const data = (payload.data ?? {}) as Record<string, unknown>;
 
-  // 1) ingest idempotente em sales_events
+  // 1) ingest idempotente em sales_events (carimba a conta de origem)
   const { data: inserted, error: salesErr } = await supabase
     .from("sales_events")
     .upsert(
       {
         provider: "pagarme",
+        pagarme_account_id: account.id,
         event_id: eventId,
         event_type: eventType,
         resource_id: typeof data.id === "string" ? data.id : null,
@@ -186,13 +221,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const event = parseChargePaidWebhook(payload);
-  if (!event || event.split.length === 0) {
-    await markProcessed(supabase, eventId, "no_split");
-    return json({ status: "no_split", eventId });
+  if (!event) {
+    await markProcessed(supabase, eventId, "not_charge_paid");
+    return json({ status: "not_charge_paid", eventId });
   }
 
+  // explode: COM split -> N jobs (recebedores da conta); SEM split -> 1 job da empresa dona
   const ctx = await loadContext(
     supabase,
+    account,
     event.split.map((s) => s.recipientId),
   );
   const { jobs, skipped } = explodeChargePaid(event, ctx);

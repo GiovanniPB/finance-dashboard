@@ -979,6 +979,7 @@ export type Database = {
           next_attempt_at: string | null
           numero_nfse: string | null
           organization_id: string
+          pagarme_account_id: string | null
           pagarme_charge_id: string | null
           pagarme_recipient_id: string | null
           sales_event_id: string | null
@@ -1014,6 +1015,7 @@ export type Database = {
           next_attempt_at?: string | null
           numero_nfse?: string | null
           organization_id: string
+          pagarme_account_id?: string | null
           pagarme_charge_id?: string | null
           pagarme_recipient_id?: string | null
           sales_event_id?: string | null
@@ -1049,6 +1051,7 @@ export type Database = {
           next_attempt_at?: string | null
           numero_nfse?: string | null
           organization_id?: string
+          pagarme_account_id?: string | null
           pagarme_charge_id?: string | null
           pagarme_recipient_id?: string | null
           sales_event_id?: string | null
@@ -1075,6 +1078,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_jobs_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
             referencedColumns: ["id"]
           },
           {
@@ -1138,6 +1148,66 @@ export type Database = {
         }
         Relationships: []
       }
+      pagarme_accounts: {
+        Row: {
+          active: boolean
+          ambiente: Database["public"]["Enums"]["nfse_ambiente"]
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+          metadata: Json
+          organization_id: string
+          owner_company_id: string
+          slug: string
+          updated_at: string
+          webhook_secret_ref: string | null
+        }
+        Insert: {
+          active?: boolean
+          ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label: string
+          metadata?: Json
+          organization_id: string
+          owner_company_id: string
+          slug: string
+          updated_at?: string
+          webhook_secret_ref?: string | null
+        }
+        Update: {
+          active?: boolean
+          ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          metadata?: Json
+          organization_id?: string
+          owner_company_id?: string
+          slug?: string
+          updated_at?: string
+          webhook_secret_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_accounts_owner_company_id_fkey"
+            columns: ["owner_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pagarme_recipient_map: {
         Row: {
           active: boolean
@@ -1147,6 +1217,7 @@ export type Database = {
           created_by: string | null
           id: string
           metadata: Json
+          pagarme_account_id: string
           pagarme_recipient_id: string
           updated_at: string
         }
@@ -1158,6 +1229,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           metadata?: Json
+          pagarme_account_id: string
           pagarme_recipient_id: string
           updated_at?: string
         }
@@ -1169,6 +1241,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           metadata?: Json
+          pagarme_account_id?: string
           pagarme_recipient_id?: string
           updated_at?: string
         }
@@ -1178,6 +1251,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_recipient_map_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -1542,6 +1622,7 @@ export type Database = {
           event_id: string
           event_type: string
           id: string
+          pagarme_account_id: string | null
           payload: Json
           process_error: string | null
           processed_at: string | null
@@ -1553,6 +1634,7 @@ export type Database = {
           event_id: string
           event_type: string
           id?: string
+          pagarme_account_id?: string | null
           payload: Json
           process_error?: string | null
           processed_at?: string | null
@@ -1564,6 +1646,7 @@ export type Database = {
           event_id?: string
           event_type?: string
           id?: string
+          pagarme_account_id?: string | null
           payload?: Json
           process_error?: string | null
           processed_at?: string | null
@@ -1571,7 +1654,15 @@ export type Database = {
           received_at?: string
           resource_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_events_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_catalog: {
         Row: {
@@ -2487,6 +2578,51 @@ export type Database = {
           outflow: number
         }[]
       }
+      claim_nfse_jobs: {
+        Args: { p_limit?: number }
+        Returns: {
+          aliquota_iss: number | null
+          ambiente: Database["public"]["Enums"]["nfse_ambiente"]
+          approved_at: string | null
+          approved_by: string | null
+          attempts: number
+          chave_nfse: string | null
+          codigo_tributario_municipio: string | null
+          company_id: string
+          created_at: string
+          danfse_path: string | null
+          erros: Json | null
+          focus_ref: string
+          focus_status: string | null
+          id: string
+          item_lista_servico: string | null
+          last_attempt_at: string | null
+          mensagem_sefaz: string | null
+          metadata: Json
+          next_attempt_at: string | null
+          numero_nfse: string | null
+          organization_id: string
+          pagarme_account_id: string | null
+          pagarme_charge_id: string | null
+          pagarme_recipient_id: string | null
+          sales_event_id: string | null
+          status: Database["public"]["Enums"]["invoice_job_status"]
+          tomador_documento: string | null
+          tomador_email: string | null
+          tomador_endereco: Json | null
+          tomador_nome: string | null
+          transaction_id: string | null
+          updated_at: string
+          valor_servicos: number
+          xml_path: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "invoice_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       commit_import_batch: {
         Args: { p_batch_id: string }
         Returns: {
@@ -2778,6 +2914,8 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_focus_token: { Args: { p_company_id: string }; Returns: string }
+      get_pagarme_webhook_secret: { Args: { p_slug: string }; Returns: string }
       has_company_access: { Args: { p_company_id: string }; Returns: boolean }
       ignore_statement_line: {
         Args: { p_line_id: string }

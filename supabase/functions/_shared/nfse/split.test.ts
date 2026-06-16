@@ -130,4 +130,37 @@ describe("explodeChargePaid", () => {
     const r2 = explodeChargePaid(baseEvent(), baseContext());
     expect(r1).toEqual(r2);
   });
+
+  it("carimba a conta de origem (pagarme_account_id) em todos os jobs", () => {
+    const { jobs } = explodeChargePaid(baseEvent(), baseContext());
+    expect(jobs.every((j) => j.pagarmeAccountId === IDS.ACCOUNT)).toBe(true);
+  });
+
+  describe("cobrança SEM split (conta com merchant único)", () => {
+    it("gera um único job para a empresa dona, com o valor integral", () => {
+      const event = baseEvent();
+      event.split = [];
+      const { jobs, skipped } = explodeChargePaid(event, baseContext());
+
+      expect(skipped).toEqual([]);
+      expect(jobs).toHaveLength(1);
+
+      const job = jobs[0];
+      expect(job.companyId).toBe(IDS.COMPANY_A); // owner_company da conta
+      expect(job.organizationId).toBe(IDS.ORG);
+      expect(job.pagarmeRecipientId).toBeNull(); // sem recebedor de split
+      expect(job.valorServicos).toBe(299); // valor cheio (29900 centavos)
+      expect((job.metadata as { noSplit?: boolean }).noSplit).toBe(true);
+    });
+
+    it("resolve a classificação fiscal e o status da empresa dona", () => {
+      const event = baseEvent();
+      event.split = [];
+      const { jobs } = explodeChargePaid(event, baseContext());
+
+      // empresa A: plano casa em service_catalog (17.01) e é automatic -> queued
+      expect(jobs[0].itemListaServico).toBe("17.01");
+      expect(jobs[0].status).toBe("queued");
+    });
+  });
 });
