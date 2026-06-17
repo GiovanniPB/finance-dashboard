@@ -16,6 +16,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { applyFocusDocument, FOCUS_BASE, type FocusJobRef } from "../_shared/nfse/focus.ts";
 import { buildNfsePayload } from "../_shared/nfse/payload.ts";
 import type { PagarmeAddress } from "../_shared/nfse/types.ts";
 
@@ -23,11 +24,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const WORKER_SECRET = Deno.env.get("NFSE_WORKER_SECRET") ?? "";
 const MAX_ATTEMPTS = 5;
-
-const FOCUS_BASE: Record<string, string> = {
-  homologacao: "https://homologacao.focusnfe.com.br",
-  producao: "https://api.focusnfe.com.br",
-};
+// jobs presos neste estado há mais que isto são reconsultados no Focus
+const RECONCILE_STALE_MINUTES = 10;
 
 interface InvoiceJobRow {
   id: string;
@@ -142,6 +140,38 @@ async function emitJob(
   return { id: job.id, http: res.status, status: "rejected" };
 }
 
+/**
+ * Reconciliação: jobs presos em `processing_authorization`/`submitting` há mais
+ * de RECONCILE_STALE_MINUTES são reconsultados no Focus (GET /v2/nfse/{ref}) e
+ * têm o status reaplicado — cobre o caso de o webhook do Focus não ter chegado.
+ */
+async function reconcile(supabase: SupabaseClient): Promise<{ checked: number; updated: number }> {
+  const cutoff = new Date(Date.now() - RECONCILE_STALE_MINUTES * 60_000).toISOString();
+  const { data: jobs } = await supabase
+    .from("invoice_jobs")
+    .select("id, company_id, ambiente, focus_ref")
+    .in("status", ["processing_authorization", "submitting"])
+    .lt("updated_at", cutoff)
+    .limit(50);
+
+  let updated = 0;
+  for (const job of (jobs ?? []) as FocusJobRef[]) {
+    const { data: token } = await supabase.rpc("get_focus_token", { p_company_id: job.company_id });
+    if (typeof token !== "string" || token.length === 0) continue;
+
+    const base = FOCUS_BASE[job.ambiente] ?? FOCUS_BASE.homologacao;
+    const res = await fetch(`${base}/v2/nfse/${encodeURIComponent(job.focus_ref)}`, {
+      headers: { Authorization: "Basic " + btoa(`${token}:`) },
+    });
+    if (!res.ok) continue;
+    const doc = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const next = await applyFocusDocument(supabase, job, doc, token);
+    if (next) updated += 1;
+  }
+
+  return { checked: (jobs ?? []).length, updated };
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
@@ -153,6 +183,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     auth: { persistSession: false },
   });
 
+  // modo reconcile: reconsulta jobs presos (acionado por pg_cron)
+  if (url.searchParams.get("mode") === "reconcile") {
+    const result = await reconcile(supabase);
+    return json({ mode: "reconcile", ...result });
+  }
+
+  // modo padrão: drena a fila
   const { data: jobs, error } = await supabase.rpc("claim_nfse_jobs", { p_limit: 20 });
   if (error) return json({ error: "claim_failed", detail: error.message }, 500);
 
