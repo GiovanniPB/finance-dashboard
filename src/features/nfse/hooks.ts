@@ -3,23 +3,28 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Tables } from "@/lib/supabase";
 
 import {
+  approveInvoiceJob,
   createConnection,
   createRecipient,
   deleteRecipient,
   fetchConnections,
   fetchFiscalSettings,
+  fetchInvoiceJobs,
   fetchRecipients,
+  requeueInvoiceJob,
   rotateWebhookSecret,
   setFocusToken,
   updateConnection,
   updateRecipient,
   upsertFiscalSettings,
+  type InvoiceJobFilters,
 } from "./api";
 
 export const nfseKeys = {
   connections: ["nfse", "connections"] as const,
   recipients: (accountId: string) => ["nfse", "recipients", accountId] as const,
   fiscalSettings: ["nfse", "fiscal-settings"] as const,
+  jobs: (f: InvoiceJobFilters) => ["nfse", "jobs", f] as const,
 };
 
 // --- Conexões ---------------------------------------------------------------
@@ -113,5 +118,26 @@ export function useSetFocusToken() {
     mutationFn: ({ companyId, token }: { companyId: string; token: string }) =>
       setFocusToken(companyId, token),
     onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.fiscalSettings }),
+  });
+}
+
+// --- Fila de notas ----------------------------------------------------------
+export function useInvoiceJobs(filters: InvoiceJobFilters) {
+  return useQuery({ queryKey: nfseKeys.jobs(filters), queryFn: () => fetchInvoiceJobs(filters) });
+}
+
+export function useApproveInvoiceJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, userId }: { id: string; userId: string }) => approveInvoiceJob(id, userId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
+  });
+}
+
+export function useRequeueInvoiceJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => requeueInvoiceJob(id),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
   });
 }

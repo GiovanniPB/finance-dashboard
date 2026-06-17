@@ -1,5 +1,8 @@
 import type { NfseAmbiente, NfseEmissionMode } from "./api";
 
+/** Tons aceitos pelo componente Badge. */
+export type BadgeTone = "default" | "accent" | "income" | "expense" | "warning" | "info";
+
 export const AMBIENTE_OPTIONS: { value: NfseAmbiente; label: string }[] = [
   { value: "homologacao", label: "Homologação" },
   { value: "producao", label: "Produção" },
@@ -10,13 +13,13 @@ export const EMISSION_MODE_OPTIONS: { value: NfseEmissionMode; label: string }[]
   { value: "automatic", label: "Automático" },
 ];
 
-export const AMBIENTE_META: Record<NfseAmbiente, { label: string; tone: "warning" | "income" }> = {
+export const AMBIENTE_META: Record<NfseAmbiente, { label: string; tone: BadgeTone }> = {
   homologacao: { label: "Homologação", tone: "warning" },
   producao: { label: "Produção", tone: "income" },
 };
 
-/** Status dos invoice_jobs — metadados para a futura fila de notas (Fase 4b). */
-export const JOB_STATUS_META: Record<string, { label: string; tone: string }> = {
+/** Status dos invoice_jobs — rótulo + tom para a fila de notas. */
+export const JOB_STATUS_META: Record<string, { label: string; tone: BadgeTone }> = {
   pending_review: { label: "Revisão", tone: "warning" },
   approved: { label: "Aprovada", tone: "info" },
   queued: { label: "Na fila", tone: "info" },
@@ -28,6 +31,19 @@ export const JOB_STATUS_META: Record<string, { label: string; tone: string }> = 
   cancelled: { label: "Cancelada", tone: "default" },
   failed: { label: "Falhou", tone: "expense" },
 };
+
+/** Agrupamentos de status para o filtro da fila de notas. `statuses: null` = todas. */
+export const JOB_STATUS_FILTERS: { value: string; label: string; statuses: string[] | null }[] = [
+  { value: "review", label: "Aguardando revisão", statuses: ["pending_review"] },
+  {
+    value: "processing",
+    label: "Em processamento",
+    statuses: ["approved", "queued", "submitting", "processing_authorization"],
+  },
+  { value: "authorized", label: "Autorizadas", statuses: ["authorized"] },
+  { value: "problem", label: "Com erro", statuses: ["rejected", "failed"] },
+  { value: "all", label: "Todas", statuses: null },
+];
 
 /** URL pública da Edge Function de webhook para uma conta (slug + segredo opcional). */
 export function webhookUrl(slug: string, secret?: string): string {
