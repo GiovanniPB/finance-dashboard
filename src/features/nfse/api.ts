@@ -1,5 +1,8 @@
 import { supabase, type Enums, type Tables } from "@/lib/supabase";
 
+/** Bucket de Storage dos XML/DANFSe (criado junto com a focus-webhook, Fase 5). */
+const NFSE_FILES_BUCKET = "nfse-files";
+
 // ---------------------------------------------------------------------------
 // Tipos
 // ---------------------------------------------------------------------------
@@ -19,6 +22,18 @@ export type RecipientRow = Tables["pagarme_recipient_map"]["Row"];
 export type Recipient = RecipientRow & { company: CompanyRef | null };
 
 export type FiscalSettings = Tables["fiscal_company_settings"]["Row"];
+
+export type InvoiceJobStatus = Enums["invoice_job_status"];
+export type InvoiceJobRow = Tables["invoice_jobs"]["Row"];
+export type InvoiceJob = InvoiceJobRow & {
+  company: CompanyRef | null;
+  account: { id: string; label: string; slug: string } | null;
+};
+
+export interface InvoiceJobFilters {
+  statuses: string[] | null; // null = todas
+  accountId?: string | null;
+}
 
 // ---------------------------------------------------------------------------
 // Conexões pagar.me (pagarme_accounts)
@@ -143,4 +158,57 @@ export async function setFocusToken(companyId: string, token: string): Promise<v
     p_token: token,
   });
   if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Fila de notas (invoice_jobs)
+// ---------------------------------------------------------------------------
+const JOB_LIST_LIMIT = 300;
+
+export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<InvoiceJob[]> {
+  let query = supabase
+    .from("invoice_jobs")
+    .select(
+      "*, company:companies!company_id(id, legal_name, trade_name), account:pagarme_accounts!pagarme_account_id(id, label, slug)",
+    )
+    .order("created_at", { ascending: false })
+    .limit(JOB_LIST_LIMIT);
+
+  if (filters.statuses && filters.statuses.length > 0) {
+    query = query.in("status", filters.statuses as InvoiceJobStatus[]);
+  }
+  if (filters.accountId) {
+    query = query.eq("pagarme_account_id", filters.accountId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Aprova um job em revisão manual: vai para a fila de emissão. */
+export async function approveInvoiceJob(id: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("invoice_jobs")
+    .update({ status: "queued", approved_by: userId, approved_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("status", "pending_review");
+  if (error) throw error;
+}
+
+/** Recoloca um job com erro (rejected/failed) na fila, zerando as tentativas. */
+export async function requeueInvoiceJob(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("invoice_jobs")
+    .update({ status: "queued", attempts: 0, next_attempt_at: null })
+    .eq("id", id)
+    .in("status", ["rejected", "failed"]);
+  if (error) throw error;
+}
+
+/** URL assinada para baixar um arquivo (XML/DANFSe) do Storage. */
+export async function nfseFileUrl(path: string): Promise<string> {
+  const { data, error } = await supabase.storage.from(NFSE_FILES_BUCKET).createSignedUrl(path, 60);
+  if (error) throw error;
+  return data.signedUrl;
 }

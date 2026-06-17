@@ -3,9 +3,11 @@ import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { ConnectionsPanel } from "@/features/nfse/components/ConnectionsPanel";
 import { FiscalSettingsPanel } from "@/features/nfse/components/FiscalSettingsPanel";
+import { InvoiceJobsPanel } from "@/features/nfse/components/InvoiceJobsPanel";
 import { cn } from "@/lib/cn";
 
 const TABS = [
+  { value: "notes", label: "Notas" },
   { value: "connections", label: "Conexões pagar.me" },
   { value: "fiscal", label: "Configuração fiscal" },
 ] as const;
@@ -14,7 +16,7 @@ export default function NfsePage() {
   const { companies, loading } = useCompanyScope();
   const [tab, setTab] = useQueryState(
     "tab",
-    parseAsStringLiteral(TABS.map((t) => t.value)).withDefault("connections"),
+    parseAsStringLiteral(TABS.map((t) => t.value)).withDefault("notes"),
   );
 
   return (
@@ -49,13 +51,13 @@ export default function NfsePage() {
         ))}
       </div>
 
-      {tab === "connections" ? (
-        <ConnectionsPanel companies={companies} />
-      ) : (
-        <FiscalSettingsPanel companies={companies} />
-      )}
+      {tab === "notes" && <InvoiceJobsPanel />}
+      {tab === "connections" && <ConnectionsPanel companies={companies} />}
+      {tab === "fiscal" && <FiscalSettingsPanel companies={companies} />}
 
-      {loading && <p className="text-2xs text-text-subtle">Carregando empresas…</p>}
+      {loading && tab !== "notes" && (
+        <p className="text-2xs text-text-subtle">Carregando empresas…</p>
+      )}
     </div>
   );
 }
