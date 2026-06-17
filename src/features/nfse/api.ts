@@ -123,3 +123,24 @@ export async function upsertFiscalSettings(
   if (error) throw error;
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Segredos (via RPC SECURITY DEFINER — o valor vai direto ao Vault)
+// ---------------------------------------------------------------------------
+/** Gera um novo segredo de webhook para a conta e o retorna UMA vez (para a URL). */
+export async function rotateWebhookSecret(accountId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("rotate_account_webhook_secret", {
+    p_account_id: accountId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/** Salva o token do Focus de uma empresa no Vault (não retorna o valor). */
+export async function setFocusToken(companyId: string, token: string): Promise<void> {
+  const { error } = await supabase.rpc("set_company_focus_token", {
+    p_company_id: companyId,
+    p_token: token,
+  });
+  if (error) throw error;
+}
