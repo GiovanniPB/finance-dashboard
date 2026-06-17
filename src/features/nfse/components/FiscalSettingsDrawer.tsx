@@ -1,9 +1,10 @@
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +28,7 @@ import type { Company } from "@/features/companies/api";
 
 import type { FiscalSettings } from "../api";
 import { AMBIENTE_OPTIONS, EMISSION_MODE_OPTIONS } from "../constants";
-import { useUpsertFiscalSettings } from "../hooks";
+import { useSetFocusToken, useUpsertFiscalSettings } from "../hooks";
 import {
   emptyFiscalSettingsForm,
   fiscalSettingsFormSchema,
@@ -44,6 +45,8 @@ interface Props {
 
 export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: Props) {
   const upsert = useUpsertFiscalSettings();
+  const saveToken = useSetFocusToken();
+  const [token, setTokenValue] = React.useState("");
 
   const initialValues = React.useMemo<FiscalSettingsFormValues>(() => {
     if (!company) return emptyFiscalSettingsForm("");
@@ -53,7 +56,6 @@ export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: 
         ambiente: settings.ambiente,
         emissionMode: settings.emission_mode,
         enabled: settings.enabled,
-        focusTokenRef: settings.focus_token_ref ?? "",
         inscricaoMunicipal: settings.inscricao_municipal ?? "",
         itemListaServico: settings.item_lista_servico ?? "",
         codigoTributarioMunicipio: settings.codigo_tributario_municipio ?? "",
@@ -76,7 +78,10 @@ export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: 
     defaultValues: initialValues,
   });
 
-  React.useEffect(() => reset(initialValues), [initialValues, reset]);
+  React.useEffect(() => {
+    reset(initialValues);
+    setTokenValue("");
+  }, [initialValues, reset]);
 
   const onSubmit = handleSubmit((values) => {
     const trimmed = (v: string | undefined) => (v?.trim() ? v.trim() : null);
@@ -86,7 +91,6 @@ export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: 
         ambiente: values.ambiente,
         emission_mode: values.emissionMode,
         enabled: values.enabled,
-        focus_token_ref: trimmed(values.focusTokenRef),
         inscricao_municipal: trimmed(values.inscricaoMunicipal),
         item_lista_servico: trimmed(values.itemListaServico),
         codigo_tributario_municipio: trimmed(values.codigoTributarioMunicipio),
@@ -104,7 +108,22 @@ export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: 
     );
   });
 
+  const onSaveToken = () => {
+    if (!company) return;
+    saveToken.mutate(
+      { companyId: company.id, token },
+      {
+        onSuccess: () => {
+          toast.success("Token do Focus salvo");
+          setTokenValue("");
+        },
+        onError: (err) => toast.error("Erro ao salvar token", { description: err.message }),
+      },
+    );
+  };
+
   const companyName = company?.trade_name ?? company?.legal_name ?? "";
+  const tokenConfigured = Boolean(settings?.focus_token_ref);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -112,8 +131,8 @@ export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: 
         <SheetHeader>
           <SheetTitle>Configuração fiscal — {companyName}</SheetTitle>
           <SheetDescription>
-            Parâmetros de emissão da NFS-e desta empresa. O token do Focus fica no Vault; aqui só a
-            referência (nome).
+            Parâmetros de emissão da NFS-e desta empresa. O token do Focus é guardado com segurança
+            (Vault) — você só cola o valor uma vez.
           </SheetDescription>
         </SheetHeader>
 
@@ -162,9 +181,42 @@ export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: 
               </Field>
             </div>
 
-            <Field label="Nome do token Focus no Vault" hint="ex.: focus_token_rco">
-              <Input placeholder="focus_token_rco" {...register("focusTokenRef")} />
-            </Field>
+            <div className="space-y-1.5 rounded-[var(--radius-md)] border border-border bg-surface-2 p-3">
+              <div className="flex items-center justify-between">
+                <Label>Token do Focus NFe</Label>
+                {tokenConfigured ? (
+                  <Badge tone="income">configurado</Badge>
+                ) : (
+                  <Badge tone="warning">pendente</Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="password"
+                  autoComplete="off"
+                  placeholder={tokenConfigured ? "•••••••• (rotacionar)" : "cole o token do Focus"}
+                  value={token}
+                  onChange={(e) => setTokenValue(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saveToken.isPending || token.trim().length === 0}
+                  onClick={onSaveToken}
+                >
+                  {saveToken.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Check className="size-4" />
+                  )}
+                  Salvar
+                </Button>
+              </div>
+              <p className="text-2xs text-text-subtle">
+                Guardado com segurança no Vault. O valor não é exibido depois — para trocar, cole um
+                novo e salve.
+              </p>
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Inscrição municipal">

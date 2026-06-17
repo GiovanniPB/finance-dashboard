@@ -29,8 +29,9 @@ export const JOB_STATUS_META: Record<string, { label: string; tone: string }> = 
   failed: { label: "Falhou", tone: "expense" },
 };
 
-/** URL pública da Edge Function de webhook para uma conta (slug). */
-export function webhookUrl(slug: string): string {
+/** URL pública da Edge Function de webhook para uma conta (slug + segredo opcional). */
+export function webhookUrl(slug: string, secret?: string): string {
   const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "";
-  return `${base}/functions/v1/pagarme-webhook?account=${encodeURIComponent(slug)}`;
+  const url = `${base}/functions/v1/pagarme-webhook?account=${encodeURIComponent(slug)}`;
+  return secret ? `${url}&secret=${encodeURIComponent(secret)}` : url;
 }

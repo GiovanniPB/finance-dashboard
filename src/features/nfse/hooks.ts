@@ -9,6 +9,8 @@ import {
   fetchConnections,
   fetchFiscalSettings,
   fetchRecipients,
+  rotateWebhookSecret,
+  setFocusToken,
   updateConnection,
   updateRecipient,
   upsertFiscalSettings,
@@ -38,6 +40,14 @@ export function useUpdateConnection() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Tables["pagarme_accounts"]["Update"] }) =>
       updateConnection(id, payload),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.connections }),
+  });
+}
+
+export function useRotateWebhookSecret() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) => rotateWebhookSecret(accountId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.connections }),
   });
 }
@@ -93,6 +103,15 @@ export function useUpsertFiscalSettings() {
   return useMutation({
     mutationFn: (payload: Tables["fiscal_company_settings"]["Insert"]) =>
       upsertFiscalSettings(payload),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.fiscalSettings }),
+  });
+}
+
+export function useSetFocusToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, token }: { companyId: string; token: string }) =>
+      setFocusToken(companyId, token),
     onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.fiscalSettings }),
   });
 }
