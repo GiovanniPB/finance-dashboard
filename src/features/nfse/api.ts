@@ -35,6 +35,27 @@ export interface InvoiceJobFilters {
   accountId?: string | null;
 }
 
+export type WebhookProvider = "pagarme" | "focus";
+
+/** Evento de webhook normalizado (sales_events ou focus_events) para o log de debug. */
+export interface WebhookEvent {
+  id: string;
+  provider: WebhookProvider;
+  ref: string; // event_id (pagar.me) | focus_ref (Focus)
+  kind: string; // event_type (pagar.me) | status (Focus)
+  resourceId: string | null;
+  receivedAt: string;
+  processedAt: string | null;
+  processError: string | null;
+  payload: unknown;
+}
+
+export interface WebhookFilters {
+  provider: WebhookProvider;
+  onlyErrors: boolean;
+  onlyUnprocessed: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Conexões pagar.me (pagarme_accounts)
 // ---------------------------------------------------------------------------
@@ -211,4 +232,41 @@ export async function nfseFileUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage.from(NFSE_FILES_BUCKET).createSignedUrl(path, 60);
   if (error) throw error;
   return data.signedUrl;
+}
+
+// ---------------------------------------------------------------------------
+// Webhooks recebidos (log de debug — sales_events / focus_events)
+// Tabelas restritas a super admin via RLS.
+// ---------------------------------------------------------------------------
+const WEBHOOK_LIST_LIMIT = 200;
+
+export async function fetchWebhookEvents(filters: WebhookFilters): Promise<WebhookEvent[]> {
+  const table = filters.provider === "pagarme" ? "sales_events" : "focus_events";
+  let query = supabase
+    .from(table)
+    .select("*")
+    .order("received_at", { ascending: false })
+    .limit(WEBHOOK_LIST_LIMIT);
+
+  if (filters.onlyErrors) query = query.not("process_error", "is", null);
+  if (filters.onlyUnprocessed) query = query.is("processed_at", null);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return (data ?? []).map((row) => {
+    const r = row as Record<string, unknown>;
+    const isPagarme = filters.provider === "pagarme";
+    return {
+      id: r.id as string,
+      provider: filters.provider,
+      ref: (isPagarme ? r.event_id : r.focus_ref) as string,
+      kind: ((isPagarme ? r.event_type : r.status) as string | null) ?? "—",
+      resourceId: isPagarme ? ((r.resource_id as string | null) ?? null) : null,
+      receivedAt: r.received_at as string,
+      processedAt: (r.processed_at as string | null) ?? null,
+      processError: (r.process_error as string | null) ?? null,
+      payload: r.payload,
+    };
+  });
 }
