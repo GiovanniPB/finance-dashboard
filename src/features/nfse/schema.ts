@@ -1,18 +1,11 @@
 import { z } from "zod";
 
-// Slug usado na URL do webhook (?account=<slug>) — minúsculas, números e hífen.
-const slugRegex = /^[a-z0-9-]+$/u;
-
+// O slug (URL do webhook) é gerado automaticamente do nome no banco e o segredo
+// do webhook é gerado pelo sistema — o usuário não digita nenhum dos dois.
 export const connectionFormSchema = z.object({
   label: z.string().min(2, "Nome obrigatório").max(80),
-  slug: z
-    .string()
-    .min(2, "Slug obrigatório")
-    .max(40)
-    .regex(slugRegex, "Use apenas minúsculas, números e hífen"),
   ownerCompanyId: z.string().uuid("Selecione a empresa dona"),
   ambiente: z.enum(["homologacao", "producao"]),
-  webhookSecretRef: z.string().max(120).optional().or(z.literal("")),
   active: z.boolean(),
 });
 export type ConnectionFormValues = z.infer<typeof connectionFormSchema>;
@@ -20,10 +13,8 @@ export type ConnectionFormValues = z.infer<typeof connectionFormSchema>;
 export function emptyConnectionForm(): ConnectionFormValues {
   return {
     label: "",
-    slug: "",
     ownerCompanyId: "",
     ambiente: "homologacao",
-    webhookSecretRef: "",
     active: true,
   };
 }
@@ -45,7 +36,6 @@ export const fiscalSettingsFormSchema = z.object({
   ambiente: z.enum(["homologacao", "producao"]),
   emissionMode: z.enum(["manual", "automatic"]),
   enabled: z.boolean(),
-  focusTokenRef: z.string().max(120).optional().or(z.literal("")),
   inscricaoMunicipal: z.string().max(40).optional().or(z.literal("")),
   itemListaServico: z.string().max(20).optional().or(z.literal("")),
   codigoTributarioMunicipio: z.string().max(40).optional().or(z.literal("")),
@@ -64,7 +54,6 @@ export function emptyFiscalSettingsForm(companyId: string): FiscalSettingsFormVa
     ambiente: "homologacao",
     emissionMode: "manual",
     enabled: false,
-    focusTokenRef: "",
     inscricaoMunicipal: "",
     itemListaServico: "",
     codigoTributarioMunicipio: "",

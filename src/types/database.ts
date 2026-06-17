@@ -1173,7 +1173,7 @@ export type Database = {
           metadata?: Json
           organization_id: string
           owner_company_id: string
-          slug: string
+          slug?: string
           updated_at?: string
           webhook_secret_ref?: string | null
         }
@@ -3132,6 +3132,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      rotate_account_webhook_secret: {
+        Args: { p_account_id: string }
+        Returns: string
+      }
+      set_company_focus_token: {
+        Args: { p_company_id: string; p_token: string }
+        Returns: undefined
       }
       setup_payroll_mappings_defaults: {
         Args: { p_company_id: string }
