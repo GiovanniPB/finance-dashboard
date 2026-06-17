@@ -10,6 +10,7 @@
  * `codigo_tributario_municipio` e `aliquota_iss`. Sem eles o Focus rejeita.
  */
 
+import { enrichTomadorAddress } from "./address.ts";
 import { onlyDigits } from "./document.ts";
 import type { PagarmeAddress } from "./types.ts";
 
@@ -53,14 +54,16 @@ function tomadorDocFields(documento: string | null): Record<string, string> {
 
 function enderecoObj(endereco: PagarmeAddress | null): Record<string, unknown> | undefined {
   if (!endereco) return undefined;
-  // pagar.me address.line_1 ~ "logradouro, número" — mapeamento aproximado;
-  // confirmar a quebra (logradouro/numero/bairro) contra o provedor de Barueri.
+  // Híbrido: deriva logradouro/numero/bairro de line_1 (ver address.ts).
+  const { endereco: e } = enrichTomadorAddress(endereco);
   return {
-    logradouro: endereco.line_1 ?? null,
-    complemento: endereco.line_2 ?? null,
-    cep: endereco.zip_code ? onlyDigits(endereco.zip_code) : null,
-    municipio: endereco.city ?? null,
-    uf: endereco.state ?? null,
+    logradouro: e.logradouro,
+    numero: e.numero,
+    complemento: e.complemento,
+    bairro: e.bairro,
+    cep: e.cep,
+    municipio: e.municipio,
+    uf: e.uf,
   };
 }
 

@@ -16,6 +16,7 @@
  * pelo Vitest.
  */
 
+import { enrichTomadorAddress } from "./address.ts";
 import { isValidDocument } from "./document.ts";
 import type {
   ChargePaidEvent,
@@ -79,7 +80,9 @@ interface ResolvedTomador {
 }
 
 function hasCompleteAddress(address: PagarmeAddress | null | undefined): boolean {
-  return Boolean(address?.line_1 && address?.zip_code && address?.city && address?.state);
+  // Híbrido: derivamos logradouro/numero/bairro do pagar.me; se faltar algo
+  // exigido pelo Focus, o endereço é considerado incompleto -> revisão manual.
+  return enrichTomadorAddress(address).complete;
 }
 
 /** Valida e normaliza o tomador (CPF/CNPJ + endereço obrigatórios em Barueri). */
