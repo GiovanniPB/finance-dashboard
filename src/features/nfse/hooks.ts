@@ -11,6 +11,7 @@ import {
   fetchFiscalSettings,
   fetchInvoiceJobs,
   fetchRecipients,
+  fetchWebhookEvents,
   requeueInvoiceJob,
   rotateWebhookSecret,
   setFocusToken,
@@ -18,6 +19,7 @@ import {
   updateRecipient,
   upsertFiscalSettings,
   type InvoiceJobFilters,
+  type WebhookFilters,
 } from "./api";
 
 export const nfseKeys = {
@@ -25,6 +27,7 @@ export const nfseKeys = {
   recipients: (accountId: string) => ["nfse", "recipients", accountId] as const,
   fiscalSettings: ["nfse", "fiscal-settings"] as const,
   jobs: (f: InvoiceJobFilters) => ["nfse", "jobs", f] as const,
+  webhooks: (f: WebhookFilters) => ["nfse", "webhooks", f] as const,
 };
 
 // --- Conexões ---------------------------------------------------------------
@@ -139,5 +142,14 @@ export function useRequeueInvoiceJob() {
   return useMutation({
     mutationFn: (id: string) => requeueInvoiceJob(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
+  });
+}
+
+// --- Webhooks recebidos -----------------------------------------------------
+export function useWebhookEvents(filters: WebhookFilters) {
+  return useQuery({
+    queryKey: nfseKeys.webhooks(filters),
+    queryFn: () => fetchWebhookEvents(filters),
+    refetchInterval: 15_000, // log de debug: atualiza sozinho
   });
 }

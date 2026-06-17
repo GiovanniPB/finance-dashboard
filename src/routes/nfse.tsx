@@ -4,12 +4,14 @@ import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { ConnectionsPanel } from "@/features/nfse/components/ConnectionsPanel";
 import { FiscalSettingsPanel } from "@/features/nfse/components/FiscalSettingsPanel";
 import { InvoiceJobsPanel } from "@/features/nfse/components/InvoiceJobsPanel";
+import { WebhooksPanel } from "@/features/nfse/components/WebhooksPanel";
 import { cn } from "@/lib/cn";
 
 const TABS = [
   { value: "notes", label: "Notas" },
   { value: "connections", label: "Conexões pagar.me" },
   { value: "fiscal", label: "Configuração fiscal" },
+  { value: "webhooks", label: "Webhooks" },
 ] as const;
 
 export default function NfsePage() {
@@ -54,6 +56,7 @@ export default function NfsePage() {
       {tab === "notes" && <InvoiceJobsPanel />}
       {tab === "connections" && <ConnectionsPanel companies={companies} />}
       {tab === "fiscal" && <FiscalSettingsPanel companies={companies} />}
+      {tab === "webhooks" && <WebhooksPanel />}
 
       {loading && tab !== "notes" && (
         <p className="text-2xs text-text-subtle">Carregando empresas…</p>
