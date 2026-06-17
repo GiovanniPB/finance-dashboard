@@ -4,6 +4,7 @@
 > **Objetivo:** emitir NFS-e municipal (Barueri) a partir das assinaturas do pagar.me,
 > com **split** entre empresas do grupo e **múltiplas contas pagar.me**
 > (`1 charge.paid → N NFS-e`). Gestão 100% pelo dashboard (sem SQL/Vault manual).
+> **Referência técnica completa:** [`docs/integrations/nfse-system.md`](docs/integrations/nfse-system.md) (handoff — leia primeiro).
 > **Docs:** [`docs/integrations/nfse-pagarme-architecture.md`](docs/integrations/nfse-pagarme-architecture.md) ·
 > [`docs/integrations/nfse-implementation-plan.md`](docs/integrations/nfse-implementation-plan.md) · `focusnfe.md` · `pagarme.md`.
 

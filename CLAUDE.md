@@ -146,13 +146,17 @@ Webhooks e orquestração server-side (ex.: esteira NFS-e) vivem em `supabase/fu
 - **Não** colocar dado de seed em migration nem segredo no frontend.
 - **Não** mutar dados de migrations já aplicadas.
 
-## Trabalho ativo: integração NFS-e
+## Integração NFS-e (pagar.me × Focus)
 
-Emissão de NFS-e municipal (Barueri) a partir de assinaturas do pagar.me, com **split** entre empresas
-(`1 charge.paid → N NFS-e`). Arquitetura Supabase-nativa (Edge Functions + fila por status na `invoice_jobs`).
-Ver [`docs/integrations/nfse-pagarme-architecture.md`](docs/integrations/nfse-pagarme-architecture.md) e
-[`docs/integrations/nfse-implementation-plan.md`](docs/integrations/nfse-implementation-plan.md).
-Referências das APIs: `focusnfe.md` e `pagarme.md` (raiz).
+Emissão de NFS-e municipal (Barueri) a partir das vendas do pagar.me, com **split** e
+**multi-conta** (`1 charge.paid → N NFS-e`). Arquitetura Supabase-nativa (Edge Functions +
+fila por status na `invoice_jobs` + pg_cron + Vault + Storage); gestão pela UI em `/nfse`.
 
-**Estado:** Camada 0 pronta (schema + explosão do split + Edge Function `pagarme-webhook`, validados local).
-As migrations do NFS-e ainda **não foram aplicadas no remoto** (`db push` pendente, após merge dos PRs). Parsing do payload bruto do pagar.me será confirmado contra a sandbox na Fase 2.
+> 📘 **Referência técnica completa (leia primeiro):**
+> [`docs/integrations/nfse-system.md`](docs/integrations/nfse-system.md) — arquitetura,
+> banco, RPCs, Edge Functions, automação, segurança, frontend, decisões e como continuar.
+> Snapshot curto em [`NFSE_STATUS.md`](NFSE_STATUS.md). APIs: `focusnfe.md`, `pagarme.md`.
+
+**Estado:** sistema de notas funcional ponta a ponta (ingest → emite via cron → retorno
+por webhook **ou** reconcile → XML/DANFSe no Storage), gerido pela UI. Remoto sincronizado.
+Pendências (não bloqueiam): UI de revisão de endereço, write-back financeiro, go-live de produção.
