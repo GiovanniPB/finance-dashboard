@@ -3063,6 +3063,7 @@ export type Database = {
         Args: { p_template_id: string }
         Returns: string
       }
+      nfse_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
       post_payroll_run: {
         Args: { p_default_account_id: string; p_run_id: string }
         Returns: {

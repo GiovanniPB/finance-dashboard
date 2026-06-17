@@ -2,28 +2,21 @@
  * Edge Function: focus-webhook
  *
  * Recebe o webhook de status do Focus NFe (POST com o JSON do documento),
- * grava o evento bruto (idempotente) em `focus_events` e atualiza o
- * `invoice_jobs` correspondente (casado por `focus_ref` = `ref`).
+ * grava o evento bruto (idempotente) em `focus_events` e aplica o status ao
+ * `invoice_jobs` correspondente (casado por `focus_ref` = `ref`) via a lógica
+ * compartilhada `applyFocusDocument` (mesma usada na reconciliação do worker).
  *
- * Em `autorizado`: baixa XML e DANFSe do Focus (Basic auth com o token da
- * empresa, do Vault) e sobe no Storage `nfse-files/<company_id>/<ref>.{xml,pdf}`.
- *
- * Origem verificada por segredo na URL/header (FOCUS_WEBHOOK_SECRET).
- * Idempotente: dedup por hash do payload em `focus_events.dedup_key`.
+ * Em `autorizado`: baixa XML/DANFSe → Storage `nfse-files/<company>/<ref>.{xml,pdf}`.
+ * Origem verificada por segredo (FOCUS_WEBHOOK_SECRET). Idempotente por hash.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { applyFocusDocument } from "../_shared/nfse/focus.ts";
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const WEBHOOK_SECRET = Deno.env.get("FOCUS_WEBHOOK_SECRET") ?? "";
-
-const FOCUS_BASE: Record<string, string> = {
-  homologacao: "https://homologacao.focusnfe.com.br",
-  producao: "https://api.focusnfe.com.br",
-};
-
-const BUCKET = "nfse-files";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -36,22 +29,6 @@ function asString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-/** Focus status -> invoice_job_status. null = não mexe no status do job. */
-function mapStatus(focusStatus: string | null): string | null {
-  switch (focusStatus) {
-    case "processando_autorizacao":
-      return "processing_authorization";
-    case "autorizado":
-      return "authorized";
-    case "erro_autorizacao":
-      return "rejected";
-    case "cancelado":
-      return "cancelled";
-    default:
-      return null;
-  }
-}
-
 async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
   const digest = await crypto.subtle.digest("SHA-256", data);
@@ -60,27 +37,15 @@ async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
-/** Baixa um arquivo do Focus (caminho relativo) e sobe no Storage; retorna o path salvo. */
-async function downloadToStorage(
+async function markProcessed(
   supabase: SupabaseClient,
-  base: string,
-  token: string,
-  caminho: string,
-  destPath: string,
-  contentType: string,
-): Promise<string | null> {
-  const url = caminho.startsWith("http") ? caminho : `${base}${caminho}`;
-  const resp = await fetch(url, {
-    headers: { Authorization: `Basic ${btoa(`${token}:`)}` },
-  });
-  if (!resp.ok) return null;
-  const bytes = new Uint8Array(await resp.arrayBuffer());
-  const { error } = await supabase.storage.from(BUCKET).upload(destPath, bytes, {
-    contentType,
-    upsert: true,
-  });
-  if (error) return null;
-  return destPath;
+  dedupKey: string,
+  note?: string,
+): Promise<void> {
+  await supabase
+    .from("focus_events")
+    .update({ processed_at: new Date().toISOString(), process_error: note ?? null })
+    .eq("dedup_key", dedupKey);
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -107,7 +72,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     auth: { persistSession: false },
   });
 
-  // 1) ingest idempotente em focus_events
+  // 1) ingest idempotente em focus_events (dedup por hash do payload)
   const dedupKey = await sha256Hex(JSON.stringify(payload));
   const { data: inserted, error: evErr } = await supabase
     .from("focus_events")
@@ -132,66 +97,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ status: "job_not_found", ref });
   }
 
-  const nextStatus = mapStatus(focusStatus);
-  const update: Record<string, unknown> = {
-    focus_status: focusStatus,
-    mensagem_sefaz: asString(payload.mensagem_sefaz),
-    erros: payload.erros ?? null,
-  };
-  if (nextStatus) update.status = nextStatus;
-  if (asString(payload.numero)) update.numero_nfse = asString(payload.numero);
-  const chave = asString(payload.chave_nfse) ?? asString(payload.codigo_verificacao);
-  if (chave) update.chave_nfse = chave;
-
-  // 3) em autorizado: baixa XML/DANFSe e sobe no Storage
+  // token só é necessário para baixar XML/DANFSe quando autorizado
+  let token: string | null = null;
   if (focusStatus === "autorizado") {
-    const base = FOCUS_BASE[job.ambiente as string] ?? FOCUS_BASE.homologacao;
-    const { data: token } = await supabase.rpc("get_focus_token", {
-      p_company_id: job.company_id,
-    });
-    if (typeof token === "string" && token.length > 0) {
-      const xmlPath = asString(payload.caminho_xml_nota_fiscal);
-      const danfsePath = asString(payload.caminho_danfse) ?? asString(payload.caminho_danfe);
-      const company = job.company_id as string;
-      if (xmlPath) {
-        const saved = await downloadToStorage(
-          supabase,
-          base,
-          token,
-          xmlPath,
-          `${company}/${ref}.xml`,
-          "application/xml",
-        );
-        if (saved) update.xml_path = saved;
-      }
-      if (danfsePath) {
-        const saved = await downloadToStorage(
-          supabase,
-          base,
-          token,
-          danfsePath,
-          `${company}/${ref}.pdf`,
-          "application/pdf",
-        );
-        if (saved) update.danfse_path = saved;
-      }
-    }
+    const { data } = await supabase.rpc("get_focus_token", { p_company_id: job.company_id });
+    token = typeof data === "string" ? data : null;
   }
 
-  const { error: upErr } = await supabase.from("invoice_jobs").update(update).eq("id", job.id);
-  if (upErr) return json({ error: "job_update_failed", detail: upErr.message }, 500);
+  const nextStatus = await applyFocusDocument(
+    supabase,
+    {
+      id: job.id as string,
+      company_id: job.company_id as string,
+      ambiente: job.ambiente as string,
+      focus_ref: ref,
+    },
+    payload,
+    token,
+  );
 
   await markProcessed(supabase, dedupKey);
   return json({ status: "processed", ref, jobStatus: nextStatus ?? (job.status as string) });
 });
-
-async function markProcessed(
-  supabase: SupabaseClient,
-  dedupKey: string,
-  note?: string,
-): Promise<void> {
-  await supabase
-    .from("focus_events")
-    .update({ processed_at: new Date().toISOString(), process_error: note ?? null })
-    .eq("dedup_key", dedupKey);
-}

@@ -118,20 +118,22 @@ pagar.me ──charge.paid?account=<slug>──►  Edge Function pagarme-webhoo
 
 ## 7. Estado do remoto (`vbeevkjenvgvnattzszt`)
 
-- ✅ Migrations aplicadas até `nfse_secret_rpcs` (`db push`).
-- ✅ Functions deployadas: `pagarme-webhook`, `nfse-worker` (ambas `verify_jwt=false`).
-- ⛔ **Pendente deste PR:** `db push` de `nfse_storage_bucket` + deploy `focus-webhook` + `FOCUS_WEBHOOK_SECRET` + registrar webhook do Focus por empresa.
+- ✅ Migrations aplicadas até `nfse_storage_bucket` (`db push`); bucket `nfse-files` criado.
+- ✅ Functions deployadas: `pagarme-webhook`, `nfse-worker`, `focus-webhook` (todas `verify_jwt=false`); `FOCUS_WEBHOOK_SECRET` setado.
+- ⛔ **Pendente (pg_cron):** `db push` de `nfse_pgcron` + Vault `nfse_worker_url` e `nfse_worker_secret` (= `NFSE_WORKER_SECRET`); senão os ticks são no-op.
+- ⛔ Registrar webhook do Focus por empresa apontando para a `focus-webhook`.
 - ⛔ Conexões/config/recebedores e tokens do Focus: a cadastrar pela UI (após deploy do front).
 
 ---
 
 ## 8. O que falta (roadmap)
 
-1. **`pg_cron`**: agenda `nfse-worker` (drena fila) + reconciliação (poll de jobs presos em `processing_authorization`).
-2. **Write-back financeiro**: nota autorizada → lançar receita na `transactions` + `audit_log`.
-3. **UI de revisão de endereço**: completar `numero`/`bairro` quando o híbrido marcar incompleto (hoje fica em `pending_review`).
-4. **4c — Webhooks recebidos**: visão de `sales_events`/`focus_events` + relação de split.
-5. **Produção**: registrar webhooks, tokens de produção, virar `ambiente=producao`, piloto.
+1. **UI de revisão de endereço**: completar `numero`/`bairro` quando o híbrido marcar incompleto (hoje fica em `pending_review`).
+2. **4c — Webhooks recebidos**: visão de `sales_events`/`focus_events` + relação de split.
+3. **Write-back financeiro** _(adiado por decisão)_: nota autorizada → receita na `transactions`.
+4. **Produção**: registrar webhooks, tokens de produção, virar `ambiente=producao`, piloto.
+
+> ✅ **`pg_cron`** feito: agenda `nfse-worker` `drain` (1 min) + `reconcile` (5 min); reconciliação reconsulta jobs presos em `processing_authorization`/`submitting`.
 
 ---
 
