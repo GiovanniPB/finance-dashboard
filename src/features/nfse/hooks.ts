@@ -15,6 +15,7 @@ import {
   requeueInvoiceJob,
   rotateWebhookSecret,
   setFocusToken,
+  setPagarmeAccountSecret,
   updateConnection,
   updateRecipient,
   upsertFiscalSettings,
@@ -56,6 +57,15 @@ export function useRotateWebhookSecret() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (accountId: string) => rotateWebhookSecret(accountId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.connections }),
+  });
+}
+
+export function useSetPagarmeAccountSecret() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, secret }: { accountId: string; secret: string }) =>
+      setPagarmeAccountSecret(accountId, secret),
     onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.connections }),
   });
 }

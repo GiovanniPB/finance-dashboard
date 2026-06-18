@@ -181,6 +181,15 @@ export async function setFocusToken(companyId: string, token: string): Promise<v
   if (error) throw error;
 }
 
+/** Salva a secret key da API do pagar.me de uma conta no Vault (split via /payables). */
+export async function setPagarmeAccountSecret(accountId: string, secret: string): Promise<void> {
+  const { error } = await supabase.rpc("set_pagarme_account_secret", {
+    p_account_id: accountId,
+    p_secret: secret,
+  });
+  if (error) throw error;
+}
+
 // ---------------------------------------------------------------------------
 // Fila de notas (invoice_jobs)
 // ---------------------------------------------------------------------------

@@ -19,6 +19,9 @@ export interface NfsePrestador {
   inscricaoMunicipal: string | null;
   municipioIbge: string; // IBGE (Barueri = 3505708)
   optanteSimples: boolean | null;
+  // Barueri (Simples Nacional): a PMB exige estes códigos, senão rejeita (erro 801)
+  codigoOpcaoSimplesNacional?: number | null; // 3 = ME/EPP
+  regimeTributarioSimplesNacional?: number | null; // 1 = federal+municipal pelo Simples
 }
 
 export interface NfseTomador {
@@ -64,6 +67,7 @@ function enderecoObj(endereco: PagarmeAddress | null): Record<string, unknown> |
     cep: e.cep,
     municipio: e.municipio,
     uf: e.uf,
+    codigo_municipio: e.codigoMunicipio, // IBGE do tomador (ViaCEP) — Barueri usa
   };
 }
 
@@ -75,7 +79,7 @@ function enderecoObj(endereco: PagarmeAddress | null): Record<string, unknown> |
 export function buildNfsePayload(input: NfsePayloadInput): Record<string, unknown> {
   const { prestador, tomador, servico } = input;
 
-  return {
+  const payload: Record<string, unknown> = {
     data_emissao: input.dataEmissao,
 
     prestador: {
@@ -103,4 +107,15 @@ export function buildNfsePayload(input: NfsePayloadInput): Record<string, unknow
 
     optante_simples_nacional: prestador.optanteSimples ?? false,
   };
+
+  // Barueri exige os códigos do Simples no corpo da nota (senão rejeita).
+  // Só enviamos quando configurados — não forçar em municípios que não usam.
+  if (prestador.codigoOpcaoSimplesNacional != null) {
+    payload.codigo_opcao_simples_nacional = prestador.codigoOpcaoSimplesNacional;
+  }
+  if (prestador.regimeTributarioSimplesNacional != null) {
+    payload.regime_tributario_simples_nacional = prestador.regimeTributarioSimplesNacional;
+  }
+
+  return payload;
 }

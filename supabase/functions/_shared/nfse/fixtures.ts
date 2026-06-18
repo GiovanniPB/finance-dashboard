@@ -6,7 +6,7 @@
  * bruto do pagar.me será validado contra a sandbox na Fase 2.
  */
 
-import type { ChargePaidEvent, ExplodeContext } from "./types.ts";
+import type { ChargePaidEvent, ExplodeContext, NfeProductClassification } from "./types.ts";
 
 const ORG = "00000000-0000-0000-0000-0000000000aa";
 const COMPANY_A = "00000000-0000-0000-0000-0000000000a1";
@@ -146,3 +146,75 @@ export function rawChargePaidWebhook(): Record<string, unknown> {
 }
 
 export const IDS = { ORG, COMPANY_A, COMPANY_B, ACCOUNT };
+
+// -----------------------------------------------------------------------------
+// Fixtures de NF-e (produto/livro com imunidade) — dados de empresa SINTÉTICOS;
+// os códigos fiscais (NCM/CFOP/CST/cBenef/PIS/COFINS) são genéricos, não PII.
+// -----------------------------------------------------------------------------
+
+/** Classificação de produto p/ NF-e: livro com imunidade de ICMS (CST 41). */
+export const NFE_CLASSIFICATION: NfeProductClassification = {
+  codigoProduto: "899",
+  descricao: "Curso e Plataforma Exemplo",
+  ncm: "49019900",
+  cest: "2806400",
+  cfopInterno: "5101", // dentro da UF do emitente
+  cfopInterestadual: "6107", // outra UF
+  origem: 0,
+  cstIcms: "41", // não tributada (imunidade de livro)
+  codigoBeneficioFiscal: "SP070130", // cBenef SP — exigido p/ CST 41
+  pisCst: "01",
+  pisAliquota: 0.65, // TRIBUTADO (imunidade é só do ICMS)
+  cofinsCst: "01",
+  cofinsAliquota: 3.0,
+  infoComplementar: "PRODUTO COM IMUNIDADE TRIBUTARIA (livro) - art. 150 VI d CF/88.",
+};
+
+/** Emitente sintético de NF-e (estrutura igual à da config real). */
+export const NFE_EMITENTE = {
+  cnpj: "11222333000181",
+  nome: "EMPRESA PRODUTO EXEMPLO LTDA",
+  inscricaoEstadual: "111222333444",
+  regimeTributario: 3, // Regime Normal (Lucro Presumido)
+  endereco: {
+    logradouro: "Alameda Exemplo",
+    numero: "500",
+    complemento: "Sala 1",
+    bairro: "Centro",
+    municipio: "Barueri",
+    uf: "SP",
+    cep: "06454000",
+  },
+};
+
+/**
+ * Contexto onde a empresa A emite NF-e (produto) e a B emite NFS-e (serviço) —
+ * exercita o roteamento multi-documento do `explodeChargePaid`.
+ */
+export function nfeContext(): ExplodeContext {
+  const ctx = baseContext();
+  ctx.settings[0] = {
+    ...ctx.settings[0],
+    documentType: "nfe",
+    inscricaoEstadual: NFE_EMITENTE.inscricaoEstadual,
+    regimeTributario: NFE_EMITENTE.regimeTributario,
+    serie: "101",
+    emitenteEndereco: {
+      line_1: `${NFE_EMITENTE.endereco.numero}, ${NFE_EMITENTE.endereco.logradouro}, ${NFE_EMITENTE.endereco.bairro}`,
+      zip_code: NFE_EMITENTE.endereco.cep,
+      city: NFE_EMITENTE.endereco.municipio,
+      state: NFE_EMITENTE.endereco.uf,
+    },
+  };
+  ctx.services = [
+    {
+      companyId: COMPANY_A,
+      documentType: "nfe",
+      pagarmePlanId: "plan_assinatura_basica",
+      nfe: NFE_CLASSIFICATION,
+    },
+    // empresa B continua NFS-e (entrada sem plano)
+    { companyId: COMPANY_B, pagarmePlanId: null, itemListaServico: "10.02", aliquotaIss: 0.03 },
+  ];
+  return ctx;
+}

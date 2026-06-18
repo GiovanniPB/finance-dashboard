@@ -62,6 +62,20 @@ describe("buildNfsePayload", () => {
     expect(endereco.municipio).toBe("Jundiaí");
   });
 
+  it("inclui codigo_municipio (IBGE) do tomador quando enriquecido por ViaCEP", () => {
+    const input = baseInput();
+    input.tomador.endereco = {
+      line_1: "100, Rua X, Centro",
+      zip_code: "13210-275",
+      city: "Jundiaí",
+      state: "SP",
+      cep_info: { municipio: "Jundiaí", uf: "SP", ibge: "3525904" },
+    };
+    const tomador = buildNfsePayload(input).tomador as Obj;
+    const endereco = tomador.endereco as Obj;
+    expect(endereco.codigo_municipio).toBe("3525904");
+  });
+
   it("usa tomador.cnpj para documento de 14 dígitos", () => {
     const input = baseInput();
     input.tomador.documento = "37.383.325/0001-00";
@@ -76,5 +90,20 @@ describe("buildNfsePayload", () => {
     const tomador = buildNfsePayload(input).tomador as Obj;
     expect(tomador.cpf).toBeUndefined();
     expect(tomador.cnpj).toBeUndefined();
+  });
+
+  it("inclui os códigos do Simples de Barueri quando configurados", () => {
+    const input = baseInput();
+    input.prestador.codigoOpcaoSimplesNacional = 3;
+    input.prestador.regimeTributarioSimplesNacional = 1;
+    const p = buildNfsePayload(input);
+    expect(p.codigo_opcao_simples_nacional).toBe(3);
+    expect(p.regime_tributario_simples_nacional).toBe(1);
+  });
+
+  it("omite os códigos do Simples quando não configurados (municípios que não usam)", () => {
+    const p = buildNfsePayload(baseInput());
+    expect(p.codigo_opcao_simples_nacional).toBeUndefined();
+    expect(p.regime_tributario_simples_nacional).toBeUndefined();
   });
 });

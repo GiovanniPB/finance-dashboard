@@ -18,11 +18,13 @@
 
 import { enrichTomadorAddress } from "./address.ts";
 import { isValidDocument } from "./document.ts";
+import { resolveFiscalParametros } from "./parametros.ts";
 import type {
   ChargePaidEvent,
   ExplodeContext,
   ExplodeResult,
   FiscalCompanySettings,
+  FiscalDocumentType,
   InvoiceJobDraft,
   InvoiceJobStatus,
   PagarmeAccount,
@@ -110,8 +112,13 @@ function resolveService(
   services: readonly ServiceCatalogEntry[],
   companyId: string,
   planId: string | null | undefined,
+  documentType: FiscalDocumentType,
 ): ServiceCatalogEntry | undefined {
-  const forCompany = services.filter((service) => service.companyId === companyId);
+  // entradas do catálogo só valem para o tipo de documento da empresa
+  const forCompany = services.filter(
+    (service) =>
+      service.companyId === companyId && (service.documentType ?? "nfse") === documentType,
+  );
   // 1) match exato por plano; 2) entrada sem plano (padrão da empresa)
   return (
     forCompany.find((service) => planId != null && service.pagarmePlanId === planId) ??
@@ -147,12 +154,17 @@ function buildJob(
   services: readonly ServiceCatalogEntry[],
   settings: FiscalCompanySettings | undefined,
 ): InvoiceJobDraft {
-  const service = resolveService(services, input.companyId, input.planId);
+  const documentType: FiscalDocumentType = settings?.documentType ?? "nfse";
+  const service = resolveService(services, input.companyId, input.planId, documentType);
 
+  // NFS-e: mantidas como colunas por compat (null em jobs de NF-e)
   const itemListaServico = service?.itemListaServico ?? settings?.itemListaServico ?? null;
   const aliquotaIss = service?.aliquotaIss ?? settings?.aliquotaIss ?? null;
   const codigoTributarioMunicipio =
     service?.codigoTributarioMunicipio ?? settings?.codigoTributarioMunicipio ?? null;
+
+  // snapshot dos parâmetros fiscais resolvidos (forma específica por documentType)
+  const parametros = resolveFiscalParametros(documentType, service, settings);
 
   const metadata: Record<string, unknown> = { sourceEventId: input.eventId };
   if (input.noSplit) metadata.noSplit = true;
@@ -161,6 +173,7 @@ function buildJob(
   return {
     organizationId: input.organizationId,
     companyId: input.companyId,
+    documentType,
     pagarmeAccountId: input.account.id,
     pagarmeChargeId: input.chargeId,
     pagarmeRecipientId: input.recipientId,
@@ -174,6 +187,7 @@ function buildJob(
     itemListaServico,
     codigoTributarioMunicipio,
     aliquotaIss,
+    parametros,
     metadata,
   };
 }

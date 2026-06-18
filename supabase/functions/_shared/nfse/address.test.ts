@@ -69,4 +69,44 @@ describe("enrichTomadorAddress", () => {
     });
     expect(r.endereco.cep).toBe("06401000");
   });
+
+  describe("enriquecimento ViaCEP (cep_info)", () => {
+    it("usa cep_info para logradouro/bairro/município/UF e fornece o IBGE", () => {
+      const r = enrichTomadorAddress({
+        line_1: "100, Endereço Antigo",
+        zip_code: "06401000",
+        city: "Cidade Errada",
+        state: "RJ",
+        cep_info: {
+          logradouro: "Rua Correta",
+          bairro: "Bairro Correto",
+          municipio: "Barueri",
+          uf: "SP",
+          ibge: "3505708",
+        },
+      });
+
+      expect(r.endereco.logradouro).toBe("Rua Correta");
+      expect(r.endereco.bairro).toBe("Bairro Correto");
+      expect(r.endereco.municipio).toBe("Barueri");
+      expect(r.endereco.uf).toBe("SP");
+      expect(r.endereco.codigoMunicipio).toBe("3505708");
+      expect(r.endereco.numero).toBe("100"); // número segue vindo de line_1
+      expect(r.complete).toBe(true);
+    });
+
+    it("cep_info completa o bairro ausente em line_1 (deixa o endereço completo)", () => {
+      const r = enrichTomadorAddress({
+        line_1: "250, Av. Brasil", // sem bairro
+        zip_code: "06401000",
+        city: "Barueri",
+        state: "SP",
+        cep_info: { bairro: "Centro", ibge: "3505708" },
+      });
+
+      expect(r.endereco.bairro).toBe("Centro");
+      expect(r.complete).toBe(true);
+      expect(r.missing).toEqual([]);
+    });
+  });
 });

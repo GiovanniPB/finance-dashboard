@@ -3,6 +3,25 @@ import type { NfseAmbiente, NfseEmissionMode } from "./api";
 /** Tons aceitos pelo componente Badge. */
 export type BadgeTone = "default" | "accent" | "income" | "expense" | "warning" | "info";
 
+export type FiscalDocumentType = "nfse" | "nfe";
+
+export const DOCUMENT_TYPE_OPTIONS: { value: FiscalDocumentType; label: string }[] = [
+  { value: "nfse", label: "NFS-e (serviço)" },
+  { value: "nfe", label: "NF-e (produto)" },
+];
+
+export const DOCUMENT_TYPE_META: Record<FiscalDocumentType, { label: string; tone: BadgeTone }> = {
+  nfse: { label: "NFS-e", tone: "info" },
+  nfe: { label: "NF-e", tone: "accent" },
+};
+
+/** Regime tributário do emitente (NF-e). */
+export const REGIME_TRIBUTARIO_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: "1 — Simples Nacional" },
+  { value: 2, label: "2 — Simples (excesso sublimite)" },
+  { value: 3, label: "3 — Regime Normal" },
+];
+
 export const AMBIENTE_OPTIONS: { value: NfseAmbiente; label: string }[] = [
   { value: "homologacao", label: "Homologação" },
   { value: "producao", label: "Produção" },

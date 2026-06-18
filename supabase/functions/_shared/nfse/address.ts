@@ -24,6 +24,7 @@ export interface NfseEndereco {
   cep: string | null;
   municipio: string | null;
   uf: string | null;
+  codigoMunicipio: string | null; // IBGE (do ViaCEP) — codigo_municipio na NFS-e
 }
 
 export interface EnrichedAddress {
@@ -92,18 +93,25 @@ const REQUIRED_FIELDS: (keyof NfseEndereco)[] = [
   "uf",
 ];
 
-/** Deriva o endereço estruturado do tomador e avalia se está completo p/ emitir. */
+/**
+ * Deriva o endereço estruturado do tomador e avalia se está completo p/ emitir.
+ * Quando há `cep_info` (enriquecido por ViaCEP no webhook), ele tem precedência
+ * sobre o parse de `line_1` para logradouro/bairro/município/UF e fornece o IBGE.
+ * O número vem sempre de `line_1` (o ViaCEP não traz número).
+ */
 export function enrichTomadorAddress(address: PagarmeAddress | null | undefined): EnrichedAddress {
   const parsed = parseLine1(address?.line_1 ?? null);
+  const cep = address?.cep_info ?? {};
 
   const endereco: NfseEndereco = {
-    logradouro: parsed.logradouro,
+    logradouro: clean(cep.logradouro) ?? parsed.logradouro,
     numero: parsed.numero,
     complemento: clean(address?.line_2),
-    bairro: parsed.bairro,
+    bairro: clean(cep.bairro) ?? parsed.bairro,
     cep: digits(address?.zip_code),
-    municipio: clean(address?.city),
-    uf: clean(address?.state),
+    municipio: clean(cep.municipio) ?? clean(address?.city),
+    uf: clean(cep.uf) ?? clean(address?.state),
+    codigoMunicipio: clean(cep.ibge),
   };
 
   const missing = REQUIRED_FIELDS.filter((f) => endereco[f] == null);
