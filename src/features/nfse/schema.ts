@@ -121,3 +121,42 @@ export function emptyFiscalSettingsForm(companyId: string): FiscalSettingsFormVa
     infoComplementar: "",
   };
 }
+
+// Cobrança de teste (sandbox). O valor é em reais (vira centavos na API). O
+// split é montado fora do form (por recebedor), então não entra aqui.
+export const sandboxChargeFormSchema = z.object({
+  method: z.enum(["credit_card", "pix", "boleto"]),
+  scenario: z.string().min(1, "Selecione um cenário"),
+  amountReais: z.coerce.number().positive("Valor deve ser positivo"),
+  description: optText(120),
+  customerName: z.string().min(2, "Nome obrigatório").max(64),
+  customerEmail: z.string().email("E-mail inválido"),
+  customerDocument: optText(18),
+  phoneArea: optText(3),
+  phoneNumber: optText(15),
+  cep: optText(9),
+  line1: optText(120),
+  city: optText(60),
+  uf: optText(2),
+  useSplit: z.boolean(),
+});
+export type SandboxChargeFormValues = z.infer<typeof sandboxChargeFormSchema>;
+
+export function emptySandboxChargeForm(): SandboxChargeFormValues {
+  return {
+    method: "credit_card",
+    scenario: "paid",
+    amountReais: 100,
+    description: "",
+    customerName: "Tomador Teste",
+    customerEmail: "tomador.teste@example.com",
+    customerDocument: "52998224725",
+    phoneArea: "11",
+    phoneNumber: "999999999",
+    cep: "06401000",
+    line1: "100, Rua Exemplo, Centro",
+    city: "Barueri",
+    uf: "SP",
+    useSplit: false,
+  };
+}
