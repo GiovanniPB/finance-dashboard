@@ -115,16 +115,15 @@ function buildCustomer(
     };
   }
 
-  // Pix exige telefone do pagador.
-  if (method === "pix") {
-    out.phones = {
-      mobile_phone: {
-        country_code: "55",
-        area_code: customer.phone?.areaCode ?? "11",
-        number: customer.phone?.number ?? "999999999",
-      },
-    };
-  }
+  // pagar.me (conta PSP) exige ao menos um telefone do tomador em QUALQUER
+  // método — não só Pix. Usa o informado ou um padrão de teste.
+  out.phones = {
+    mobile_phone: {
+      country_code: "55",
+      area_code: customer.phone?.areaCode ?? "11",
+      number: customer.phone?.number ?? "999999999",
+    },
+  };
 
   return out;
 }
@@ -222,9 +221,11 @@ function validateInput(input: SandboxOrderInput): string[] {
     }
   }
 
-  if (method === "boleto") {
-    if (!customer?.document) errors.push("Boleto registrado exige customer.document (CPF/CNPJ).");
-    if (!customer?.address) errors.push("Boleto registrado exige customer.address.");
+  // pagar.me (conta PSP) exige documento do tomador em qualquer método.
+  if (!customer?.document) errors.push("customer.document é obrigatório (CPF/CNPJ).");
+
+  if (method === "boleto" && !customer?.address) {
+    errors.push("Boleto registrado exige customer.address.");
   }
 
   return errors;

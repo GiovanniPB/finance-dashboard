@@ -196,4 +196,25 @@ describe("buildSandboxOrder — validações gerais", () => {
     });
     expect(payload.metadata).toMatchObject({ test: "true", source: "pagarme-sandbox" });
   });
+
+  it("sempre envia telefone do tomador (conta PSP exige em qualquer método)", () => {
+    const { payload } = buildSandboxOrder({
+      method: "credit_card",
+      scenario: "paid",
+      amountCents: 1000,
+      customer: baseCustomer(),
+    });
+    const phones = (payload.customer as Record<string, unknown>).phones as Record<string, unknown>;
+    expect(phones.mobile_phone).toBeDefined();
+  });
+
+  it("exige documento do tomador em qualquer método", () => {
+    const { errors } = buildSandboxOrder({
+      method: "credit_card",
+      scenario: "paid",
+      amountCents: 1000,
+      customer: { name: "X", email: "x@example.com" },
+    });
+    expect(errors.some((e) => e.includes("customer.document"))).toBe(true);
+  });
 });

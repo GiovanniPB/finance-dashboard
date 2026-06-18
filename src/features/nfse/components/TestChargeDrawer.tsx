@@ -144,6 +144,10 @@ export function TestChargeDrawer({ open, onOpenChange, connection }: Props) {
           document: digits || null,
           documentType: digits.length > 11 ? "CNPJ" : "CPF",
           address,
+          phone:
+            values.phoneArea && values.phoneNumber
+              ? { areaCode: values.phoneArea, number: values.phoneNumber.replace(/\D/gu, "") }
+              : null,
         },
         split,
       },
@@ -244,13 +248,21 @@ export function TestChargeDrawer({ open, onOpenChange, connection }: Props) {
                   <Input {...register("customerEmail")} />
                 </Field>
               </div>
-              <Field
-                label="Documento (CPF/CNPJ)"
-                error={errors.customerDocument?.message}
-                hint="obrigatório no boleto"
-              >
-                <Input placeholder="só números" {...register("customerDocument")} />
-              </Field>
+              <div className="grid grid-cols-[2fr_1fr_2fr] gap-3">
+                <Field
+                  label="Documento (CPF/CNPJ)"
+                  error={errors.customerDocument?.message}
+                  hint="obrigatório"
+                >
+                  <Input placeholder="só números" {...register("customerDocument")} />
+                </Field>
+                <Field label="DDD" error={errors.phoneArea?.message}>
+                  <Input maxLength={3} {...register("phoneArea")} />
+                </Field>
+                <Field label="Telefone" error={errors.phoneNumber?.message}>
+                  <Input placeholder="só números" {...register("phoneNumber")} />
+                </Field>
+              </div>
               <div className="grid grid-cols-[1fr_2fr] gap-3">
                 <Field label="CEP" error={errors.cep?.message}>
                   <Input {...register("cep")} />
