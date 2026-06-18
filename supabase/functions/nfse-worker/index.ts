@@ -1,9 +1,11 @@
 /**
  * Edge Function: nfse-worker
  *
- * Drena a fila de NFS-e: reivindica jobs `queued` (RPC claim_nfse_jobs, com
- * FOR UPDATE SKIP LOCKED), monta o payload (buildNfsePayload), lê o token do
- * Focus do Vault (RPC get_focus_token) e emite via `POST /v2/nfse?ref=`.
+ * Drena a fila fiscal: reivindica jobs `queued` (RPC claim_nfse_jobs, com FOR
+ * UPDATE SKIP LOCKED), monta o payload conforme o `document_type` do job
+ * (NF-e via buildNfePayload / NFS-e via buildNfsePayload), lê o token do Focus
+ * do Vault (RPC get_focus_token) e emite no endpoint do tipo (/v2/nfe ou
+ * /v2/nfse) resolvido pelo registry. Dispatcher multi-documento.
  *
  * Acionada por pg_cron (agendado) ou manualmente (POST). Idempotente por job:
  * a `focus_ref` é única; reenviar com a mesma ref é seguro no Focus.
@@ -16,9 +18,15 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { focusEmitPath, focusQueryPath } from "../_shared/nfse/builder.ts";
 import { applyFocusDocument, FOCUS_BASE, type FocusJobRef } from "../_shared/nfse/focus.ts";
 import { buildNfsePayload } from "../_shared/nfse/payload.ts";
-import type { PagarmeAddress } from "../_shared/nfse/types.ts";
+import { buildNfePayload, type NfeEmitenteEndereco } from "../_shared/nfse/payloadNfe.ts";
+import type {
+  FiscalDocumentType,
+  NfeProductClassification,
+  PagarmeAddress,
+} from "../_shared/nfse/types.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -30,6 +38,7 @@ const RECONCILE_STALE_MINUTES = 10;
 interface InvoiceJobRow {
   id: string;
   company_id: string;
+  document_type: FiscalDocumentType | null;
   ambiente: string;
   focus_ref: string;
   valor_servicos: number | string;
@@ -40,8 +49,27 @@ interface InvoiceJobRow {
   item_lista_servico: string | null;
   codigo_tributario_municipio: string | null;
   aliquota_iss: number | null;
+  parametros: Record<string, unknown> | null;
   attempts: number;
   metadata: Record<string, unknown> | null;
+}
+
+interface FiscalSettingsRow {
+  inscricao_municipal: string | null;
+  municipio_ibge: string | null;
+  optante_simples: boolean | null;
+  codigo_opcao_simples_nacional: number | null;
+  regime_tributario_simples_nacional: number | null;
+  iss_retido: boolean | null;
+  inscricao_estadual: string | null;
+  regime_tributario: number | null;
+  serie: string | null;
+  emitente_endereco: Record<string, unknown> | null;
+}
+
+interface CompanyRow {
+  cnpj: string | null;
+  legal_name: string | null;
 }
 
 function json(body: unknown, status = 200): Response {
@@ -56,15 +84,104 @@ function backoffMinutes(attempts: number): number {
   return Math.min(3 ** Math.max(attempts - 1, 0), 180);
 }
 
+function mapEmitenteEndereco(raw: Record<string, unknown> | null): NfeEmitenteEndereco {
+  const e = raw ?? {};
+  return {
+    logradouro: (e.logradouro as string | null) ?? null,
+    numero: (e.numero as string | null) ?? null,
+    complemento: (e.complemento as string | null) ?? null,
+    bairro: (e.bairro as string | null) ?? null,
+    municipio: (e.municipio as string | null) ?? null,
+    uf: (e.uf as string | null) ?? null,
+    cep: (e.cep as string | null) ?? null,
+  };
+}
+
+/**
+ * Monta o payload do Focus conforme o tipo de documento do job, consumindo o
+ * snapshot `parametros` (congelado na criação) + emitente/prestador das settings.
+ */
+function assemblePayload(
+  documentType: FiscalDocumentType,
+  job: InvoiceJobRow,
+  company: CompanyRow | null,
+  settings: FiscalSettingsRow | null,
+): Record<string, unknown> {
+  const dataEmissao = new Date().toISOString();
+  const params = (job.parametros ?? {}) as Record<string, unknown>;
+
+  if (documentType === "nfe") {
+    return buildNfePayload({
+      dataEmissao,
+      serie: settings?.serie ?? null,
+      emitente: {
+        cnpj: company?.cnpj ?? "",
+        nome: company?.legal_name ?? "",
+        inscricaoEstadual: settings?.inscricao_estadual ?? null,
+        regimeTributario: settings?.regime_tributario ?? 3,
+        endereco: mapEmitenteEndereco(settings?.emitente_endereco ?? null),
+      },
+      destinatario: {
+        documento: job.tomador_documento,
+        nome: job.tomador_nome,
+        email: job.tomador_email,
+        endereco: job.tomador_endereco,
+      },
+      valorProdutos: Number(job.valor_servicos),
+      classificacao: params as NfeProductClassification,
+    });
+  }
+
+  // NFS-e — consome o snapshot `parametros` (fallback p/ colunas/settings)
+  return buildNfsePayload({
+    dataEmissao,
+    prestador: {
+      cnpj: company?.cnpj ?? "",
+      inscricaoMunicipal: settings?.inscricao_municipal ?? null,
+      municipioIbge: settings?.municipio_ibge ?? "3505708",
+      optanteSimples:
+        (params.optanteSimples as boolean | undefined) ?? settings?.optante_simples ?? null,
+      codigoOpcaoSimplesNacional:
+        (params.codigoOpcaoSimplesNacional as number | undefined) ??
+        settings?.codigo_opcao_simples_nacional ??
+        null,
+      regimeTributarioSimplesNacional:
+        (params.regimeTributarioSimplesNacional as number | undefined) ??
+        settings?.regime_tributario_simples_nacional ??
+        null,
+    },
+    tomador: {
+      documento: job.tomador_documento,
+      nome: job.tomador_nome,
+      email: job.tomador_email,
+      endereco: job.tomador_endereco,
+    },
+    servico: {
+      valorServicos: Number(job.valor_servicos),
+      itemListaServico: (params.itemListaServico as string | undefined) ?? job.item_lista_servico,
+      codigoTributarioMunicipio:
+        (params.codigoTributarioMunicipio as string | undefined) ?? job.codigo_tributario_municipio,
+      aliquotaIss: (params.aliquotaIss as number | undefined) ?? job.aliquota_iss,
+      discriminacao:
+        (params.discriminacao as string | undefined) ??
+        (job.metadata?.discriminacao as string | undefined) ??
+        "Prestação de serviço",
+    },
+    issRetido: (params.issRetido as boolean | undefined) ?? settings?.iss_retido ?? false,
+  });
+}
+
 async function emitJob(
   supabase: SupabaseClient,
   job: InvoiceJobRow,
 ): Promise<{ id: string; http?: number; status: string }> {
   const [{ data: company }, { data: settings }, { data: token }] = await Promise.all([
-    supabase.from("companies").select("cnpj").eq("id", job.company_id).single(),
+    supabase.from("companies").select("cnpj, legal_name").eq("id", job.company_id).single(),
     supabase
       .from("fiscal_company_settings")
-      .select("inscricao_municipal, municipio_ibge, optante_simples")
+      .select(
+        "inscricao_municipal, municipio_ibge, optante_simples, codigo_opcao_simples_nacional, regime_tributario_simples_nacional, iss_retido, inscricao_estadual, regime_tributario, serie, emitente_endereco",
+      )
       .eq("company_id", job.company_id)
       .single(),
     supabase.rpc("get_focus_token", { p_company_id: job.company_id }),
@@ -78,34 +195,17 @@ async function emitJob(
     return { id: job.id, status: "rejected_no_token" };
   }
 
-  const discriminacao =
-    (job.metadata?.discriminacao as string | undefined) ?? "Prestação de serviço";
-
-  const payload = buildNfsePayload({
-    dataEmissao: new Date().toISOString(),
-    prestador: {
-      cnpj: (company?.cnpj as string | null) ?? "",
-      inscricaoMunicipal: (settings?.inscricao_municipal as string | null) ?? null,
-      municipioIbge: (settings?.municipio_ibge as string | null) ?? "3505708",
-      optanteSimples: (settings?.optante_simples as boolean | null) ?? null,
-    },
-    tomador: {
-      documento: job.tomador_documento,
-      nome: job.tomador_nome,
-      email: job.tomador_email,
-      endereco: job.tomador_endereco,
-    },
-    servico: {
-      valorServicos: Number(job.valor_servicos),
-      itemListaServico: job.item_lista_servico,
-      codigoTributarioMunicipio: job.codigo_tributario_municipio,
-      aliquotaIss: job.aliquota_iss,
-      discriminacao,
-    },
-  });
+  // roteia por tipo de documento (NF-e produto × NFS-e serviço)
+  const documentType: FiscalDocumentType = job.document_type ?? "nfse";
+  const payload = assemblePayload(
+    documentType,
+    job,
+    company as CompanyRow | null,
+    settings as FiscalSettingsRow | null,
+  );
 
   const base = FOCUS_BASE[job.ambiente] ?? FOCUS_BASE.homologacao;
-  const res = await fetch(`${base}/v2/nfse?ref=${encodeURIComponent(job.focus_ref)}`, {
+  const res = await fetch(`${base}${focusEmitPath(documentType, job.focus_ref)}`, {
     method: "POST",
     headers: {
       Authorization: "Basic " + btoa(`${token}:`),
@@ -142,25 +242,29 @@ async function emitJob(
 
 /**
  * Reconciliação: jobs presos em `processing_authorization`/`submitting` há mais
- * de RECONCILE_STALE_MINUTES são reconsultados no Focus (GET /v2/nfse/{ref}) e
- * têm o status reaplicado — cobre o caso de o webhook do Focus não ter chegado.
+ * de RECONCILE_STALE_MINUTES são reconsultados no Focus (GET no endpoint do tipo
+ * — /v2/nfe ou /v2/nfse) e têm o status reaplicado — cobre o caso de o webhook
+ * do Focus não ter chegado.
  */
 async function reconcile(supabase: SupabaseClient): Promise<{ checked: number; updated: number }> {
   const cutoff = new Date(Date.now() - RECONCILE_STALE_MINUTES * 60_000).toISOString();
   const { data: jobs } = await supabase
     .from("invoice_jobs")
-    .select("id, company_id, ambiente, focus_ref")
+    .select("id, company_id, document_type, ambiente, focus_ref")
     .in("status", ["processing_authorization", "submitting"])
     .lt("updated_at", cutoff)
     .limit(50);
 
   let updated = 0;
-  for (const job of (jobs ?? []) as FocusJobRef[]) {
+  for (const job of (jobs ?? []) as (FocusJobRef & {
+    document_type: FiscalDocumentType | null;
+  })[]) {
     const { data: token } = await supabase.rpc("get_focus_token", { p_company_id: job.company_id });
     if (typeof token !== "string" || token.length === 0) continue;
 
     const base = FOCUS_BASE[job.ambiente] ?? FOCUS_BASE.homologacao;
-    const res = await fetch(`${base}/v2/nfse/${encodeURIComponent(job.focus_ref)}`, {
+    const path = focusQueryPath(job.document_type ?? "nfse", job.focus_ref);
+    const res = await fetch(`${base}${path}`, {
       headers: { Authorization: "Basic " + btoa(`${token}:`) },
     });
     if (!res.ok) continue;

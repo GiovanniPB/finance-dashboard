@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Company } from "@/features/companies/api";
 
-import { AMBIENTE_META, EMISSION_MODE_OPTIONS } from "../constants";
+import { AMBIENTE_META, DOCUMENT_TYPE_META, EMISSION_MODE_OPTIONS } from "../constants";
 import { useFiscalSettings } from "../hooks";
 import { FiscalSettingsDrawer } from "./FiscalSettingsDrawer";
 
@@ -23,7 +23,8 @@ export function FiscalSettingsPanel({ companies }: { companies: Company[] }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-text-muted">
-        Parâmetros de emissão da NFS-e por empresa (ambiente, token Focus, ISS, kill-switch).
+        Tipo de documento (NF-e produto / NFS-e serviço), emitente, token Focus e classificação
+        fiscal por empresa.
       </p>
 
       {isLoading ? (
@@ -38,6 +39,7 @@ export function FiscalSettingsPanel({ companies }: { companies: Company[] }) {
             <thead className="bg-surface-2">
               <tr className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
                 <th className="px-3 py-2.5 text-left">Empresa</th>
+                <th className="px-3 py-2.5 text-left">Tipo</th>
                 <th className="px-3 py-2.5 text-left">Ambiente</th>
                 <th className="px-3 py-2.5 text-left">Modo</th>
                 <th className="px-3 py-2.5 text-left">Token Focus</th>
@@ -52,6 +54,15 @@ export function FiscalSettingsPanel({ companies }: { companies: Company[] }) {
                 return (
                   <tr key={c.id} className="hover:bg-surface-2/60">
                     <td className="px-3 py-2.5 font-medium">{c.trade_name ?? c.legal_name}</td>
+                    <td className="px-3 py-2.5">
+                      {s ? (
+                        <Badge tone={DOCUMENT_TYPE_META[s.document_type ?? "nfse"].tone}>
+                          {DOCUMENT_TYPE_META[s.document_type ?? "nfse"].label}
+                        </Badge>
+                      ) : (
+                        <Dash />
+                      )}
+                    </td>
                     <td className="px-3 py-2.5">
                       {amb ? <Badge tone={amb.tone}>{amb.label}</Badge> : <Dash />}
                     </td>

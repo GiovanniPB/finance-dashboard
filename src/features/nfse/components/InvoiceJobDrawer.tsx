@@ -18,7 +18,7 @@ import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
 import { nfseFileUrl, type InvoiceJob } from "../api";
-import { JOB_STATUS_META } from "../constants";
+import { DOCUMENT_TYPE_META, JOB_STATUS_META } from "../constants";
 import { useApproveInvoiceJob, useRequeueInvoiceJob } from "../hooks";
 
 interface Props {
@@ -35,6 +35,13 @@ export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
   if (!job) return null;
 
   const status = JOB_STATUS_META[job.status] ?? { label: job.status, tone: "default" as const };
+  const docType = job.document_type ?? "nfse";
+  const docMeta = DOCUMENT_TYPE_META[docType];
+  const isNfe = docType === "nfe";
+  const params = (job.parametros ?? {}) as Record<string, unknown>;
+  const metadata = (job.metadata ?? {}) as Record<string, unknown>;
+  const splitSource = metadata.splitSource as string | undefined;
+  const payablesDivergence = metadata.payablesDivergence === true;
   const canApprove = job.status === "pending_review";
   const canRequeue = job.status === "rejected" || job.status === "failed";
   const endereco = job.tomador_endereco as Record<string, unknown> | null;
@@ -63,7 +70,8 @@ export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
       <SheetContent size="md">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            Nota <Badge tone={status.tone}>{status.label}</Badge>
+            Nota <Badge tone={docMeta.tone}>{docMeta.label}</Badge>
+            <Badge tone={status.tone}>{status.label}</Badge>
           </SheetTitle>
           <SheetDescription>
             {job.account?.label ?? "—"} · {formatDate(job.created_at)}
@@ -80,7 +88,20 @@ export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
             <Row label="Ambiente" value={job.ambiente} />
             <Row label="Cobrança" value={job.pagarme_charge_id ?? "—"} mono />
             <Row label="Recebedor" value={job.pagarme_recipient_id ?? "(sem split)"} mono />
+            {splitSource && (
+              <Row
+                label="Origem do split"
+                value={splitSource === "payables" ? "payables (validado)" : "webhook"}
+              />
+            )}
           </Section>
+
+          {payablesDivergence && (
+            <p className="text-2xs rounded-[var(--radius-sm)] bg-warning-soft p-2 text-warning">
+              Divergência entre o split do webhook e os payables — enviado para revisão. Confira o
+              valor antes de aprovar.
+            </p>
+          )}
 
           <Section title="Tomador">
             <Row label="Nome" value={job.tomador_nome ?? "—"} />
@@ -97,13 +118,37 @@ export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
           </Section>
 
           <Section title="Classificação fiscal">
-            <Row label="Item LC116" value={job.item_lista_servico ?? "—"} mono />
-            <Row label="Cód. tributário" value={job.codigo_tributario_municipio ?? "—"} mono />
-            <Row
-              label="ISS"
-              value={job.aliquota_iss == null ? "—" : `${(job.aliquota_iss * 100).toFixed(2)}%`}
-              mono
-            />
+            {isNfe ? (
+              <>
+                <Row label="Produto" value={(params.descricao as string) ?? "—"} />
+                <Row label="NCM" value={(params.ncm as string) ?? "—"} mono />
+                <Row
+                  label="CFOP"
+                  value={
+                    [params.cfopInterno, params.cfopInterestadual].filter(Boolean).join(" / ") ||
+                    "—"
+                  }
+                  mono
+                />
+                <Row label="CST ICMS" value={(params.cstIcms as string) ?? "—"} mono />
+                <Row label="cBenef" value={(params.codigoBeneficioFiscal as string) ?? "—"} mono />
+                <Row
+                  label="PIS / COFINS"
+                  value={pisCofinsLabel(params.pisAliquota, params.cofinsAliquota)}
+                  mono
+                />
+              </>
+            ) : (
+              <>
+                <Row label="Item LC116" value={job.item_lista_servico ?? "—"} mono />
+                <Row label="Cód. tributário" value={job.codigo_tributario_municipio ?? "—"} mono />
+                <Row
+                  label="ISS"
+                  value={job.aliquota_iss == null ? "—" : `${(job.aliquota_iss * 100).toFixed(2)}%`}
+                  mono
+                />
+              </>
+            )}
           </Section>
 
           {hasFocusResult && (
@@ -204,6 +249,12 @@ export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
       </SheetContent>
     </Sheet>
   );
+}
+
+function pisCofinsLabel(pis: unknown, cofins: unknown): string {
+  const fmt = (v: unknown) => (typeof v === "number" ? `${v}%` : "—");
+  if (pis == null && cofins == null) return "—";
+  return `${fmt(pis)} / ${fmt(cofins)}`;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

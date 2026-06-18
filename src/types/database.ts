@@ -722,14 +722,19 @@ export type Database = {
         Row: {
           aliquota_iss: number | null
           ambiente: Database["public"]["Enums"]["nfse_ambiente"]
+          codigo_opcao_simples_nacional: number | null
           codigo_tributario_municipio: string | null
           company_id: string
           created_at: string
           created_by: string | null
+          discriminacao: string | null
+          document_type: Database["public"]["Enums"]["fiscal_document_type"]
           emission_mode: Database["public"]["Enums"]["nfse_emission_mode"]
+          emitente_endereco: Json | null
           enabled: boolean
           focus_token_ref: string | null
           id: string
+          inscricao_estadual: string | null
           inscricao_municipal: string | null
           iss_retido: boolean
           item_lista_servico: string | null
@@ -737,19 +742,28 @@ export type Database = {
           municipio_ibge: string
           nfse_padrao: Database["public"]["Enums"]["nfse_padrao"]
           optante_simples: boolean | null
+          parametros: Json
+          regime_tributario: number | null
+          regime_tributario_simples_nacional: number | null
+          serie: string | null
           updated_at: string
         }
         Insert: {
           aliquota_iss?: number | null
           ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          codigo_opcao_simples_nacional?: number | null
           codigo_tributario_municipio?: string | null
           company_id: string
           created_at?: string
           created_by?: string | null
+          discriminacao?: string | null
+          document_type?: Database["public"]["Enums"]["fiscal_document_type"]
           emission_mode?: Database["public"]["Enums"]["nfse_emission_mode"]
+          emitente_endereco?: Json | null
           enabled?: boolean
           focus_token_ref?: string | null
           id?: string
+          inscricao_estadual?: string | null
           inscricao_municipal?: string | null
           iss_retido?: boolean
           item_lista_servico?: string | null
@@ -757,19 +771,28 @@ export type Database = {
           municipio_ibge?: string
           nfse_padrao?: Database["public"]["Enums"]["nfse_padrao"]
           optante_simples?: boolean | null
+          parametros?: Json
+          regime_tributario?: number | null
+          regime_tributario_simples_nacional?: number | null
+          serie?: string | null
           updated_at?: string
         }
         Update: {
           aliquota_iss?: number | null
           ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          codigo_opcao_simples_nacional?: number | null
           codigo_tributario_municipio?: string | null
           company_id?: string
           created_at?: string
           created_by?: string | null
+          discriminacao?: string | null
+          document_type?: Database["public"]["Enums"]["fiscal_document_type"]
           emission_mode?: Database["public"]["Enums"]["nfse_emission_mode"]
+          emitente_endereco?: Json | null
           enabled?: boolean
           focus_token_ref?: string | null
           id?: string
+          inscricao_estadual?: string | null
           inscricao_municipal?: string | null
           iss_retido?: boolean
           item_lista_servico?: string | null
@@ -777,6 +800,10 @@ export type Database = {
           municipio_ibge?: string
           nfse_padrao?: Database["public"]["Enums"]["nfse_padrao"]
           optante_simples?: boolean | null
+          parametros?: Json
+          regime_tributario?: number | null
+          regime_tributario_simples_nacional?: number | null
+          serie?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -968,6 +995,7 @@ export type Database = {
           company_id: string
           created_at: string
           danfse_path: string | null
+          document_type: Database["public"]["Enums"]["fiscal_document_type"]
           erros: Json | null
           focus_ref: string
           focus_status: string | null
@@ -982,7 +1010,10 @@ export type Database = {
           pagarme_account_id: string | null
           pagarme_charge_id: string | null
           pagarme_recipient_id: string | null
+          parametros: Json
+          protocolo: string | null
           sales_event_id: string | null
+          serie: string | null
           status: Database["public"]["Enums"]["invoice_job_status"]
           tomador_documento: string | null
           tomador_email: string | null
@@ -1004,6 +1035,7 @@ export type Database = {
           company_id: string
           created_at?: string
           danfse_path?: string | null
+          document_type?: Database["public"]["Enums"]["fiscal_document_type"]
           erros?: Json | null
           focus_ref?: string
           focus_status?: string | null
@@ -1018,7 +1050,10 @@ export type Database = {
           pagarme_account_id?: string | null
           pagarme_charge_id?: string | null
           pagarme_recipient_id?: string | null
+          parametros?: Json
+          protocolo?: string | null
           sales_event_id?: string | null
+          serie?: string | null
           status?: Database["public"]["Enums"]["invoice_job_status"]
           tomador_documento?: string | null
           tomador_email?: string | null
@@ -1040,6 +1075,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           danfse_path?: string | null
+          document_type?: Database["public"]["Enums"]["fiscal_document_type"]
           erros?: Json | null
           focus_ref?: string
           focus_status?: string | null
@@ -1054,7 +1090,10 @@ export type Database = {
           pagarme_account_id?: string | null
           pagarme_charge_id?: string | null
           pagarme_recipient_id?: string | null
+          parametros?: Json
+          protocolo?: string | null
           sales_event_id?: string | null
+          serie?: string | null
           status?: Database["public"]["Enums"]["invoice_job_status"]
           tomador_documento?: string | null
           tomador_email?: string | null
@@ -1152,6 +1191,7 @@ export type Database = {
         Row: {
           active: boolean
           ambiente: Database["public"]["Enums"]["nfse_ambiente"]
+          api_secret_ref: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -1166,6 +1206,7 @@ export type Database = {
         Insert: {
           active?: boolean
           ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          api_secret_ref?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1180,6 +1221,7 @@ export type Database = {
         Update: {
           active?: boolean
           ambiente?: Database["public"]["Enums"]["nfse_ambiente"]
+          api_secret_ref?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1668,49 +1710,94 @@ export type Database = {
         Row: {
           active: boolean
           aliquota_iss: number | null
+          cest: string | null
+          cfop_interestadual: string | null
+          cfop_interno: string | null
           cnae: string | null
+          codigo_beneficio_fiscal: string | null
+          codigo_produto: string | null
           codigo_tributario_municipio: string | null
+          cofins_aliquota: number | null
+          cofins_cst: string | null
           company_id: string
           created_at: string
           created_by: string | null
+          cst_icms: string | null
           descricao: string
+          discriminacao: string | null
+          document_type: Database["public"]["Enums"]["fiscal_document_type"]
           id: string
           item_lista_servico: string
           metadata: Json
+          ncm: string | null
+          origem: number | null
           pagarme_item_code: string | null
           pagarme_plan_id: string | null
+          parametros: Json
+          pis_aliquota: number | null
+          pis_cst: string | null
           updated_at: string
         }
         Insert: {
           active?: boolean
           aliquota_iss?: number | null
+          cest?: string | null
+          cfop_interestadual?: string | null
+          cfop_interno?: string | null
           cnae?: string | null
+          codigo_beneficio_fiscal?: string | null
+          codigo_produto?: string | null
           codigo_tributario_municipio?: string | null
+          cofins_aliquota?: number | null
+          cofins_cst?: string | null
           company_id: string
           created_at?: string
           created_by?: string | null
+          cst_icms?: string | null
           descricao: string
+          discriminacao?: string | null
+          document_type?: Database["public"]["Enums"]["fiscal_document_type"]
           id?: string
           item_lista_servico: string
           metadata?: Json
+          ncm?: string | null
+          origem?: number | null
           pagarme_item_code?: string | null
           pagarme_plan_id?: string | null
+          parametros?: Json
+          pis_aliquota?: number | null
+          pis_cst?: string | null
           updated_at?: string
         }
         Update: {
           active?: boolean
           aliquota_iss?: number | null
+          cest?: string | null
+          cfop_interestadual?: string | null
+          cfop_interno?: string | null
           cnae?: string | null
+          codigo_beneficio_fiscal?: string | null
+          codigo_produto?: string | null
           codigo_tributario_municipio?: string | null
+          cofins_aliquota?: number | null
+          cofins_cst?: string | null
           company_id?: string
           created_at?: string
           created_by?: string | null
+          cst_icms?: string | null
           descricao?: string
+          discriminacao?: string | null
+          document_type?: Database["public"]["Enums"]["fiscal_document_type"]
           id?: string
           item_lista_servico?: string
           metadata?: Json
+          ncm?: string | null
+          origem?: number | null
           pagarme_item_code?: string | null
           pagarme_plan_id?: string | null
+          parametros?: Json
+          pis_aliquota?: number | null
+          pis_cst?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2591,6 +2678,7 @@ export type Database = {
           company_id: string
           created_at: string
           danfse_path: string | null
+          document_type: Database["public"]["Enums"]["fiscal_document_type"]
           erros: Json | null
           focus_ref: string
           focus_status: string | null
@@ -2605,7 +2693,10 @@ export type Database = {
           pagarme_account_id: string | null
           pagarme_charge_id: string | null
           pagarme_recipient_id: string | null
+          parametros: Json
+          protocolo: string | null
           sales_event_id: string | null
+          serie: string | null
           status: Database["public"]["Enums"]["invoice_job_status"]
           tomador_documento: string | null
           tomador_email: string | null
@@ -2915,6 +3006,10 @@ export type Database = {
         }
       }
       get_focus_token: { Args: { p_company_id: string }; Returns: string }
+      get_pagarme_account_secret: {
+        Args: { p_account_id: string }
+        Returns: string
+      }
       get_pagarme_webhook_secret: { Args: { p_slug: string }; Returns: string }
       has_company_access: { Args: { p_company_id: string }; Returns: boolean }
       ignore_statement_line: {
@@ -3142,6 +3237,10 @@ export type Database = {
         Args: { p_company_id: string; p_token: string }
         Returns: undefined
       }
+      set_pagarme_account_secret: {
+        Args: { p_account_id: string; p_secret: string }
+        Returns: undefined
+      }
       setup_payroll_mappings_defaults: {
         Args: { p_company_id: string }
         Returns: {
@@ -3261,6 +3360,7 @@ export type Database = {
         | "operational_data"
       employee_kind: "clt" | "pj" | "intern" | "partner"
       employee_status: "active" | "on_leave" | "terminated"
+      fiscal_document_type: "nfse" | "nfe"
       import_status:
         | "uploaded"
         | "mapped"
@@ -3509,6 +3609,7 @@ export const Constants = {
       ],
       employee_kind: ["clt", "pj", "intern", "partner"],
       employee_status: ["active", "on_leave", "terminated"],
+      fiscal_document_type: ["nfse", "nfe"],
       import_status: ["uploaded", "mapped", "previewed", "committed", "failed"],
       invoice_job_status: [
         "pending_review",
