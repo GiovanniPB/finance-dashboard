@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DATA_MODULES } from "@/features/auth/modules";
+
 export const USER_ROLES = [
   {
     value: "super_admin",
@@ -26,6 +28,8 @@ export const userFormSchema = z
     role: z.enum(["super_admin", "admin", "editor", "viewer"]),
     password: z.string().min(8, "Mínimo 8 caracteres").max(72).optional().or(z.literal("")),
     companyIds: z.array(z.string().uuid()),
+    /** Vazio = enxerga todos os módulos (equivale a NULL no banco). */
+    visibleModules: z.array(z.enum(DATA_MODULES)),
   })
   .refine((v) => v.role === "super_admin" || v.companyIds.length > 0, {
     message: "Selecione ao menos uma empresa (ou marque como Super Admin)",
@@ -41,5 +45,6 @@ export function emptyUserForm(): UserFormValues {
     role: "editor",
     password: "",
     companyIds: [],
+    visibleModules: [],
   };
 }

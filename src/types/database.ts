@@ -1476,6 +1476,7 @@ export type Database = {
           id: string
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
+          visible_modules: Database["public"]["Enums"]["data_module"][] | null
         }
         Insert: {
           avatar_url?: string | null
@@ -1485,6 +1486,7 @@ export type Database = {
           id: string
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
+          visible_modules?: Database["public"]["Enums"]["data_module"][] | null
         }
         Update: {
           avatar_url?: string | null
@@ -1494,6 +1496,7 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
+          visible_modules?: Database["public"]["Enums"]["data_module"][] | null
         }
         Relationships: []
       }
@@ -2560,6 +2563,10 @@ export type Database = {
           rbt12: number
         }[]
       }
+      can_view_module: {
+        Args: { p_module: Database["public"]["Enums"]["data_module"] }
+        Returns: boolean
+      }
       cashflow_daily: {
         Args: { p_company_id: string; p_end: string; p_start: string }
         Returns: {
@@ -2917,6 +2924,10 @@ export type Database = {
       get_focus_token: { Args: { p_company_id: string }; Returns: string }
       get_pagarme_webhook_secret: { Args: { p_slug: string }; Returns: string }
       has_company_access: { Args: { p_company_id: string }; Returns: boolean }
+      has_company_write_access: {
+        Args: { p_company_id: string }
+        Returns: boolean
+      }
       ignore_statement_line: {
         Args: { p_line_id: string }
         Returns: {
@@ -3242,6 +3253,7 @@ export type Database = {
         | "investment_fund"
         | "cash"
       company_tax_regime: "simples" | "lucro_presumido" | "lucro_real" | "mei"
+      data_module: "financials" | "payroll" | "taxes" | "nfse" | "audit"
       dre_section:
         | "gross_revenue"
         | "revenue_deductions"
@@ -3489,6 +3501,7 @@ export const Constants = {
         "cash",
       ],
       company_tax_regime: ["simples", "lucro_presumido", "lucro_real", "mei"],
+      data_module: ["financials", "payroll", "taxes", "nfse", "audit"],
       dre_section: [
         "gross_revenue",
         "revenue_deductions",
