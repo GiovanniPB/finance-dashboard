@@ -3,6 +3,25 @@ import type { NfseAmbiente, NfseEmissionMode } from "./api";
 /** Tons aceitos pelo componente Badge. */
 export type BadgeTone = "default" | "accent" | "income" | "expense" | "warning" | "info";
 
+export type FiscalDocumentType = "nfse" | "nfe";
+
+export const DOCUMENT_TYPE_OPTIONS: { value: FiscalDocumentType; label: string }[] = [
+  { value: "nfse", label: "NFS-e (serviço)" },
+  { value: "nfe", label: "NF-e (produto)" },
+];
+
+export const DOCUMENT_TYPE_META: Record<FiscalDocumentType, { label: string; tone: BadgeTone }> = {
+  nfse: { label: "NFS-e", tone: "info" },
+  nfe: { label: "NF-e", tone: "accent" },
+};
+
+/** Regime tributário do emitente (NF-e). */
+export const REGIME_TRIBUTARIO_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: "1 — Simples Nacional" },
+  { value: 2, label: "2 — Simples (excesso sublimite)" },
+  { value: 3, label: "3 — Regime Normal" },
+];
+
 export const AMBIENTE_OPTIONS: { value: NfseAmbiente; label: string }[] = [
   { value: "homologacao", label: "Homologação" },
   { value: "producao", label: "Produção" },
@@ -44,6 +63,38 @@ export const JOB_STATUS_FILTERS: { value: string; label: string; statuses: strin
   { value: "problem", label: "Com erro", statuses: ["rejected", "failed"] },
   { value: "all", label: "Todas", statuses: null },
 ];
+
+// ---------------------------------------------------------------------------
+// Cobrança de teste (sandbox). Os cenários DEVEM espelhar SANDBOX_SCENARIOS do
+// builder (`supabase/functions/_shared/nfse/sandbox.ts`).
+// ---------------------------------------------------------------------------
+export const SANDBOX_METHOD_OPTIONS: { value: string; label: string }[] = [
+  { value: "credit_card", label: "Cartão de crédito" },
+  { value: "pix", label: "Pix" },
+  { value: "boleto", label: "Boleto" },
+];
+
+export const SANDBOX_SCENARIO_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  credit_card: [
+    { value: "paid", label: "Aprovada (paga)" },
+    { value: "refused", label: "Recusada" },
+    { value: "chargeback", label: "Paga → chargeback" },
+    { value: "processing_canceled", label: "Processando → cancelada" },
+  ],
+  pix: [
+    { value: "paid", label: "Paga (valor ≤ R$ 500)" },
+    { value: "failed", label: "Falha (valor > R$ 500)" },
+  ],
+  boleto: [
+    { value: "paid", label: "Pago integral" },
+    { value: "underpaid", label: "Pago a menor" },
+    { value: "overpaid", label: "Pago a maior" },
+    { value: "unreconciled", label: "Não concilia" },
+  ],
+};
+
+/** Teto (centavos) do cenário Pix pago no sandbox — espelha o builder. */
+export const SANDBOX_PIX_PAID_MAX_CENTS = 50000;
 
 /** URL pública da Edge Function de webhook para uma conta (slug + segredo opcional). */
 export function webhookUrl(slug: string, secret?: string): string {

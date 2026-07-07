@@ -27,7 +27,12 @@ import type { Company } from "@/features/companies/api";
 
 import type { PagarmeAccount } from "../api";
 import { AMBIENTE_OPTIONS, webhookUrl } from "../constants";
-import { useCreateConnection, useRotateWebhookSecret, useUpdateConnection } from "../hooks";
+import {
+  useCreateConnection,
+  useRotateWebhookSecret,
+  useSetPagarmeAccountSecret,
+  useUpdateConnection,
+} from "../hooks";
 import { connectionFormSchema, emptyConnectionForm, type ConnectionFormValues } from "../schema";
 import { FieldToggle } from "./FieldToggle";
 
@@ -49,10 +54,12 @@ export function ConnectionDrawer({ open, onOpenChange, connection, companies }: 
   const create = useCreateConnection();
   const update = useUpdateConnection();
   const rotate = useRotateWebhookSecret();
+  const saveApiSecret = useSetPagarmeAccountSecret();
 
   // Após criar, passamos a "gerenciar" a conexão recém-criada (sem fechar o drawer).
   const [created, setCreated] = React.useState<ManagedAccount | null>(null);
   const [revealedUrl, setRevealedUrl] = React.useState<string | null>(null);
+  const [apiKey, setApiKey] = React.useState("");
 
   const managed: ManagedAccount | null = connection
     ? {
@@ -91,6 +98,7 @@ export function ConnectionDrawer({ open, onOpenChange, connection, companies }: 
     reset(initialValues);
     setCreated(null);
     setRevealedUrl(null);
+    setApiKey("");
   }, [initialValues, reset, open]);
 
   function revealUrl(account: ManagedAccount) {
@@ -224,6 +232,59 @@ export function ConnectionDrawer({ open, onOpenChange, connection, companies }: 
                 rotating={rotate.isPending}
                 onGenerate={() => revealUrl(managed)}
               />
+            )}
+
+            {managed && (
+              <div className="space-y-1.5 rounded-[var(--radius-md)] border border-border bg-surface-2 p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-2xs tracking-wide text-text-subtle uppercase">
+                    Secret key da API (pagar.me)
+                  </Label>
+                  {connection?.api_secret_ref ? (
+                    <span className="text-2xs text-income">configurada</span>
+                  ) : (
+                    <span className="text-2xs text-text-subtle">opcional</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="password"
+                    autoComplete="off"
+                    placeholder="sk_..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={saveApiSecret.isPending || apiKey.trim().length === 0}
+                    onClick={() =>
+                      saveApiSecret.mutate(
+                        { accountId: managed.id, secret: apiKey.trim() },
+                        {
+                          onSuccess: () => {
+                            toast.success("Secret key salva");
+                            setApiKey("");
+                          },
+                          onError: (err) =>
+                            toast.error("Erro ao salvar key", { description: err.message }),
+                        },
+                      )
+                    }
+                  >
+                    {saveApiSecret.isPending ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Check className="size-3.5" />
+                    )}
+                    Salvar
+                  </Button>
+                </div>
+                <p className="text-2xs text-text-subtle">
+                  Usada para validar o split pelos payables. Guardada no Vault — não é exibida
+                  depois.
+                </p>
+              </div>
             )}
           </SheetBody>
 

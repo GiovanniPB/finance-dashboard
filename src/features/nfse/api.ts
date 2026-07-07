@@ -181,6 +181,96 @@ export async function setFocusToken(companyId: string, token: string): Promise<v
   if (error) throw error;
 }
 
+/** Salva a secret key da API do pagar.me de uma conta no Vault (split via /payables). */
+export async function setPagarmeAccountSecret(accountId: string, secret: string): Promise<void> {
+  const { error } = await supabase.rpc("set_pagarme_account_secret", {
+    p_account_id: accountId,
+    p_secret: secret,
+  });
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Cobrança de teste (sandbox) — Edge Function pagarme-sandbox
+// Cria um POST /orders no sandbox do pagar.me; o charge.paid volta pelo webhook
+// e percorre a esteira normal. Só funciona em contas de homologação (sk_test_).
+// ---------------------------------------------------------------------------
+export type SandboxMethod = "credit_card" | "pix" | "boleto";
+
+export interface SandboxSplitEntry {
+  recipientId: string;
+  amount: number; // % (percentage) ou centavos (flat)
+  type: "flat" | "percentage";
+}
+
+export interface SandboxChargeInput {
+  accountId: string;
+  method: SandboxMethod;
+  scenario: string;
+  amountCents: number;
+  description?: string | null;
+  customer: {
+    name: string;
+    email: string;
+    document?: string | null;
+    documentType?: "CPF" | "CNPJ";
+    address?: {
+      line_1: string;
+      line_2?: string | null;
+      zip_code: string;
+      city: string;
+      state: string;
+      country?: string;
+    } | null;
+    phone?: { areaCode: string; number: string } | null;
+  };
+  split?: SandboxSplitEntry[];
+}
+
+export interface SandboxChargeCharge {
+  id: string | null;
+  status: string | null;
+  paymentMethod: string | null;
+  qrCode: string | null;
+  qrCodeUrl: string | null;
+  boletoUrl: string | null;
+  boletoLine: string | null;
+}
+
+export interface SandboxChargeResult {
+  status: string;
+  order: {
+    orderId: string | null;
+    code: string | null;
+    status: string | null;
+    charges: SandboxChargeCharge[];
+  };
+}
+
+/** Lê a mensagem útil do corpo de erro da Edge Function (422 traz `details`). */
+async function readFunctionError(error: unknown): Promise<string> {
+  const ctx = (error as { context?: Response })?.context;
+  if (ctx && typeof ctx.json === "function") {
+    try {
+      const body = (await ctx.json()) as { error?: string; details?: string[] };
+      if (Array.isArray(body.details) && body.details.length > 0) return body.details.join(" · ");
+      if (body.error) return body.error;
+    } catch {
+      /* corpo não-JSON: cai no message padrão */
+    }
+  }
+  return error instanceof Error ? error.message : "Erro ao criar cobrança de teste";
+}
+
+export async function createSandboxCharge(input: SandboxChargeInput): Promise<SandboxChargeResult> {
+  const result = await supabase.functions.invoke<SandboxChargeResult>("pagarme-sandbox", {
+    body: input,
+  });
+  if (result.error) throw new Error(await readFunctionError(result.error));
+  if (!result.data) throw new Error("Resposta vazia da função pagarme-sandbox");
+  return result.data;
+}
+
 // ---------------------------------------------------------------------------
 // Fila de notas (invoice_jobs)
 // ---------------------------------------------------------------------------

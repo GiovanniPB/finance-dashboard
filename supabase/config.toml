@@ -393,6 +393,11 @@ verify_jwt = false
 [functions.focus-webhook]
 verify_jwt = false
 
+# Gerador de cobranças de teste no sandbox do pagar.me — chamado pela UI
+# autenticada, então EXIGE JWT (só super admin, validado dentro da função).
+[functions.pagarme-sandbox]
+verify_jwt = true
+
 # Gestão de usuários — exigem JWT (verify_jwt=true, o default) e ainda checam
 # super_admin dentro da função antes de usar o service role.
 [functions.admin-create-user]
