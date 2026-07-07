@@ -5,6 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -68,6 +69,7 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -86,14 +88,14 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
     const set = new Set(watchedCompanyIds);
     if (set.has(id)) set.delete(id);
     else set.add(id);
-    reset({ ...watch(), companyIds: Array.from(set) }, { keepDirty: true });
+    setValue("companyIds", Array.from(set), { shouldDirty: true, shouldValidate: true });
   }
 
   function toggleModule(mod: DataModule) {
     const set = new Set(watchedModules);
     if (set.has(mod)) set.delete(mod);
     else set.add(mod);
-    reset({ ...watch(), visibleModules: Array.from(set) }, { keepDirty: true });
+    setValue("visibleModules", Array.from(set), { shouldDirty: true });
   }
 
   const onSubmit = handleSubmit((values) => {
@@ -244,12 +246,7 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
                         key={c.id}
                         className="flex cursor-pointer items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm transition-colors hover:bg-surface-2"
                       >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleCompany(c.id)}
-                          className="size-4 cursor-pointer accent-accent"
-                        />
+                        <Checkbox checked={checked} onCheckedChange={() => toggleCompany(c.id)} />
                         <span className="flex-1">{c.trade_name ?? c.legal_name}</span>
                         {!c.is_active && (
                           <span className="text-2xs text-text-subtle">(inativa)</span>
@@ -280,11 +277,10 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
                         key={mod}
                         className="flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm transition-colors hover:bg-surface-2"
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={checked}
-                          onChange={() => toggleModule(mod)}
-                          className="mt-0.5 size-4 cursor-pointer accent-accent"
+                          onCheckedChange={() => toggleModule(mod)}
+                          className="mt-0.5"
                         />
                         <span className="flex-1">
                           <span className="block font-medium">{MODULE_LABELS[mod]}</span>
