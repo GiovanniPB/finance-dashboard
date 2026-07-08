@@ -4,10 +4,14 @@ import type { Tables } from "@/lib/supabase";
 
 import {
   approveInvoiceJob,
+  bulkApproveBackfillRun,
+  cancelBackfillRun,
+  createBackfillRun,
   createConnection,
   createRecipient,
   createSandboxCharge,
   deleteRecipient,
+  fetchBackfillRuns,
   fetchConnections,
   fetchFiscalSettings,
   fetchInvoiceJobs,
@@ -20,6 +24,7 @@ import {
   updateConnection,
   updateRecipient,
   upsertFiscalSettings,
+  type CreateBackfillRunInput,
   type InvoiceJobFilters,
   type SandboxChargeInput,
   type WebhookFilters,
@@ -31,6 +36,7 @@ export const nfseKeys = {
   fiscalSettings: ["nfse", "fiscal-settings"] as const,
   jobs: (f: InvoiceJobFilters) => ["nfse", "jobs", f] as const,
   webhooks: (f: WebhookFilters) => ["nfse", "webhooks", f] as const,
+  backfillRuns: ["nfse", "backfill-runs"] as const,
 };
 
 // --- Conexões ---------------------------------------------------------------
@@ -161,6 +167,45 @@ export function useRequeueInvoiceJob() {
   return useMutation({
     mutationFn: (id: string) => requeueInvoiceJob(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
+  });
+}
+
+// --- Emissão retroativa (backfill) ------------------------------------------
+export function useBackfillRuns() {
+  return useQuery({
+    queryKey: nfseKeys.backfillRuns,
+    queryFn: fetchBackfillRuns,
+    // enquanto há run em processamento, o cron avança o cursor -> atualiza sozinho
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((r) => r.status === "running") ? 5_000 : false,
+  });
+}
+
+export function useCreateBackfillRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateBackfillRunInput) => createBackfillRun(input),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.backfillRuns }),
+  });
+}
+
+export function useCancelBackfillRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => cancelBackfillRun(runId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.backfillRuns }),
+  });
+}
+
+export function useBulkApproveBackfillRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, userId }: { runId: string; userId: string }) =>
+      bulkApproveBackfillRun(runId, userId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] });
+      void qc.invalidateQueries({ queryKey: nfseKeys.backfillRuns });
+    },
   });
 }
 

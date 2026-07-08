@@ -325,6 +325,88 @@ export async function nfseFileUrl(path: string): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// Emissão retroativa em lote (invoice_backfill_runs)
+// O run é criado pela UI; o pg_cron aciona a Edge Function nfse-backfill que o
+// drena (enumera /charges -> hidrata -> cria invoice_jobs como pending_review).
+// ---------------------------------------------------------------------------
+export type BackfillRunRow = Tables["invoice_backfill_runs"]["Row"];
+export type BackfillRun = BackfillRunRow & {
+  account: { id: string; label: string; slug: string } | null;
+};
+
+/** Preview agregado (dry-run) gravado em `invoice_backfill_runs.preview`. */
+export interface BackfillPreview {
+  totalJobs: number;
+  totalReais: number;
+  incompleteAddress: number;
+  byCompany: Record<string, { count: number; reais: number }>;
+}
+
+export interface CreateBackfillRunInput {
+  accountId: string;
+  organizationId: string;
+  createdSince: string; // ISO 8601
+  createdUntil: string; // ISO 8601
+  dryRun: boolean;
+  createdBy: string;
+}
+
+const BACKFILL_LIST_LIMIT = 100;
+
+export async function fetchBackfillRuns(): Promise<BackfillRun[]> {
+  const { data, error } = await supabase
+    .from("invoice_backfill_runs")
+    .select("*, account:pagarme_accounts!pagarme_account_id(id, label, slug)")
+    .order("created_at", { ascending: false })
+    .limit(BACKFILL_LIST_LIMIT);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createBackfillRun(input: CreateBackfillRunInput): Promise<BackfillRunRow> {
+  const { data, error } = await supabase
+    .from("invoice_backfill_runs")
+    .insert({
+      pagarme_account_id: input.accountId,
+      organization_id: input.organizationId,
+      created_since: input.createdSince,
+      created_until: input.createdUntil,
+      dry_run: input.dryRun,
+      created_by: input.createdBy,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Cancela um run em andamento (o cron para de drená-lo). */
+export async function cancelBackfillRun(runId: string): Promise<void> {
+  const { error } = await supabase
+    .from("invoice_backfill_runs")
+    .update({ status: "cancelled" })
+    .eq("id", runId)
+    .eq("status", "running");
+  if (error) throw error;
+}
+
+/**
+ * Aprova em lote os jobs `pending_review` gerados por um run (source=backfill):
+ * vão para a fila de emissão. Retorna quantos foram aprovados. A RLS por empresa
+ * garante que o usuário só aprova o que pode escrever.
+ */
+export async function bulkApproveBackfillRun(runId: string, userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("invoice_jobs")
+    .update({ status: "queued", approved_by: userId, approved_at: new Date().toISOString() })
+    .eq("metadata->>backfillRunId", runId)
+    .eq("status", "pending_review")
+    .select("id");
+  if (error) throw error;
+  return data?.length ?? 0;
+}
+
+// ---------------------------------------------------------------------------
 // Webhooks recebidos (log de debug — sales_events / focus_events)
 // Tabelas restritas a super admin via RLS.
 // ---------------------------------------------------------------------------
