@@ -45,7 +45,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const WORKER_SECRET = Deno.env.get("NFSE_WORKER_SECRET") ?? "";
 
-const PAGES_PER_INVOCATION = 3; // limita o tempo do Edge; o cron re-aciona
+const PAGES_PER_INVOCATION = 1; // hidratação é cara (detalhe+payables+cep/cobrança); 1 página/tick cabe no Edge
 const MAX_ATTEMPTS = 5; // falhas de listagem consecutivas -> run 'failed'
 
 interface CompanyTally {
@@ -101,30 +101,32 @@ function emptyDiagnostics(): Diagnostics {
 }
 
 function mergePreview(a: Preview, b: Preview): Preview {
-  const byCompany: Record<string, CompanyTally> = { ...a.byCompany };
-  for (const [company, tally] of Object.entries(b.byCompany)) {
+  const byCompany: Record<string, CompanyTally> = { ...(a.byCompany ?? {}) };
+  for (const [company, tally] of Object.entries(b.byCompany ?? {})) {
     const cur = byCompany[company] ?? { count: 0, reais: 0 };
     byCompany[company] = { count: cur.count + tally.count, reais: cur.reais + tally.reais };
   }
   return {
-    totalJobs: a.totalJobs + b.totalJobs,
-    totalReais: Number((a.totalReais + b.totalReais).toFixed(2)),
-    incompleteAddress: a.incompleteAddress + b.incompleteAddress,
+    totalJobs: (a.totalJobs ?? 0) + b.totalJobs,
+    totalReais: Number(((a.totalReais ?? 0) + b.totalReais).toFixed(2)),
+    incompleteAddress: (a.incompleteAddress ?? 0) + b.incompleteAddress,
     byCompany,
   };
 }
 
 function mergeDiagnostics(a: Diagnostics, b: Diagnostics): Diagnostics {
-  const skipReasons: Record<string, number> = { ...a.skipReasons };
-  for (const [k, v] of Object.entries(b.skipReasons)) skipReasons[k] = (skipReasons[k] ?? 0) + v;
-  const unmappedRecipients: Record<string, number> = { ...a.unmappedRecipients };
-  for (const [k, v] of Object.entries(b.unmappedRecipients)) {
+  // `a` pode vir como {} (default da coluna) -> coalescer cada campo
+  const skipReasons: Record<string, number> = { ...(a.skipReasons ?? {}) };
+  for (const [k, v] of Object.entries(b.skipReasons ?? {}))
+    skipReasons[k] = (skipReasons[k] ?? 0) + v;
+  const unmappedRecipients: Record<string, number> = { ...(a.unmappedRecipients ?? {}) };
+  for (const [k, v] of Object.entries(b.unmappedRecipients ?? {})) {
     unmappedRecipients[k] = (unmappedRecipients[k] ?? 0) + v;
   }
   return {
     skipReasons,
     unmappedRecipients,
-    pageErrors: [...a.pageErrors, ...b.pageErrors].slice(-20), // guarda os últimos 20
+    pageErrors: [...(a.pageErrors ?? []), ...(b.pageErrors ?? [])].slice(-20),
   };
 }
 
@@ -198,55 +200,63 @@ async function processPage(
   };
 
   for (const id of paidIds) {
-    const detail = await fetchChargeDetail(id, apiKey);
-    if (!detail) {
-      skip("hydrate_failed");
-      continue;
-    }
+    // resiliência: uma cobrança problemática não derruba a página inteira
+    try {
+      const detail = await fetchChargeDetail(id, apiKey);
+      if (!detail) {
+        skip("hydrate_failed");
+        continue;
+      }
 
-    // filtro de janela no cliente (robusto: independe do filtro do servidor)
-    const createdAt = typeof detail.created_at === "string" ? Date.parse(detail.created_at) : NaN;
-    if (Number.isFinite(createdAt) && (createdAt < sinceMs || createdAt > untilMs)) {
-      skip("out_of_window");
-      continue;
-    }
+      // filtro de janela no cliente (robusto: independe do filtro do servidor)
+      const createdAt = typeof detail.created_at === "string" ? Date.parse(detail.created_at) : NaN;
+      if (Number.isFinite(createdAt) && (createdAt < sinceMs || createdAt > untilMs)) {
+        skip("out_of_window");
+        continue;
+      }
 
-    const event = parseChargeResource(detail, `backfill:${id}`);
-    if (!event) {
-      skip("not_paid");
-      continue;
-    }
+      const event = parseChargeResource(detail, `backfill:${id}`);
+      if (!event) {
+        skip("not_paid");
+        continue;
+      }
 
-    const enriched = await enrichEventAddress(event);
-    const { event: finalEvent, splitMeta } = await resolveAuthoritativeSplit(
-      supabase,
-      account,
-      enriched,
-      apiKey,
-    );
-    const ctx = await loadContext(
-      supabase,
-      account,
-      finalEvent.split.map((s) => s.recipientId),
-    );
-    const { jobs, skipped: jobSkips } = explodeChargePaid(finalEvent, ctx);
+      const enriched = await enrichEventAddress(event);
+      const { event: finalEvent, splitMeta } = await resolveAuthoritativeSplit(
+        supabase,
+        account,
+        enriched,
+        apiKey,
+      );
+      const ctx = await loadContext(
+        supabase,
+        account,
+        finalEvent.split.map((s) => s.recipientId),
+      );
+      const { jobs, skipped: jobSkips } = explodeChargePaid(finalEvent, ctx);
 
-    for (const s of jobSkips) {
-      skip(s.reason);
-      // recebedor não mapeado: registra o re_ para o operador saber o que mapear
-      diag.unmappedRecipients[s.recipientId] = (diag.unmappedRecipients[s.recipientId] ?? 0) + 1;
-    }
+      for (const s of jobSkips) {
+        skip(s.reason);
+        // recebedor não mapeado: registra o re_ para o operador saber o que mapear
+        diag.unmappedRecipients[s.recipientId] = (diag.unmappedRecipients[s.recipientId] ?? 0) + 1;
+      }
 
-    for (const job of jobs) {
-      const withMeta = applySplitMeta(job, splitMeta);
-      // backfill nasce SEMPRE em revisão (decisão fiscal) + procedência do run
-      const draft: InvoiceJobDraft = {
-        ...withMeta,
-        status: "pending_review",
-        metadata: { ...withMeta.metadata, source: "backfill", backfillRunId: run.id },
-      };
-      rows.push(toRow(draft));
-      preview = tallyDraft(preview, draft);
+      for (const job of jobs) {
+        const withMeta = applySplitMeta(job, splitMeta);
+        // backfill nasce SEMPRE em revisão (decisão fiscal) + procedência do run
+        const draft: InvoiceJobDraft = {
+          ...withMeta,
+          status: "pending_review",
+          metadata: { ...withMeta.metadata, source: "backfill", backfillRunId: run.id },
+        };
+        rows.push(toRow(draft));
+        preview = tallyDraft(preview, draft);
+      }
+    } catch (e) {
+      skip("charge_error");
+      if (diag.pageErrors.length < 20) {
+        diag.pageErrors.push(`${id}: ${e instanceof Error ? e.message : String(e)}`);
+      }
     }
   }
 
@@ -294,94 +304,119 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let processedPages = 0;
   let done = false;
 
-  for (let i = 0; i < PAGES_PER_INVOCATION; i += 1) {
-    const cursor = run.page_cursor;
-    const page = await fetchChargesPage({
-      apiKey,
-      createdSince: run.created_since,
-      createdUntil: run.created_until,
-      page: cursor,
-      size: run.page_size,
-    });
+  try {
+    for (let i = 0; i < PAGES_PER_INVOCATION; i += 1) {
+      const cursor = run.page_cursor;
+      const page = await fetchChargesPage({
+        apiKey,
+        createdSince: run.created_since,
+        createdUntil: run.created_until,
+        page: cursor,
+        size: run.page_size,
+      });
 
-    if (!page) {
-      const attempts = run.attempts + 1;
-      const terminal = attempts >= MAX_ATTEMPTS;
-      await supabase
-        .from("invoice_backfill_runs")
-        .update({
-          attempts,
-          status: terminal ? "failed" : "running",
-          last_error: `falha ao listar página ${cursor}`,
-        })
-        .eq("id", run.id);
-      return json({ status: terminal ? "failed" : "list_error", runId: run.id, cursor });
-    }
-
-    const { rows, preview, diagnostics, skipped } = await processPage(
-      supabase,
-      account,
-      apiKey,
-      run,
-      page.paidIds,
-    );
-
-    let created = 0;
-    if (!run.dry_run && rows.length > 0) {
-      const { data: inserted, error } = await supabase
-        .from("invoice_jobs")
-        .upsert(rows, {
-          onConflict: "pagarme_charge_id,pagarme_recipient_id",
-          ignoreDuplicates: true,
-        })
-        .select("id");
-      if (error) {
+      if (!page) {
+        const attempts = run.attempts + 1;
+        const terminal = attempts >= MAX_ATTEMPTS;
         await supabase
           .from("invoice_backfill_runs")
-          .update({ last_error: `upsert falhou na página ${cursor}: ${error.message}` })
+          .update({
+            attempts,
+            status: terminal ? "failed" : "running",
+            last_error: `falha ao listar página ${cursor}`,
+          })
           .eq("id", run.id);
-        return json({ status: "upsert_error", runId: run.id, cursor, detail: error.message }, 500);
+        return json({ status: terminal ? "failed" : "list_error", runId: run.id, cursor });
       }
-      created = inserted?.length ?? 0;
+
+      const { rows, preview, diagnostics, skipped } = await processPage(
+        supabase,
+        account,
+        apiKey,
+        run,
+        page.paidIds,
+      );
+
+      let created = 0;
+      if (!run.dry_run && rows.length > 0) {
+        const { data: inserted, error } = await supabase
+          .from("invoice_jobs")
+          .upsert(rows, {
+            onConflict: "pagarme_charge_id,pagarme_recipient_id",
+            ignoreDuplicates: true,
+          })
+          .select("id");
+        if (error) {
+          await supabase
+            .from("invoice_backfill_runs")
+            .update({ last_error: `upsert falhou na página ${cursor}: ${error.message}` })
+            .eq("id", run.id);
+          return json(
+            { status: "upsert_error", runId: run.id, cursor, detail: error.message },
+            500,
+          );
+        }
+        created = inserted?.length ?? 0;
+      }
+
+      // total conhecido (paging.total). Fim: página vazia OU já vimos tudo.
+      const total = run.total_charges ?? page.total;
+      const seenAfter = run.charges_seen + page.count;
+      const isLastPage = page.count === 0 || (total != null && seenAfter >= total);
+
+      const nextPreview = mergePreview(run.preview ?? emptyPreview(), preview);
+      const nextDiag = mergeDiagnostics(run.diagnostics ?? emptyDiagnostics(), diagnostics);
+
+      // CAS otimista: só avança se o cursor não mudou (tick concorrente)
+      const { data: advanced } = await supabase
+        .from("invoice_backfill_runs")
+        .update({
+          page_cursor: cursor + 1,
+          total_charges: total,
+          charges_seen: seenAfter,
+          jobs_created: run.jobs_created + created,
+          jobs_skipped: run.jobs_skipped + skipped,
+          preview: nextPreview,
+          diagnostics: nextDiag,
+          last_error: null,
+          attempts: 0,
+          status: isLastPage ? "completed" : "running",
+        })
+        .eq("id", run.id)
+        .eq("page_cursor", cursor)
+        .eq("status", "running")
+        .select(RUN_COLUMNS)
+        .maybeSingle();
+
+      if (!advanced) break; // outro tick avançou este run -> encerra sem duplicar
+      run = advanced as BackfillRun;
+      processedPages += 1;
+
+      if (isLastPage) {
+        done = true;
+        break;
+      }
     }
-
-    // total conhecido (paging.total). Fim: página vazia OU já vimos tudo.
-    const total = run.total_charges ?? page.total;
-    const seenAfter = run.charges_seen + page.count;
-    const isLastPage = page.count === 0 || (total != null && seenAfter >= total);
-
-    const nextPreview = mergePreview(run.preview ?? emptyPreview(), preview);
-    const nextDiag = mergeDiagnostics(run.diagnostics ?? emptyDiagnostics(), diagnostics);
-
-    // CAS otimista: só avança se o cursor não mudou (tick concorrente)
-    const { data: advanced } = await supabase
+  } catch (e) {
+    // erro inesperado processando a página -> grava no run (não some como 500 opaco)
+    const attempts = run.attempts + 1;
+    const terminal = attempts >= MAX_ATTEMPTS;
+    await supabase
       .from("invoice_backfill_runs")
       .update({
-        page_cursor: cursor + 1,
-        total_charges: total,
-        charges_seen: seenAfter,
-        jobs_created: run.jobs_created + created,
-        jobs_skipped: run.jobs_skipped + skipped,
-        preview: nextPreview,
-        diagnostics: nextDiag,
-        last_error: null,
-        attempts: 0,
-        status: isLastPage ? "completed" : "running",
+        attempts,
+        status: terminal ? "failed" : "running",
+        last_error: `erro ao processar: ${e instanceof Error ? e.message : String(e)}`,
       })
-      .eq("id", run.id)
-      .eq("page_cursor", cursor)
-      .eq("status", "running")
-      .select(RUN_COLUMNS)
-      .maybeSingle();
-
-    if (!advanced) break; // outro tick avançou este run -> encerra sem duplicar
-    run = advanced as BackfillRun;
-    processedPages += 1;
-
-    if (isLastPage) {
-      done = true;
-      break;
-    }
+      .eq("id", run.id);
+    return json(
+      {
+        status: terminal ? "failed" : "error",
+        runId: run.id,
+        detail: e instanceof Error ? e.message : String(e),
+      },
+      200,
+    );
   }
 
   return json({
