@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { baseContext, rawChargePaidWebhook } from "./fixtures.ts";
-import { parseChargePaidWebhook } from "./parse.ts";
+import { baseContext, rawChargeDetail, rawChargePaidWebhook } from "./fixtures.ts";
+import { parseChargePaidWebhook, parseChargeResource } from "./parse.ts";
 import { explodeChargePaid } from "./split.ts";
 
 describe("parseChargePaidWebhook", () => {
@@ -53,6 +53,50 @@ describe("parseChargePaidWebhook", () => {
     const event = parseChargePaidWebhook(rawChargePaidWebhook());
     expect(event).not.toBeNull();
 
+    const { jobs } = explodeChargePaid(event!, baseContext());
+    expect(jobs).toHaveLength(2);
+    expect(jobs[0].valorServicos + jobs[1].valorServicos).toBeCloseTo(299.0, 2);
+  });
+});
+
+describe("parseChargeResource (backfill — detalhe de GET /charges/{id})", () => {
+  it("mapeia o detalhe igual ao webhook, com eventId de procedência", () => {
+    const event = parseChargeResource(rawChargeDetail(), "backfill:ch_test_0001");
+
+    expect(event).not.toBeNull();
+    expect(event?.eventId).toBe("backfill:ch_test_0001");
+    expect(event?.chargeId).toBe("ch_test_0001");
+    expect(event?.amountCents).toBe(29900);
+    expect(event?.subscriptionId).toBe("sub_test_0001");
+    expect(event?.customer.address?.city).toBe("Barueri"); // presente só no detalhe
+    expect(event?.split).toEqual([
+      { recipientId: "rp_company_a", amount: 60, type: "percentage" },
+      { recipientId: "rp_company_b", amount: 40, type: "percentage" },
+    ]);
+  });
+
+  it("produz o MESMO evento que o webhook (fora eventId) — fonte única", () => {
+    const fromWebhook = parseChargePaidWebhook(rawChargePaidWebhook());
+    const fromResource = parseChargeResource(rawChargeDetail(), fromWebhook!.eventId);
+    expect(fromResource).toEqual(fromWebhook);
+  });
+
+  it("ignora cobrança não-paga (rede de segurança)", () => {
+    const pending = rawChargeDetail();
+    pending.status = "pending";
+    expect(parseChargeResource(pending, "backfill:x")).toBeNull();
+  });
+
+  it("null sem eventId ou sem id/valor da cobrança", () => {
+    expect(parseChargeResource(rawChargeDetail(), "")).toBeNull();
+
+    const noAmount = rawChargeDetail();
+    noAmount.amount = 0;
+    expect(parseChargeResource(noAmount, "backfill:x")).toBeNull();
+  });
+
+  it("integra com a explosão: detalhe -> 2 jobs somando o total", () => {
+    const event = parseChargeResource(rawChargeDetail(), "backfill:ch_test_0001");
     const { jobs } = explodeChargePaid(event!, baseContext());
     expect(jobs).toHaveLength(2);
     expect(jobs[0].valorServicos + jobs[1].valorServicos).toBeCloseTo(299.0, 2);
