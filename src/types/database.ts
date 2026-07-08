@@ -983,6 +983,87 @@ export type Database = {
           },
         ]
       }
+      invoice_backfill_runs: {
+        Row: {
+          attempts: number
+          charges_seen: number
+          created_at: string
+          created_by: string | null
+          created_since: string
+          created_until: string
+          dry_run: boolean
+          id: string
+          jobs_created: number
+          jobs_skipped: number
+          last_error: string | null
+          metadata: Json
+          organization_id: string
+          pagarme_account_id: string
+          page_cursor: number
+          page_size: number
+          preview: Json | null
+          status: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          charges_seen?: number
+          created_at?: string
+          created_by?: string | null
+          created_since: string
+          created_until: string
+          dry_run?: boolean
+          id?: string
+          jobs_created?: number
+          jobs_skipped?: number
+          last_error?: string | null
+          metadata?: Json
+          organization_id: string
+          pagarme_account_id: string
+          page_cursor?: number
+          page_size?: number
+          preview?: Json | null
+          status?: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          charges_seen?: number
+          created_at?: string
+          created_by?: string | null
+          created_since?: string
+          created_until?: string
+          dry_run?: boolean
+          id?: string
+          jobs_created?: number
+          jobs_skipped?: number
+          last_error?: string | null
+          metadata?: Json
+          organization_id?: string
+          pagarme_account_id?: string
+          page_cursor?: number
+          page_size?: number
+          preview?: Json | null
+          status?: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_backfill_runs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_backfill_runs_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_jobs: {
         Row: {
           aliquota_iss: number | null
@@ -3379,6 +3460,7 @@ export type Database = {
         | "previewed"
         | "committed"
         | "failed"
+      invoice_backfill_status: "running" | "completed" | "failed" | "cancelled"
       invoice_job_status:
         | "pending_review"
         | "approved"
@@ -3624,6 +3706,7 @@ export const Constants = {
       employee_status: ["active", "on_leave", "terminated"],
       fiscal_document_type: ["nfse", "nfe"],
       import_status: ["uploaded", "mapped", "previewed", "committed", "failed"],
+      invoice_backfill_status: ["running", "completed", "failed", "cancelled"],
       invoice_job_status: [
         "pending_review",
         "approved",
