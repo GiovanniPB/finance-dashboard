@@ -1,15 +1,17 @@
 /**
- * Parsing do webhook BRUTO do pagar.me (`charge.paid`) -> `ChargePaidEvent`
- * normalizado. Puro e defensivo (entrada não-confiável -> narrowing seguro).
+ * Parsing do pagar.me -> `ChargePaidEvent` normalizado. Puro e defensivo
+ * (entrada não-confiável -> narrowing seguro). Duas entradas convergem no mesmo
+ * núcleo (`buildEvent`), garantindo mapeamento idêntico:
  *
- * Envelope v5: { id, type, created_at, account, data: <recurso> }. Para eventos
- * `charge.*`, `data` é o objeto charge. O split fica em
- * `data.last_transaction.split[]` (modelo de domínio do pagar.me); aceitamos
- * também `data.split[]` como fallback.
+ *  - `parseChargePaidWebhook(payload)` — envelope v5 do webhook
+ *    `{ id, type, created_at, account, data: <charge> }`.
+ *  - `parseChargeResource(charge, eventId)` — objeto de DETALHE de
+ *    `GET /charges/{id}` (usado pelo backfill; a lista `GET /charges` é magra —
+ *    não traz `customer.address` nem `split`, por isso hidratamos pelo detalhe).
  *
- * ⚠️ FASE 2: confirmar a forma exata contra a sandbox (especialmente onde vêm
- * `plan_id`/assinatura e o split em cobranças de assinatura). Ajustar os
- * caminhos + o fixture `rawChargePaidWebhook` quando tivermos um payload real.
+ * Em ambos, o split fica em `charge.last_transaction.split[]` (com `recipient`
+ * aninhado), aceitando `charge.split[]` como fallback. O split AUTORITATIVO,
+ * porém, vem depois de `/payables` (ver `payables.ts`); este é o de partida.
  */
 
 import type { ChargePaidEvent, PagarmeAddress, PagarmeSplit } from "./types.ts";
@@ -60,14 +62,10 @@ function parseAddress(customer: Record<string, unknown>): PagarmeAddress | null 
 }
 
 /**
- * Converte o payload do webhook (JSON já parseado) em `ChargePaidEvent`.
- * Retorna `null` se não for um `charge.paid` válido (o handler ignora/200).
+ * Núcleo puro: objeto `charge` (do webhook OU do detalhe da API) -> evento
+ * normalizado. `null` se a cobrança não tem id ou valor > 0.
  */
-export function parseChargePaidWebhook(payload: Record<string, unknown>): ChargePaidEvent | null {
-  const eventId = asString(payload.id);
-  if (!eventId || payload.type !== "charge.paid") return null;
-
-  const charge = asRecord(payload.data);
+function buildEvent(charge: Record<string, unknown>, eventId: string): ChargePaidEvent | null {
   const chargeId = asString(charge.id);
   const amount = typeof charge.amount === "number" ? charge.amount : 0;
   if (!chargeId || amount <= 0) return null;
@@ -79,7 +77,7 @@ export function parseChargePaidWebhook(payload: Record<string, unknown>): Charge
     eventId,
     chargeId,
     amountCents: amount,
-    planId: asString(charge.plan_id), // ausente no charge.paid hoje (reservado)
+    planId: asString(charge.plan_id), // ausente no charge.paid (só invoice.subscriptionId)
     subscriptionId: asString(invoice.subscriptionId),
     customer: {
       name: asString(customer.name),
@@ -89,4 +87,31 @@ export function parseChargePaidWebhook(payload: Record<string, unknown>): Charge
     },
     split: parseSplit(charge),
   };
+}
+
+/**
+ * Converte o payload do webhook (JSON já parseado) em `ChargePaidEvent`.
+ * Retorna `null` se não for um `charge.paid` válido (o handler ignora/200).
+ */
+export function parseChargePaidWebhook(payload: Record<string, unknown>): ChargePaidEvent | null {
+  const eventId = asString(payload.id);
+  if (!eventId || payload.type !== "charge.paid") return null;
+  return buildEvent(asRecord(payload.data), eventId);
+}
+
+/**
+ * Converte o objeto de DETALHE de `GET /charges/{id}` (backfill) em evento.
+ * Só cobrança **paga** vira nota — `null` caso contrário (rede de segurança;
+ * a enumeração já filtra `status=paid`). `eventId` é a procedência sintética do
+ * backfill (ex.: `backfill:<chargeId>`), gravada em `metadata.sourceEventId`.
+ */
+export function parseChargeResource(
+  charge: Record<string, unknown>,
+  eventId: string,
+): ChargePaidEvent | null {
+  const c = asRecord(charge);
+  if (c.status !== "paid") return null;
+  const id = asString(eventId);
+  if (!id) return null;
+  return buildEvent(c, id);
 }

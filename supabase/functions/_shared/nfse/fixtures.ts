@@ -145,6 +145,72 @@ export function rawChargePaidWebhook(): Record<string, unknown> {
   };
 }
 
+/**
+ * Objeto de DETALHE de `GET /charges/{id}` (backfill) — forma confirmada contra
+ * um retorno real (2026-07): split em `last_transaction.split[]` com `recipient`
+ * ANINHADO, `customer.address` presente (só no detalhe), assinatura em
+ * `invoice.subscriptionId`, sem `plan_id`. Dados SINTÉTICOS (sem PII).
+ */
+export function rawChargeDetail(): Record<string, unknown> {
+  return {
+    id: "ch_test_0001",
+    amount: 29900,
+    paid_amount: 29900,
+    status: "paid",
+    payment_method: "credit_card",
+    paid_at: "2026-06-03T12:00:00Z",
+    created_at: "2026-06-03T11:59:58Z",
+    customer: {
+      id: "cus_test_0001",
+      name: "Cliente Teste",
+      email: "cliente@example.com",
+      document: VALID_CPF,
+      document_type: "cpf",
+      type: "individual",
+      address: {
+        line_1: "100, Rua Exemplo, Centro",
+        zip_code: "06401000",
+        city: "Barueri",
+        state: "SP",
+        country: "BR",
+      },
+    },
+    invoice: { id: "in_test_0001", subscriptionId: "sub_test_0001", status: "paid" },
+    last_transaction: {
+      amount: 29900,
+      status: "captured",
+      split: [
+        {
+          amount: 60,
+          type: "percentage",
+          id: "sr_test_a",
+          recipient: { id: "rp_company_a", document: "11111111000111", type: "company" },
+        },
+        {
+          amount: 40,
+          type: "percentage",
+          id: "sr_test_b",
+          recipient: { id: "rp_company_b", document: "22222222000122", type: "company" },
+        },
+      ],
+    },
+  };
+}
+
+/**
+ * Página de `GET /charges` (lista MAGRA): só id/status + paging, sem address/split.
+ * Mistura uma paga e uma não-paga para exercitar o filtro de `parseChargesPage`.
+ */
+export function chargesListPage(): Record<string, unknown> {
+  return {
+    data: [
+      { id: "ch_test_0001", status: "paid" },
+      { id: "ch_unpaid_0002", status: "pending" },
+    ],
+    paging: { total: 2 },
+  };
+}
+
 export const IDS = { ORG, COMPANY_A, COMPANY_B, ACCOUNT };
 
 // -----------------------------------------------------------------------------

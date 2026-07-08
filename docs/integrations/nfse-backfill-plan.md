@@ -217,25 +217,27 @@ com split (✔), endereço incompleto, não-paga. Perfis **avulso e split libera
 
 ### Fase 2 — Lógica pura em `_shared/nfse/` (testada por **Vitest**)
 
-- **`pagarme-api.ts`** (novo): cliente Deno-puro, `Authorization: Basic
-base64("sk:")`, com **dois passos** (Correção A):
-  - **Enumerar** — `GET /charges?status=paid&created_since&created_until&page&size`
-    → devolve ids/status/amount/paid_at (lista magra; parsing de `{data, paging}`).
-  - **Hidratar** — `GET /charges/{id}` por cobrança → traz `customer.address` e o
-    `split` (dados **ausentes na lista**). É o objeto que alimenta o parser.
-  - **Rate-limiter** para ambos (200 req/min cada; a hidratação domina) → espaçar
-    chamadas. Funções pequenas e testáveis.
-- **`parse.ts`** (refactor sem mudar comportamento): extrair `parseCharge(charge)`
-  reutilizável, operando sobre o **objeto de detalhe** (`GET /charges/{id}`).
-  `parseChargePaidWebhook` desembrulha o envelope e delega; `parseChargeResource
-(charge)` recebe o charge de detalhe e delega. **Zero duplicação** de lógica de
-  split/customer/address. _(Caminho exato do `split[]` a fixar na Fase 0/Correção B.)_
-- **`context.ts`** (novo): mover o `loadContext(...)` de `pagarme-webhook` para
-  `_shared` (recebe um client já criado) e passar o webhook a importá-lo — evita
-  divergência entre webhook e backfill.
-- **Testes AAA** com as fixtures da Fase 0 (incluindo: sem split → 1 job da dona;
-  com split → N jobs; endereço incompleto → `pending_review`; charge não-paga →
-  ignorada).
+> **Status: concluída** (branch `feat/nfse-backfill-fase2`). Aditiva — **não altera
+> o hot-path do webhook**. O #40 já entregou o cliente `/payables` e o CEP/ViaCEP;
+> a Fase 2 só adiciona o cliente de **charges** e o parser do **detalhe**.
+
+- ✅ **`charges.ts`** (novo): cliente do backfill, `Authorization: Basic
+base64("sk:")`, dois passos (Correção A):
+  - **Enumerar** — `fetchChargesPage` (`GET /charges?status=paid&created_since&created_until&page&size`);
+    pura `parseChargesPage` extrai só os ids das **pagas** + `paging.total`.
+  - **Hidratar** — `fetchChargeDetail` (`GET /charges/{id}`) → traz
+    `customer.address` e o `split` (ausentes na lista).
+  - Separação puro/IO no padrão de `payables.ts`.
+- ✅ **`parse.ts`**: núcleo `buildEvent(charge, eventId)` compartilhado;
+  `parseChargePaidWebhook` (idêntico) e **`parseChargeResource(charge, eventId)`**
+  (detalhe da API) delegam a ele. Teste garante evento **idêntico** ao do webhook.
+- ✅ **fixtures**: `rawChargeDetail()` (detalhe com split/endereço/assinatura) +
+  `chargesListPage()` (lista magra). +9 testes (total do repo: 158).
+- **Reuso na Fase 3 (não duplicar):** split autoritativo via
+  `payables.ts::fetchChargeSplit`, endereço via `cep.ts::fetchCepInfo`, e a
+  orquestração (`loadContext`, `resolveAuthoritativeSplit`, `applySplitMeta`,
+  `toRow`) — hoje no `pagarme-webhook` — a extrair/compartilhar na Edge Function do
+  backfill (usam o client do Supabase, então ficam na camada de função).
 
 ### Fase 3 — Edge Function `nfse-backfill` (`verify_jwt=false`, header `x-worker-secret`)
 
