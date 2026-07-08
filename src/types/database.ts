@@ -991,6 +991,7 @@ export type Database = {
           created_by: string | null
           created_since: string
           created_until: string
+          diagnostics: Json
           dry_run: boolean
           id: string
           jobs_created: number
@@ -1003,6 +1004,7 @@ export type Database = {
           page_size: number
           preview: Json | null
           status: Database["public"]["Enums"]["invoice_backfill_status"]
+          total_charges: number | null
           updated_at: string
         }
         Insert: {
@@ -1012,6 +1014,7 @@ export type Database = {
           created_by?: string | null
           created_since: string
           created_until: string
+          diagnostics?: Json
           dry_run?: boolean
           id?: string
           jobs_created?: number
@@ -1024,6 +1027,7 @@ export type Database = {
           page_size?: number
           preview?: Json | null
           status?: Database["public"]["Enums"]["invoice_backfill_status"]
+          total_charges?: number | null
           updated_at?: string
         }
         Update: {
@@ -1033,6 +1037,7 @@ export type Database = {
           created_by?: string | null
           created_since?: string
           created_until?: string
+          diagnostics?: Json
           dry_run?: boolean
           id?: string
           jobs_created?: number
@@ -1045,6 +1050,7 @@ export type Database = {
           page_size?: number
           preview?: Json | null
           status?: Database["public"]["Enums"]["invoice_backfill_status"]
+          total_charges?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -3250,6 +3256,7 @@ export type Database = {
         Args: { p_template_id: string }
         Returns: string
       }
+      nfse_backfill_cron_invoke: { Args: never; Returns: undefined }
       nfse_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
       post_payroll_run: {
         Args: { p_default_account_id: string; p_run_id: string }

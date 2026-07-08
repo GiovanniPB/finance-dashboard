@@ -33,6 +33,7 @@ export type InvoiceJob = InvoiceJobRow & {
 export interface InvoiceJobFilters {
   statuses: string[] | null; // null = todas
   accountId?: string | null;
+  source?: string | null; // metadata.source (ex.: 'backfill')
 }
 
 export type WebhookProvider = "pagarme" | "focus";
@@ -291,10 +292,26 @@ export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<Invo
   if (filters.accountId) {
     query = query.eq("pagarme_account_id", filters.accountId);
   }
+  if (filters.source) {
+    query = query.eq("metadata->>source", filters.source);
+  }
 
   const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
+}
+
+/** Aprova em lote por ids (seleção da tabela): pending_review -> queued. Retorna quantos. */
+export async function approveInvoiceJobs(ids: string[], userId: string): Promise<number> {
+  if (ids.length === 0) return 0;
+  const { data, error } = await supabase
+    .from("invoice_jobs")
+    .update({ status: "queued", approved_by: userId, approved_at: new Date().toISOString() })
+    .in("id", ids)
+    .eq("status", "pending_review")
+    .select("id");
+  if (error) throw error;
+  return data?.length ?? 0;
 }
 
 /** Aprova um job em revisão manual: vai para a fila de emissão. */
@@ -342,6 +359,23 @@ export interface BackfillPreview {
   byCompany: Record<string, { count: number; reais: number }>;
 }
 
+/** Diagnóstico do run (por que cada cobrança não virou nota). */
+export interface BackfillDiagnostics {
+  skipReasons: Record<string, number>;
+  unmappedRecipients: Record<string, number>;
+  duplicates?: number;
+  pageErrors: string[];
+}
+
+/** Rótulos amigáveis dos motivos de skip do backfill. */
+export const SKIP_REASON_LABELS: Record<string, string> = {
+  recipient_not_mapped: "Recebedor não mapeado",
+  not_paid: "Cobrança não paga",
+  hydrate_failed: "Falha ao carregar detalhe",
+  out_of_window: "Fora da janela de datas",
+  charge_error: "Erro ao processar cobrança",
+};
+
 export interface CreateBackfillRunInput {
   accountId: string;
   organizationId: string;
@@ -388,22 +422,6 @@ export async function cancelBackfillRun(runId: string): Promise<void> {
     .eq("id", runId)
     .eq("status", "running");
   if (error) throw error;
-}
-
-/**
- * Aprova em lote os jobs `pending_review` gerados por um run (source=backfill):
- * vão para a fila de emissão. Retorna quantos foram aprovados. A RLS por empresa
- * garante que o usuário só aprova o que pode escrever.
- */
-export async function bulkApproveBackfillRun(runId: string, userId: string): Promise<number> {
-  const { data, error } = await supabase
-    .from("invoice_jobs")
-    .update({ status: "queued", approved_by: userId, approved_at: new Date().toISOString() })
-    .eq("metadata->>backfillRunId", runId)
-    .eq("status", "pending_review")
-    .select("id");
-  if (error) throw error;
-  return data?.length ?? 0;
 }
 
 // ---------------------------------------------------------------------------

@@ -375,3 +375,62 @@ Wrapper fino sobre o `_shared`. Config em `config.toml`.
 - Write-back financeiro (`invoice_jobs.transaction_id`) — pendência herdada.
 - Fonte alternativa (`/orders`, `/payables`) — `/charges` cobre o caso (o domínio
   do split vive em `charge.last_transaction`).
+
+---
+
+## 13. Melhorias pós-produção — observabilidade (2026-07-08)
+
+**Sintoma:** 1ª simulação em produção mostrou `30 cobranças / 0 notas previstas`,
+sem detalhamento; "Emitir de verdade" deu erro. Diagnóstico (via banco/logs):
+
+1. **0 notas ≠ bug do motor.** A conta "Jimmy Carvalho Produção" tinha **0
+   recebedores mapeados** → todo split caía em `recipient_not_mapped` (48 skips
+   invisíveis). Config faltando + UI que escondia os skips e o motivo.
+2. **Parou em 30 (paginação frágil).** O fim era `count < page_size`; página curta
+   encerrava o run cedo. Trocado por: fim quando **`charges_seen >= paging.total`
+   ou página vazia**; `total_charges` guardado (base do %).
+3. **"Emitir de verdade" quebrado.** O botão reembrulhava o timestamp ISO do run em
+   `toIso()` → data malformada → insert 422. Corrigido (passa o ISO cru).
+4. **Sem % de progresso** e **sem detalhamento**.
+
+**Entregue:**
+
+- Banco: `invoice_backfill_runs.total_charges` + `diagnostics` (histograma de skips
+  por motivo, recebedores `re_` não-mapeados vistos, erros de página).
+- `nfse-backfill`: paginação robusta por `paging.total`, **filtro de janela no
+  cliente** por `created_at` (skip `out_of_window` — não emite fora da janela mesmo
+  se o `/charges` ignorar `created_since/until`), e diagnóstico estruturado.
+- UI: barra de **% de progresso**, contador de **ignoradas**, e **drawer de detalhe
+  do run** (motivos de skip, **recebedores a mapear**, notas por empresa, erros).
+  Bug do "Emitir de verdade" corrigido.
+
+> **P3 confirmado (2026-07-08):** o `/charges` **capa `size` em 30** (pedir 50/100
+> devolve 30). Passamos a pedir **`size=30`** (`CHARGES_PAGE_SIZE`) para não
+> desalinhar o offset de paginação e pular cobranças. O total real da janela de
+> teste é **1466** (o "30" original era a paginação parando na 1ª página). O filtro
+> de janela por `created_at` no cliente segue como rede de segurança.
+
+---
+
+## 14. Redesenho da UX — Carregar → lista → emitir (2026-07-08)
+
+O modelo "simulação → gera lista → emitir de verdade" era confuso. Substituído por
+um fluxo direto, alinhado ao resto da feature:
+
+- **Sem `dry_run` na UX.** Um botão **Carregar período** insere as cobranças pagas
+  da janela como `invoice_jobs` **pendentes** (`source=backfill`). Carregar é seguro
+  porque **pendente ≠ emitido**.
+- **Tabela única** de notas retroativas (filtro Pendentes/Todas) com **checkbox +
+  selecionar-tudo + "Emitir selecionadas"** → aprova em lote (`pending_review →
+queued`); a esteira existente emite.
+- **Dedup inalterada e central:** o índice único `(charge, recipient)` +
+  `upsert ignoreDuplicates` garante que recarregar o mesmo período, ou carregar algo
+  que já veio pelo **webhook**, é no-op. A carga reporta **"N novas · M já existiam"**
+  (`diagnostics.duplicates`).
+- O `invoice_backfill_runs` vira apenas o **motor de carga** (progresso %, diagnóstico
+  em drawer), não uma entidade que o usuário gerencia. `bulkApproveBackfillRun` foi
+  substituído por `approveInvoiceJobs(ids)` (seleção da tabela).
+
+**Resposta ao "duplicadas":** já era estrutural (Fase 1) — nenhuma cobrança vira nota
+duas vezes, independentemente da origem (webhook, carga #1, carga #2, janelas
+sobrepostas). O redesenho só torna isso visível ("já existiam").
