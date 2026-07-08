@@ -407,3 +407,28 @@ sem detalhamento; "Emitir de verdade" deu erro. Diagnóstico (via banco/logs):
 > **Verificação P3 pendente:** confirmar no Postman se `/charges` respeita
 > `created_since/until` e se `size` é honrado (explica o "30"). O filtro de janela
 > no cliente já protege a correção independentemente do resultado.
+
+---
+
+## 14. Redesenho da UX — Carregar → lista → emitir (2026-07-08)
+
+O modelo "simulação → gera lista → emitir de verdade" era confuso. Substituído por
+um fluxo direto, alinhado ao resto da feature:
+
+- **Sem `dry_run` na UX.** Um botão **Carregar período** insere as cobranças pagas
+  da janela como `invoice_jobs` **pendentes** (`source=backfill`). Carregar é seguro
+  porque **pendente ≠ emitido**.
+- **Tabela única** de notas retroativas (filtro Pendentes/Todas) com **checkbox +
+  selecionar-tudo + "Emitir selecionadas"** → aprova em lote (`pending_review →
+queued`); a esteira existente emite.
+- **Dedup inalterada e central:** o índice único `(charge, recipient)` +
+  `upsert ignoreDuplicates` garante que recarregar o mesmo período, ou carregar algo
+  que já veio pelo **webhook**, é no-op. A carga reporta **"N novas · M já existiam"**
+  (`diagnostics.duplicates`).
+- O `invoice_backfill_runs` vira apenas o **motor de carga** (progresso %, diagnóstico
+  em drawer), não uma entidade que o usuário gerencia. `bulkApproveBackfillRun` foi
+  substituído por `approveInvoiceJobs(ids)` (seleção da tabela).
+
+**Resposta ao "duplicadas":** já era estrutural (Fase 1) — nenhuma cobrança vira nota
+duas vezes, independentemente da origem (webhook, carga #1, carga #2, janelas
+sobrepostas). O redesenho só torna isso visível ("já existiam").

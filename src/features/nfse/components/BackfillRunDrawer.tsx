@@ -1,6 +1,5 @@
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -11,7 +10,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useAuth } from "@/features/auth/AuthProvider";
 import { formatBRL } from "@/lib/format";
 
 import {
@@ -20,7 +18,7 @@ import {
   type BackfillPreview,
   type BackfillRun,
 } from "../api";
-import { useBulkApproveBackfillRun, useCancelBackfillRun } from "../hooks";
+import { useCancelBackfillRun } from "../hooks";
 import { fmtWindow, runProgress } from "./BackfillPanel";
 
 interface Props {
@@ -29,10 +27,16 @@ interface Props {
   run: BackfillRun | null;
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  running: "carregando",
+  completed: "concluída",
+  failed: "falhou",
+  cancelled: "cancelada",
+};
+
+/** Detalhes de uma CARGA (invoice_backfill_runs) — diagnóstico do que aconteceu. */
 export function BackfillRunDrawer({ open, onOpenChange, run }: Props) {
-  const { user } = useAuth();
   const cancelRun = useCancelBackfillRun();
-  const bulkApprove = useBulkApproveBackfillRun();
 
   if (!run) return null;
 
@@ -40,7 +44,6 @@ export function BackfillRunDrawer({ open, onOpenChange, run }: Props) {
   const diag = run.diagnostics as BackfillDiagnostics | null;
   const pct = runProgress(run);
   const isRunning = run.status === "running";
-  const isCompleted = run.status === "completed";
   const skipReasons = Object.entries(diag?.skipReasons ?? {}).sort((a, b) => b[1] - a[1]);
   const unmapped = Object.entries(diag?.unmappedRecipients ?? {}).sort((a, b) => b[1] - a[1]);
   const byCompany = Object.entries(preview?.byCompany ?? {});
@@ -50,19 +53,14 @@ export function BackfillRunDrawer({ open, onOpenChange, run }: Props) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-lg">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            {run.account?.label ?? "Lote"}
-            <Badge tone={run.dry_run ? "default" : "accent"}>
-              {run.dry_run ? "Simulação" : "Emissão"}
-            </Badge>
-          </SheetTitle>
+          <SheetTitle>Carga · {run.account?.label ?? "—"}</SheetTitle>
           <SheetDescription>
-            {fmtWindow(run.created_since)} – {fmtWindow(run.created_until)} · status {run.status}
+            {fmtWindow(run.created_since)} – {fmtWindow(run.created_until)} ·{" "}
+            {STATUS_LABEL[run.status] ?? run.status}
           </SheetDescription>
         </SheetHeader>
 
         <SheetBody className="space-y-5">
-          {/* progresso + contadores */}
           <section>
             <div className="text-2xs flex items-center justify-between text-text-subtle">
               <span>
@@ -77,17 +75,14 @@ export function BackfillRunDrawer({ open, onOpenChange, run }: Props) {
                 style={{ width: `${pct ?? (isRunning ? 5 : 100)}%` }}
               />
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-              <Metric
-                label={run.dry_run ? "Notas previstas" : "Notas criadas"}
-                value={String(run.dry_run ? (preview?.totalJobs ?? 0) : run.jobs_created)}
-              />
-              <Metric label="Valor total" value={formatBRL(preview?.totalReais ?? 0)} />
+            <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <Metric label="Notas novas" value={String(run.jobs_created)} />
+              <Metric label="Já existiam" value={String(diag?.duplicates ?? 0)} />
               <Metric label="Ignoradas" value={String(run.jobs_skipped)} />
+              <Metric label="Valor" value={formatBRL(preview?.totalReais ?? 0)} />
             </div>
           </section>
 
-          {/* POR QUE ignoradas — o que faltava antes */}
           {skipReasons.length > 0 && (
             <section>
               <h3 className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
@@ -104,7 +99,6 @@ export function BackfillRunDrawer({ open, onOpenChange, run }: Props) {
             </section>
           )}
 
-          {/* recebedores não mapeados — ação concreta para o operador */}
           {unmapped.length > 0 && (
             <section className="rounded-[var(--radius-sm)] border border-warning/40 bg-warning-soft/40 p-3">
               <h3 className="text-2xs font-medium tracking-wide text-warning uppercase">
@@ -112,7 +106,8 @@ export function BackfillRunDrawer({ open, onOpenChange, run }: Props) {
               </h3>
               <p className="mt-1 text-xs text-text-muted">
                 Estes <code>re_</code> apareceram no split mas não estão vinculados a uma empresa.
-                Mapeie-os na aba <strong>Conexões pagar.me → recebedores</strong> e simule de novo.
+                Mapeie-os na aba <strong>Conexões pagar.me → recebedores</strong> e carregue de
+                novo.
               </p>
               <div className="mt-2 space-y-1">
                 {unmapped.map(([re, n]) => (
@@ -125,7 +120,6 @@ export function BackfillRunDrawer({ open, onOpenChange, run }: Props) {
             </section>
           )}
 
-          {/* jobs por empresa */}
           {byCompany.length > 0 && (
             <section>
               <h3 className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
@@ -148,7 +142,7 @@ export function BackfillRunDrawer({ open, onOpenChange, run }: Props) {
           {pageErrors.length > 0 && (
             <section>
               <h3 className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
-                Erros de página
+                Erros
               </h3>
               <ul className="mt-2 space-y-1 text-xs text-expense">
                 {pageErrors.map((err, i) => (
@@ -168,31 +162,10 @@ export function BackfillRunDrawer({ open, onOpenChange, run }: Props) {
               variant="ghost"
               disabled={cancelRun.isPending}
               onClick={() =>
-                cancelRun.mutate(run.id, { onSuccess: () => toast.success("Lote cancelado.") })
+                cancelRun.mutate(run.id, { onSuccess: () => toast.success("Carga cancelada.") })
               }
             >
-              Cancelar lote
-            </Button>
-          )}
-          {isCompleted && !run.dry_run && (
-            <Button
-              type="button"
-              disabled={bulkApprove.isPending}
-              onClick={() =>
-                bulkApprove.mutate(
-                  { runId: run.id, userId: user?.id ?? "" },
-                  {
-                    onSuccess: (n) =>
-                      toast.success(
-                        n > 0 ? `${n} nota(s) enviadas para a fila.` : "Nenhuma nota pendente.",
-                      ),
-                    onError: (e) =>
-                      toast.error(e instanceof Error ? e.message : "Falha ao aprovar."),
-                  },
-                )
-              }
-            >
-              Aprovar notas do lote
+              Cancelar carga
             </Button>
           )}
         </SheetFooter>

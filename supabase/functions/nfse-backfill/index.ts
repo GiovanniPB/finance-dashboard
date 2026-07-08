@@ -63,6 +63,7 @@ interface Preview {
 interface Diagnostics {
   skipReasons: Record<string, number>; // recipient_not_mapped | not_paid | hydrate_failed | out_of_window
   unmappedRecipients: Record<string, number>; // re_id -> ocorrências (o que o operador precisa mapear)
+  duplicates: number; // notas que já existiam (webhook/carga anterior) -> ignoradas no upsert
   pageErrors: string[];
 }
 
@@ -97,7 +98,7 @@ function emptyPreview(): Preview {
   return { totalJobs: 0, totalReais: 0, incompleteAddress: 0, byCompany: {} };
 }
 function emptyDiagnostics(): Diagnostics {
-  return { skipReasons: {}, unmappedRecipients: {}, pageErrors: [] };
+  return { skipReasons: {}, unmappedRecipients: {}, duplicates: 0, pageErrors: [] };
 }
 
 function mergePreview(a: Preview, b: Preview): Preview {
@@ -126,6 +127,7 @@ function mergeDiagnostics(a: Diagnostics, b: Diagnostics): Diagnostics {
   return {
     skipReasons,
     unmappedRecipients,
+    duplicates: (a.duplicates ?? 0) + (b.duplicates ?? 0),
     pageErrors: [...(a.pageErrors ?? []), ...(b.pageErrors ?? [])].slice(-20),
   };
 }
@@ -363,6 +365,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const total = run.total_charges ?? page.total;
       const seenAfter = run.charges_seen + page.count;
       const isLastPage = page.count === 0 || (total != null && seenAfter >= total);
+
+      // notas que já existiam (webhook/carga anterior) = construídas − inseridas
+      diagnostics.duplicates = run.dry_run ? 0 : Math.max(0, rows.length - created);
 
       const nextPreview = mergePreview(run.preview ?? emptyPreview(), preview);
       const nextDiag = mergeDiagnostics(run.diagnostics ?? emptyDiagnostics(), diagnostics);

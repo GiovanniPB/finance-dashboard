@@ -4,7 +4,7 @@ import type { Tables } from "@/lib/supabase";
 
 import {
   approveInvoiceJob,
-  bulkApproveBackfillRun,
+  approveInvoiceJobs,
   cancelBackfillRun,
   createBackfillRun,
   createConnection,
@@ -150,14 +150,27 @@ export function useSetFocusToken() {
 }
 
 // --- Fila de notas ----------------------------------------------------------
-export function useInvoiceJobs(filters: InvoiceJobFilters) {
-  return useQuery({ queryKey: nfseKeys.jobs(filters), queryFn: () => fetchInvoiceJobs(filters) });
+export function useInvoiceJobs(filters: InvoiceJobFilters, opts?: { refetchInterval?: number }) {
+  return useQuery({
+    queryKey: nfseKeys.jobs(filters),
+    queryFn: () => fetchInvoiceJobs(filters),
+    refetchInterval: opts?.refetchInterval ?? false,
+  });
 }
 
 export function useApproveInvoiceJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, userId }: { id: string; userId: string }) => approveInvoiceJob(id, userId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
+  });
+}
+
+export function useApproveInvoiceJobs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ids, userId }: { ids: string[]; userId: string }) =>
+      approveInvoiceJobs(ids, userId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
   });
 }
@@ -194,18 +207,6 @@ export function useCancelBackfillRun() {
   return useMutation({
     mutationFn: (runId: string) => cancelBackfillRun(runId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.backfillRuns }),
-  });
-}
-
-export function useBulkApproveBackfillRun() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ runId, userId }: { runId: string; userId: string }) =>
-      bulkApproveBackfillRun(runId, userId),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] });
-      void qc.invalidateQueries({ queryKey: nfseKeys.backfillRuns });
-    },
   });
 }
 
