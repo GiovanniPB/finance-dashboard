@@ -404,9 +404,11 @@ sem detalhamento; "Emitir de verdade" deu erro. Diagnóstico (via banco/logs):
   do run** (motivos de skip, **recebedores a mapear**, notas por empresa, erros).
   Bug do "Emitir de verdade" corrigido.
 
-> **Verificação P3 pendente:** confirmar no Postman se `/charges` respeita
-> `created_since/until` e se `size` é honrado (explica o "30"). O filtro de janela
-> no cliente já protege a correção independentemente do resultado.
+> **P3 confirmado (2026-07-08):** o `/charges` **capa `size` em 30** (pedir 50/100
+> devolve 30). Passamos a pedir **`size=30`** (`CHARGES_PAGE_SIZE`) para não
+> desalinhar o offset de paginação e pular cobranças. O total real da janela de
+> teste é **1466** (o "30" original era a paginação parando na 1ª página). O filtro
+> de janela por `created_at` no cliente segue como rede de segurança.
 
 ---
 

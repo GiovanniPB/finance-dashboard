@@ -314,7 +314,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
         createdSince: run.created_since,
         createdUntil: run.created_until,
         page: cursor,
-        size: run.page_size,
+        // size fixo = CHARGES_PAGE_SIZE (30, máx. do pagar.me); ignora page_size do
+        // run para não pedir mais que o cap e desalinhar o offset de paginação
       });
 
       if (!page) {

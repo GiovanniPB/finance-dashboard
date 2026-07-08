@@ -17,8 +17,12 @@
 
 const PAGARME_BASE = "https://api.pagar.me/core/v5";
 
-/** Tamanho de página do pagar.me (máx. suportado com folga p/ o rate-limit). */
-export const CHARGES_PAGE_SIZE = 100;
+/**
+ * Tamanho de página do `GET /charges`. O pagar.me **capa em 30** (pedir 50/100
+ * ainda devolve 30) — confirmado em produção. Usamos 30 para que `page`×`size`
+ * seja consistente e nenhuma cobrança seja pulada na paginação por offset.
+ */
+export const CHARGES_PAGE_SIZE = 30;
 
 export interface ChargesPage {
   /** ids das cobranças **pagas** nesta página (para hidratar em seguida). */
