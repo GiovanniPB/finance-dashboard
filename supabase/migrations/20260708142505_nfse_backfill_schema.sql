@@ -95,21 +95,34 @@ create index idx_backfill_runs_running on public.invoice_backfill_runs(created_a
   where status = 'running';
 
 -- -----------------------------------------------------------------------------
--- RLS — escopada pela empresa dona da conta (super admin bypassa via helper),
--- mesma semântica de pagarme_accounts. Escrita das Edge Functions usa service
--- role (bypassa RLS).
+-- RLS — modelo de permissões do PR #42 (RLS por papel + escopo por módulo),
+-- espelhando pagarme_accounts (escopo pela empresa dona da conta, módulo 'nfse'):
+--   SELECT  = has_company_access(owner) AND can_view_module('nfse')
+--   ESCRITA = has_company_write_access(owner)   [admin/editor; viewer não escreve]
+-- Escrita das Edge Functions usa service role (bypassa RLS).
 -- -----------------------------------------------------------------------------
 alter table public.invoice_backfill_runs enable row level security;
 
-create policy "invoice_backfill_runs_scoped" on public.invoice_backfill_runs
-  for all
+create policy "invoice_backfill_runs_sel" on public.invoice_backfill_runs
+  for select
+  to authenticated
   using (
     public.has_company_access(
       (select owner_company_id from public.pagarme_accounts a where a.id = pagarme_account_id)
     )
+    and public.can_view_module('nfse')
+  );
+
+create policy "invoice_backfill_runs_wr" on public.invoice_backfill_runs
+  for all
+  to authenticated
+  using (
+    public.has_company_write_access(
+      (select owner_company_id from public.pagarme_accounts a where a.id = pagarme_account_id)
+    )
   )
   with check (
-    public.has_company_access(
+    public.has_company_write_access(
       (select owner_company_id from public.pagarme_accounts a where a.id = pagarme_account_id)
     )
   );

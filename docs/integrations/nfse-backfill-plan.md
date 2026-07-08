@@ -61,9 +61,10 @@ criariam **notas duplicadas** da empresa dona.
 
 Toda a integração pagar.me hoje é **entrada** (webhooks). O backfill precisa **ler**
 cobranças históricas via `GET /charges`, o que exige a **Secret Key (`sk_…`)** do
-pagar.me. Ela **não é armazenada em lugar nenhum** hoje — só o _webhook secret_ por
-conta (`get_pagarme_webhook_secret`). Guardar a `sk_` no Vault (por conta) é uma
-capacidade nova deste plano.
+pagar.me. **Já existe** infraestrutura para isso (PR #40 `nfse_pagarme_api_secret`):
+coluna `pagarme_accounts.api_secret_ref` + RPCs `set_pagarme_account_secret`
+(authenticated) / `get_pagarme_account_secret` (service_role). O backfill **reusa**
+esses artefatos — não cria segredo novo.
 
 ### 2.3 A lógica pura já cobre 90% do que o backfill precisa
 
@@ -199,18 +200,20 @@ com split (✔), endereço incompleto, não-paga. Perfis **avulso e split libera
      `failed` | `cancelled`), `dry_run boolean`, contadores
      (`charges_seen`, `jobs_created`, `jobs_skipped`), `preview jsonb` (agregado do
      dry-run), `last_error text`, timestamps, `created_by`.
-   - RLS company-scoped (`has_company_access(owner da conta)`), trigger de timestamp
-     e de auditoria (padrão do projeto).
-3. **Vault + RPCs para a `sk_` do pagar.me** (espelham o padrão de segredos existente):
-   - Coluna `pagarme_api_key_ref text` em `pagarme_accounts`.
-   - `set_pagarme_api_key(p_account_id uuid, p_key text)` — `SECURITY DEFINER`,
-     `grant` a `authenticated`, autoriza por `has_company_access(owner_company_id)`,
-     grava no Vault `pagarme_api_key_<account_id>`. Espelha `set_company_focus_token`.
-   - `get_pagarme_api_key(p_account_id uuid)` — `SECURITY DEFINER`, **só
-     `service_role`**. Espelha `get_pagarme_webhook_secret`.
+   - RLS pelo **modelo do PR #42** (papel + módulo), espelhando `pagarme_accounts`:
+     `_sel` = `has_company_access(owner) and can_view_module('nfse')`; `_wr` =
+     `has_company_write_access(owner)`. Triggers de timestamp e auditoria.
+3. **`sk_` do pagar.me — já existe (PR #40), reusar:** coluna
+   `pagarme_accounts.api_secret_ref` + `set_pagarme_account_secret` (authenticated) /
+   `get_pagarme_account_secret` (service_role). **Nenhuma migration nova** — o worker
+   de backfill (Fase 3) lê a chave via `get_pagarme_account_secret`.
 4. **Procedência no job:** o backfill grava `metadata.source='backfill'` e
    `metadata.backfill_run_id=<id>` (permite filtro na UI e bulk-approve por run).
 5. **Regenerar `src/types/database.ts`** no mesmo PR (`bun run db:types:local`).
+
+> **Status: Fase 1 concluída** (migration `20260708142505_nfse_backfill_schema.sql`).
+> Base rebaseada no `main` atual (PRs #40/#42); a migration redundante de `sk_` foi
+> descartada em favor do `api_secret_ref` existente.
 
 ### Fase 2 — Lógica pura em `_shared/nfse/` (testada por **Vitest**)
 
@@ -240,7 +243,7 @@ Wrapper fino sobre o `_shared`. Config em `config.toml`.
 
 - Seleciona o run `running` mais antigo (`FOR UPDATE SKIP LOCKED` via RPC, para
   permitir concorrência segura como o `claim_nfse_jobs`).
-- Lê `sk_` do Vault (`get_pagarme_api_key`). Sem chave → marca `failed` com motivo.
+- Lê `sk_` do Vault (`get_pagarme_account_secret`). Sem chave → `failed` com motivo.
 - Processa **K páginas** a partir de `page_cursor` (K dimensionado ao limite de
   tempo do Edge **e ao custo da hidratação** — cada charge é 1 chamada extra de
   detalhe; ex.: 1–2 páginas × 100 = 100–200 detalhes/invocação):
@@ -282,18 +285,17 @@ Wrapper fino sobre o `_shared`. Config em `config.toml`.
 
 ## 7. Contratos novos (resumo)
 
-| Artefato                                      | Tipo          | Papel                               |
-| --------------------------------------------- | ------------- | ----------------------------------- |
-| `invoice_backfill_runs`                       | tabela        | estado/controle do run (resumível)  |
-| `pagarme_accounts.pagarme_api_key_ref`        | coluna        | ref do Vault p/ a `sk_`             |
-| `set_pagarme_api_key` / `get_pagarme_api_key` | RPC           | grava (UI) / lê (worker) a `sk_`    |
-| índice `NULLS NOT DISTINCT`                   | migration     | idempotência do sem-split           |
-| `_shared/nfse/pagarme-api.ts`                 | módulo        | cliente `GET /charges` + rate-limit |
-| `_shared/nfse/parse.ts::parseChargeResource`  | função        | charge cru → `ChargePaidEvent`      |
-| `_shared/nfse/context.ts::loadContext`        | função        | contexto de explosão (extraído)     |
-| `nfse-backfill`                               | Edge Function | drena um run (dry-run/real)         |
-| pg_cron `nfse-backfill`                       | agendamento   | finaliza runs `running`             |
-| aba "Emissão retroativa"                      | UI            | criar/monitorar run + bulk-approve  |
+| Artefato                                        | Tipo          | Papel                               |
+| ----------------------------------------------- | ------------- | ----------------------------------- |
+| `invoice_backfill_runs`                         | tabela        | estado/controle do run (resumível)  |
+| `api_secret_ref` + `get_pagarme_account_secret` | reuso (#40)   | `sk_` do pagar.me no Vault (worker) |
+| índice `NULLS NOT DISTINCT`                     | migration     | idempotência do sem-split           |
+| `_shared/nfse/pagarme-api.ts`                   | módulo        | cliente `GET /charges` + rate-limit |
+| `_shared/nfse/parse.ts::parseChargeResource`    | função        | charge cru → `ChargePaidEvent`      |
+| `_shared/nfse/context.ts::loadContext`          | função        | contexto de explosão (extraído)     |
+| `nfse-backfill`                                 | Edge Function | drena um run (dry-run/real)         |
+| pg_cron `nfse-backfill`                         | agendamento   | finaliza runs `running`             |
+| aba "Emissão retroativa"                        | UI            | criar/monitorar run + bulk-approve  |
 
 ---
 

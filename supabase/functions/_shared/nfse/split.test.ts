@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { baseContext, baseEvent, IDS } from "./fixtures.ts";
+import { baseContext, baseEvent, IDS, nfeContext } from "./fixtures.ts";
 import { allocateShares, explodeChargePaid, resolveTomador } from "./split.ts";
 import type { PagarmeSplit } from "./types.ts";
 
@@ -134,6 +134,39 @@ describe("explodeChargePaid", () => {
   it("carimba a conta de origem (pagarme_account_id) em todos os jobs", () => {
     const { jobs } = explodeChargePaid(baseEvent(), baseContext());
     expect(jobs.every((j) => j.pagarmeAccountId === IDS.ACCOUNT)).toBe(true);
+  });
+
+  describe("roteamento multi-documento (NF-e produto × NFS-e serviço)", () => {
+    it("carimba o documentType de cada empresa conforme o perfil fiscal", () => {
+      const { jobs } = explodeChargePaid(baseEvent(), nfeContext());
+      const a = jobs.find((j) => j.companyId === IDS.COMPANY_A);
+      const b = jobs.find((j) => j.companyId === IDS.COMPANY_B);
+
+      expect(a?.documentType).toBe("nfe"); // empresa A: produto
+      expect(b?.documentType).toBe("nfse"); // empresa B: serviço
+    });
+
+    it("congela a classificação de produto (NCM/CST/cBenef) no snapshot da NF-e", () => {
+      const { jobs } = explodeChargePaid(baseEvent(), nfeContext());
+      const a = jobs.find((j) => j.companyId === IDS.COMPANY_A);
+      const params = a?.parametros as Record<string, unknown>;
+
+      expect(params.ncm).toBe("49019900");
+      expect(params.cstIcms).toBe("41");
+      expect(params.codigoBeneficioFiscal).toBe("SP070130");
+      expect(params.pisAliquota).toBe(0.65); // PIS tributado, não zerado
+      // colunas NFS-e ficam nulas em job de NF-e
+      expect(a?.itemListaServico).toBeNull();
+    });
+
+    it("o job NFS-e mantém a forma de serviço no snapshot", () => {
+      const { jobs } = explodeChargePaid(baseEvent(), nfeContext());
+      const b = jobs.find((j) => j.companyId === IDS.COMPANY_B);
+      const params = b?.parametros as Record<string, unknown>;
+
+      expect(params.itemListaServico).toBe("10.02");
+      expect(b?.documentType).toBe("nfse");
+    });
   });
 
   describe("cobrança SEM split (conta com merchant único)", () => {

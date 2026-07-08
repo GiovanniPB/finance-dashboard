@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Plus, Users2 } from "lucide-react";
+import { FlaskConical, Plus, Users2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,14 @@ import { AMBIENTE_META } from "../constants";
 import { useConnections } from "../hooks";
 import { ConnectionDrawer } from "./ConnectionDrawer";
 import { RecipientsSheet } from "./RecipientsSheet";
+import { TestChargeDrawer } from "./TestChargeDrawer";
 
 export function ConnectionsPanel({ companies }: { companies: Company[] }) {
   const { data: connections = [], isLoading } = useConnections();
   const [editing, setEditing] = React.useState<PagarmeAccount | null>(null);
   const [creating, setCreating] = React.useState(false);
   const [recipientsOf, setRecipientsOf] = React.useState<PagarmeAccount | null>(null);
+  const [testingOf, setTestingOf] = React.useState<PagarmeAccount | null>(null);
 
   const drawerOpen = creating || Boolean(editing);
 
@@ -78,6 +80,16 @@ export function ConnectionsPanel({ companies }: { companies: Company[] }) {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center justify-end gap-1.5">
+                        {c.ambiente === "homologacao" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setTestingOf(c)}
+                            title="Gerar cobrança de teste no sandbox"
+                          >
+                            <FlaskConical className="size-3.5" /> Testar
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" onClick={() => setRecipientsOf(c)}>
                           <Users2 className="size-3.5" /> Recebedores
                         </Button>
@@ -111,6 +123,12 @@ export function ConnectionsPanel({ companies }: { companies: Company[] }) {
         onOpenChange={(o) => !o && setRecipientsOf(null)}
         connection={recipientsOf}
         companies={companies}
+      />
+
+      <TestChargeDrawer
+        open={Boolean(testingOf)}
+        onOpenChange={(o) => !o && setTestingOf(null)}
+        connection={testingOf}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import {
   approveInvoiceJob,
   createConnection,
   createRecipient,
+  createSandboxCharge,
   deleteRecipient,
   fetchConnections,
   fetchFiscalSettings,
@@ -15,10 +16,12 @@ import {
   requeueInvoiceJob,
   rotateWebhookSecret,
   setFocusToken,
+  setPagarmeAccountSecret,
   updateConnection,
   updateRecipient,
   upsertFiscalSettings,
   type InvoiceJobFilters,
+  type SandboxChargeInput,
   type WebhookFilters,
 } from "./api";
 
@@ -57,6 +60,22 @@ export function useRotateWebhookSecret() {
   return useMutation({
     mutationFn: (accountId: string) => rotateWebhookSecret(accountId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.connections }),
+  });
+}
+
+export function useSetPagarmeAccountSecret() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, secret }: { accountId: string; secret: string }) =>
+      setPagarmeAccountSecret(accountId, secret),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.connections }),
+  });
+}
+
+// --- Cobrança de teste (sandbox) --------------------------------------------
+export function useCreateSandboxCharge() {
+  return useMutation({
+    mutationFn: (input: SandboxChargeInput) => createSandboxCharge(input),
   });
 }
 

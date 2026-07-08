@@ -41,6 +41,8 @@ export interface CreateUserInput {
   full_name: string;
   role: "super_admin" | "admin" | "editor" | "viewer";
   company_ids: string[];
+  /** null/omitido = todos os módulos; array = allow-list. */
+  visible_modules?: string[] | null;
 }
 
 export async function createUser(input: CreateUserInput): Promise<{ user_id: string }> {
@@ -61,6 +63,8 @@ export interface UpdateUserInput {
   role?: "super_admin" | "admin" | "editor" | "viewer";
   company_ids?: string[];
   new_password?: string;
+  /** null = todos os módulos; array = allow-list. */
+  visible_modules?: string[] | null;
 }
 
 export async function updateUser(input: UpdateUserInput): Promise<void> {

@@ -5,6 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,6 +24,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  DATA_MODULES,
+  MODULE_DESCRIPTIONS,
+  MODULE_LABELS,
+  type DataModule,
+} from "@/features/auth/modules";
 import { useAllCompanies } from "@/features/companies/hooks";
 
 import type { UserWithAccess } from "../api";
@@ -50,6 +57,7 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
         role: user.role ?? "viewer",
         password: "",
         companyIds: user.company_ids,
+        visibleModules: user.visible_modules ?? [],
       };
     }
     return emptyUserForm();
@@ -61,6 +69,7 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -73,15 +82,25 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
 
   const watchedRole = watch("role");
   const watchedCompanyIds = watch("companyIds");
+  const watchedModules = watch("visibleModules");
 
   function toggleCompany(id: string) {
     const set = new Set(watchedCompanyIds);
     if (set.has(id)) set.delete(id);
     else set.add(id);
-    reset({ ...watch(), companyIds: Array.from(set) }, { keepDirty: true });
+    setValue("companyIds", Array.from(set), { shouldDirty: true, shouldValidate: true });
+  }
+
+  function toggleModule(mod: DataModule) {
+    const set = new Set(watchedModules);
+    if (set.has(mod)) set.delete(mod);
+    else set.add(mod);
+    setValue("visibleModules", Array.from(set), { shouldDirty: true });
   }
 
   const onSubmit = handleSubmit((values) => {
+    // Lista vazia = sem restrição de módulo (NULL no banco = enxerga tudo).
+    const visibleModules = values.visibleModules.length > 0 ? values.visibleModules : null;
     if (isEditing && user) {
       update.mutate(
         {
@@ -90,6 +109,7 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
           role: values.role,
           company_ids: values.companyIds,
           new_password: values.password ?? undefined,
+          visible_modules: visibleModules,
         },
         {
           onSuccess: () => {
@@ -111,6 +131,7 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
           full_name: values.fullName,
           role: values.role,
           company_ids: values.companyIds,
+          visible_modules: visibleModules,
         },
         {
           onSuccess: () => {
@@ -225,12 +246,7 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
                         key={c.id}
                         className="flex cursor-pointer items-center gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm transition-colors hover:bg-surface-2"
                       >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleCompany(c.id)}
-                          className="size-4 cursor-pointer accent-accent"
-                        />
+                        <Checkbox checked={checked} onCheckedChange={() => toggleCompany(c.id)} />
                         <span className="flex-1">{c.trade_name ?? c.legal_name}</span>
                         {!c.is_active && (
                           <span className="text-2xs text-text-subtle">(inativa)</span>
@@ -244,6 +260,46 @@ export function UserDrawer({ open, onOpenChange, user }: Props) {
                 <p className="text-2xs text-expense">{errors.companyIds.message}</p>
               )}
             </div>
+
+            {watchedRole !== "super_admin" && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Módulos que pode visualizar</Label>
+                  {watchedModules.length === 0 && (
+                    <span className="text-2xs text-text-subtle">Vazio = todos os módulos</span>
+                  )}
+                </div>
+                <div className="space-y-1.5 rounded-[var(--radius-md)] border border-border bg-surface-2/30 p-3">
+                  {DATA_MODULES.map((mod) => {
+                    const checked = watchedModules.includes(mod);
+                    return (
+                      <label
+                        key={mod}
+                        className="flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm transition-colors hover:bg-surface-2"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => toggleModule(mod)}
+                          className="mt-0.5"
+                        />
+                        <span className="flex-1">
+                          <span className="block font-medium">{MODULE_LABELS[mod]}</span>
+                          <span className="text-2xs text-text-subtle">
+                            {MODULE_DESCRIPTIONS[mod]}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {watchedRole === "viewer" && (
+                  <p className="text-2xs text-text-subtle">
+                    Visualizador é somente leitura — ideal para contabilidades. Marque apenas os
+                    módulos que este usuário deve enxergar.
+                  </p>
+                )}
+              </div>
+            )}
           </SheetBody>
           <SheetFooter>
             <Button
