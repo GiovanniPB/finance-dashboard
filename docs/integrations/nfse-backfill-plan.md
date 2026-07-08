@@ -375,3 +375,35 @@ Wrapper fino sobre o `_shared`. Config em `config.toml`.
 - Write-back financeiro (`invoice_jobs.transaction_id`) — pendência herdada.
 - Fonte alternativa (`/orders`, `/payables`) — `/charges` cobre o caso (o domínio
   do split vive em `charge.last_transaction`).
+
+---
+
+## 13. Melhorias pós-produção — observabilidade (2026-07-08)
+
+**Sintoma:** 1ª simulação em produção mostrou `30 cobranças / 0 notas previstas`,
+sem detalhamento; "Emitir de verdade" deu erro. Diagnóstico (via banco/logs):
+
+1. **0 notas ≠ bug do motor.** A conta "Jimmy Carvalho Produção" tinha **0
+   recebedores mapeados** → todo split caía em `recipient_not_mapped` (48 skips
+   invisíveis). Config faltando + UI que escondia os skips e o motivo.
+2. **Parou em 30 (paginação frágil).** O fim era `count < page_size`; página curta
+   encerrava o run cedo. Trocado por: fim quando **`charges_seen >= paging.total`
+   ou página vazia**; `total_charges` guardado (base do %).
+3. **"Emitir de verdade" quebrado.** O botão reembrulhava o timestamp ISO do run em
+   `toIso()` → data malformada → insert 422. Corrigido (passa o ISO cru).
+4. **Sem % de progresso** e **sem detalhamento**.
+
+**Entregue:**
+
+- Banco: `invoice_backfill_runs.total_charges` + `diagnostics` (histograma de skips
+  por motivo, recebedores `re_` não-mapeados vistos, erros de página).
+- `nfse-backfill`: paginação robusta por `paging.total`, **filtro de janela no
+  cliente** por `created_at` (skip `out_of_window` — não emite fora da janela mesmo
+  se o `/charges` ignorar `created_since/until`), e diagnóstico estruturado.
+- UI: barra de **% de progresso**, contador de **ignoradas**, e **drawer de detalhe
+  do run** (motivos de skip, **recebedores a mapear**, notas por empresa, erros).
+  Bug do "Emitir de verdade" corrigido.
+
+> **Verificação P3 pendente:** confirmar no Postman se `/charges` respeita
+> `created_since/until` e se `size` é honrado (explica o "30"). O filtro de janela
+> no cliente já protege a correção independentemente do resultado.

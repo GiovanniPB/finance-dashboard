@@ -16,8 +16,15 @@
  *   GET /charges (enumerar) -> GET /charges/{id} (hidratar) -> parseChargeResource
  *   -> /payables (split autoritativo) -> explodeChargePaid -> upsert.
  *
- * Acionada por pg_cron ou manual (POST). Auth: header `x-worker-secret`
- * (= NFSE_WORKER_SECRET, o mesmo do nfse-worker).
+ * Observabilidade: grava `total_charges` (paging.total, base do %) e
+ * `diagnostics` (skips por motivo, recebedores NÃO mapeados vistos, erros) — para
+ * a UI explicar exatamente o que aconteceu (ex.: "0 notas" = recebedor não mapeado).
+ *
+ * Robustez de janela: além do filtro do servidor, filtramos por `created_at` no
+ * cliente — se o `/charges` ignorar `created_since/until`, NÃO emitimos fora da
+ * janela (as fora contam como skip `out_of_window`, o que também prova o filtro).
+ *
+ * Acionada por pg_cron ou manual (POST). Auth: header `x-worker-secret`.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -41,6 +48,24 @@ const WORKER_SECRET = Deno.env.get("NFSE_WORKER_SECRET") ?? "";
 const PAGES_PER_INVOCATION = 3; // limita o tempo do Edge; o cron re-aciona
 const MAX_ATTEMPTS = 5; // falhas de listagem consecutivas -> run 'failed'
 
+interface CompanyTally {
+  count: number;
+  reais: number;
+}
+interface Preview {
+  totalJobs: number;
+  totalReais: number;
+  incompleteAddress: number;
+  byCompany: Record<string, CompanyTally>;
+}
+
+/** Diagnóstico acumulado do run (por que cada cobrança não virou nota). */
+interface Diagnostics {
+  skipReasons: Record<string, number>; // recipient_not_mapped | not_paid | hydrate_failed | out_of_window
+  unmappedRecipients: Record<string, number>; // re_id -> ocorrências (o que o operador precisa mapear)
+  pageErrors: string[];
+}
+
 interface BackfillRun {
   id: string;
   pagarme_account_id: string;
@@ -53,19 +78,13 @@ interface BackfillRun {
   jobs_created: number;
   jobs_skipped: number;
   attempts: number;
+  total_charges: number | null;
   preview: Preview | null;
+  diagnostics: Diagnostics | null;
 }
 
-interface CompanyTally {
-  count: number;
-  reais: number;
-}
-interface Preview {
-  totalJobs: number;
-  totalReais: number;
-  incompleteAddress: number;
-  byCompany: Record<string, CompanyTally>;
-}
+const RUN_COLUMNS =
+  "id, pagarme_account_id, created_since, created_until, page_cursor, page_size, dry_run, charges_seen, jobs_created, jobs_skipped, attempts, total_charges, preview, diagnostics";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -77,8 +96,10 @@ function json(body: unknown, status = 200): Response {
 function emptyPreview(): Preview {
   return { totalJobs: 0, totalReais: 0, incompleteAddress: 0, byCompany: {} };
 }
+function emptyDiagnostics(): Diagnostics {
+  return { skipReasons: {}, unmappedRecipients: {}, pageErrors: [] };
+}
 
-/** Soma imutável de dois previews (agrega o run página a página). */
 function mergePreview(a: Preview, b: Preview): Preview {
   const byCompany: Record<string, CompanyTally> = { ...a.byCompany };
   for (const [company, tally] of Object.entries(b.byCompany)) {
@@ -93,7 +114,20 @@ function mergePreview(a: Preview, b: Preview): Preview {
   };
 }
 
-/** Agrega o preview de um conjunto de drafts (uma página). */
+function mergeDiagnostics(a: Diagnostics, b: Diagnostics): Diagnostics {
+  const skipReasons: Record<string, number> = { ...a.skipReasons };
+  for (const [k, v] of Object.entries(b.skipReasons)) skipReasons[k] = (skipReasons[k] ?? 0) + v;
+  const unmappedRecipients: Record<string, number> = { ...a.unmappedRecipients };
+  for (const [k, v] of Object.entries(b.unmappedRecipients)) {
+    unmappedRecipients[k] = (unmappedRecipients[k] ?? 0) + v;
+  }
+  return {
+    skipReasons,
+    unmappedRecipients,
+    pageErrors: [...a.pageErrors, ...b.pageErrors].slice(-20), // guarda os últimos 20
+  };
+}
+
 function tallyDraft(preview: Preview, draft: InvoiceJobDraft): Preview {
   const warnings = (draft.metadata?.validationWarnings as string[] | undefined) ?? [];
   const incomplete = warnings.includes("tomador_endereco_incompleto") ? 1 : 0;
@@ -135,27 +169,51 @@ async function failRun(supabase: SupabaseClient, runId: string, reason: string):
     .eq("id", runId);
 }
 
-/** Processa UMA página: hidrata cada cobrança paga e monta as linhas + preview. */
+interface PageResult {
+  rows: Record<string, unknown>[];
+  preview: Preview;
+  diagnostics: Diagnostics;
+  skipped: number;
+}
+
+/** Processa UMA página: hidrata cada cobrança paga e monta linhas + preview + diagnóstico. */
 async function processPage(
   supabase: SupabaseClient,
   account: PagarmeAccount,
   apiKey: string,
-  runId: string,
+  run: BackfillRun,
   paidIds: string[],
-): Promise<{ rows: Record<string, unknown>[]; preview: Preview; skipped: number }> {
+): Promise<PageResult> {
   const rows: Record<string, unknown>[] = [];
   let preview = emptyPreview();
+  const diag = emptyDiagnostics();
   let skipped = 0;
+
+  const sinceMs = Date.parse(run.created_since);
+  const untilMs = Date.parse(run.created_until);
+
+  const skip = (reason: string): void => {
+    diag.skipReasons[reason] = (diag.skipReasons[reason] ?? 0) + 1;
+    skipped += 1;
+  };
 
   for (const id of paidIds) {
     const detail = await fetchChargeDetail(id, apiKey);
     if (!detail) {
-      skipped += 1; // falha de hidratação -> pula (idempotência cobre reprocesso)
+      skip("hydrate_failed");
       continue;
     }
+
+    // filtro de janela no cliente (robusto: independe do filtro do servidor)
+    const createdAt = typeof detail.created_at === "string" ? Date.parse(detail.created_at) : NaN;
+    if (Number.isFinite(createdAt) && (createdAt < sinceMs || createdAt > untilMs)) {
+      skip("out_of_window");
+      continue;
+    }
+
     const event = parseChargeResource(detail, `backfill:${id}`);
     if (!event) {
-      skipped += 1; // não-paga / inválida
+      skip("not_paid");
       continue;
     }
 
@@ -172,7 +230,12 @@ async function processPage(
       finalEvent.split.map((s) => s.recipientId),
     );
     const { jobs, skipped: jobSkips } = explodeChargePaid(finalEvent, ctx);
-    skipped += jobSkips.length;
+
+    for (const s of jobSkips) {
+      skip(s.reason);
+      // recebedor não mapeado: registra o re_ para o operador saber o que mapear
+      diag.unmappedRecipients[s.recipientId] = (diag.unmappedRecipients[s.recipientId] ?? 0) + 1;
+    }
 
     for (const job of jobs) {
       const withMeta = applySplitMeta(job, splitMeta);
@@ -180,14 +243,14 @@ async function processPage(
       const draft: InvoiceJobDraft = {
         ...withMeta,
         status: "pending_review",
-        metadata: { ...withMeta.metadata, source: "backfill", backfillRunId: runId },
+        metadata: { ...withMeta.metadata, source: "backfill", backfillRunId: run.id },
       };
       rows.push(toRow(draft));
       preview = tallyDraft(preview, draft);
     }
   }
 
-  return { rows, preview, skipped };
+  return { rows, preview, diagnostics: diag, skipped };
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -201,13 +264,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     auth: { persistSession: false },
   });
 
-  // run mais antigo em processamento (SKIP LOCKED não é necessário: o CAS de
-  // cursor evita corrida entre ticks concorrentes sobre o mesmo run)
+  // run mais antigo em processamento (o CAS de cursor evita corrida entre ticks)
   const { data: runRow } = await supabase
     .from("invoice_backfill_runs")
-    .select(
-      "id, pagarme_account_id, created_since, created_until, page_cursor, page_size, dry_run, charges_seen, jobs_created, jobs_skipped, attempts, preview",
-    )
+    .select(RUN_COLUMNS)
     .eq("status", "running")
     .order("created_at", { ascending: true })
     .limit(1)
@@ -258,11 +318,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ status: terminal ? "failed" : "list_error", runId: run.id, cursor });
     }
 
-    const { rows, preview, skipped } = await processPage(
+    const { rows, preview, diagnostics, skipped } = await processPage(
       supabase,
       account,
       apiKey,
-      run.id,
+      run,
       page.paidIds,
     );
 
@@ -285,18 +345,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
       created = inserted?.length ?? 0;
     }
 
-    const isLastPage = page.count < run.page_size; // página incompleta -> fim
+    // total conhecido (paging.total). Fim: página vazia OU já vimos tudo.
+    const total = run.total_charges ?? page.total;
+    const seenAfter = run.charges_seen + page.count;
+    const isLastPage = page.count === 0 || (total != null && seenAfter >= total);
+
     const nextPreview = mergePreview(run.preview ?? emptyPreview(), preview);
+    const nextDiag = mergeDiagnostics(run.diagnostics ?? emptyDiagnostics(), diagnostics);
 
     // CAS otimista: só avança se o cursor não mudou (tick concorrente)
     const { data: advanced } = await supabase
       .from("invoice_backfill_runs")
       .update({
         page_cursor: cursor + 1,
-        charges_seen: run.charges_seen + page.count,
+        total_charges: total,
+        charges_seen: seenAfter,
         jobs_created: run.jobs_created + created,
         jobs_skipped: run.jobs_skipped + skipped,
         preview: nextPreview,
+        diagnostics: nextDiag,
         last_error: null,
         attempts: 0,
         status: isLastPage ? "completed" : "running",
@@ -304,9 +371,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .eq("id", run.id)
       .eq("page_cursor", cursor)
       .eq("status", "running")
-      .select(
-        "id, pagarme_account_id, created_since, created_until, page_cursor, page_size, dry_run, charges_seen, jobs_created, jobs_skipped, attempts, preview",
-      )
+      .select(RUN_COLUMNS)
       .maybeSingle();
 
     if (!advanced) break; // outro tick avançou este run -> encerra sem duplicar
@@ -325,9 +390,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     dryRun: run.dry_run,
     processedPages,
     cursor: run.page_cursor,
+    totalCharges: run.total_charges,
     chargesSeen: run.charges_seen,
     jobsCreated: run.jobs_created,
     jobsSkipped: run.jobs_skipped,
     preview: run.preview,
+    diagnostics: run.diagnostics,
   });
 });

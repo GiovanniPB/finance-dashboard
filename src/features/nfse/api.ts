@@ -342,6 +342,21 @@ export interface BackfillPreview {
   byCompany: Record<string, { count: number; reais: number }>;
 }
 
+/** Diagnóstico do run (por que cada cobrança não virou nota). */
+export interface BackfillDiagnostics {
+  skipReasons: Record<string, number>;
+  unmappedRecipients: Record<string, number>;
+  pageErrors: string[];
+}
+
+/** Rótulos amigáveis dos motivos de skip do backfill. */
+export const SKIP_REASON_LABELS: Record<string, string> = {
+  recipient_not_mapped: "Recebedor não mapeado",
+  not_paid: "Cobrança não paga",
+  hydrate_failed: "Falha ao carregar detalhe",
+  out_of_window: "Fora da janela de datas",
+};
+
 export interface CreateBackfillRunInput {
   accountId: string;
   organizationId: string;
