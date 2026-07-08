@@ -243,8 +243,17 @@ base64("sk:")`, dois passos (Correção A):
 
 Wrapper fino sobre o `_shared`. Config em `config.toml`.
 
-- Seleciona o run `running` mais antigo (`FOR UPDATE SKIP LOCKED` via RPC, para
-  permitir concorrência segura como o `claim_nfse_jobs`).
+> **Status: concluída** (branch `feat/nfse-backfill-fase3`). Além da função,
+> extraí a orquestração compartilhada para **`_shared/nfse/pipeline.ts`**
+> (`loadContext`, `enrichEventAddress`, `resolveAuthoritativeSplit`,
+> `applySplitMeta`, `toRow`) e **refatorei o `pagarme-webhook`** para usá-la —
+> webhook e backfill agora dividem a MESMA cola (zero divergência). Coberto por
+> `pipeline.test.ts` (rede de segurança que antes não existia). Decisão de
+> concorrência: em vez de `FOR UPDATE SKIP LOCKED`, o run avança o `page_cursor`
+> por **CAS otimista** (`.eq('page_cursor', cursor)`) — dois ticks não pulam
+> página, e a idempotência `(charge,recipient)` cobre reprocesso.
+
+- Seleciona o run `running` mais antigo e avança por CAS de cursor.
 - Lê `sk_` do Vault (`get_pagarme_account_secret`). Sem chave → `failed` com motivo.
 - Processa **K páginas** a partir de `page_cursor` (K dimensionado ao limite de
   tempo do Edge **e ao custo da hidratação** — cada charge é 1 chamada extra de
@@ -266,9 +275,15 @@ Wrapper fino sobre o `_shared`. Config em `config.toml`.
 
 ### Fase 4 — Automação (pg_cron + pg_net)
 
-- Agendamento `nfse-backfill` (ex.: `*/1 * * * *` ou `*/2`) que aciona a function
-  enquanto houver run `running`. Reusar o padrão `nfse_cron_invoke` (lê URL+segredo
-  do Vault; **no-op seguro** sem segredos — ambiente local).
+> **Status: concluída** (na mesma branch/migration `…_nfse_backfill_cron`).
+
+- `nfse_backfill_cron_invoke()` + agendamento `nfse-backfill` a cada **2 min**
+  (`*/2 * * * *`), no padrão do `nfse_cron_invoke`: lê `nfse_backfill_url` +
+  `nfse_worker_secret` do Vault; **no-op seguro** sem segredos (local). A função é
+  no-op quando não há run `running`.
+- Vault (remoto, one-time): `nfse_backfill_url` =
+  `https://<ref>.supabase.co/functions/v1/nfse-backfill` (o `nfse_worker_secret`
+  já existe do worker).
 
 ### Fase 5 — UI (`src/features/nfse/`, nova aba "Emissão retroativa")
 

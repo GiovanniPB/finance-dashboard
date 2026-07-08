@@ -390,6 +390,9 @@ verify_jwt = false
 [functions.nfse-worker]
 verify_jwt = false
 
+[functions.nfse-backfill]
+verify_jwt = false
+
 [functions.focus-webhook]
 verify_jwt = false
 
