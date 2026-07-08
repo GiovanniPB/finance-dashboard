@@ -956,6 +956,87 @@ export type Database = {
           },
         ]
       }
+      invoice_backfill_runs: {
+        Row: {
+          attempts: number
+          charges_seen: number
+          created_at: string
+          created_by: string | null
+          created_since: string
+          created_until: string
+          dry_run: boolean
+          id: string
+          jobs_created: number
+          jobs_skipped: number
+          last_error: string | null
+          metadata: Json
+          organization_id: string
+          pagarme_account_id: string
+          page_cursor: number
+          page_size: number
+          preview: Json | null
+          status: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          charges_seen?: number
+          created_at?: string
+          created_by?: string | null
+          created_since: string
+          created_until: string
+          dry_run?: boolean
+          id?: string
+          jobs_created?: number
+          jobs_skipped?: number
+          last_error?: string | null
+          metadata?: Json
+          organization_id: string
+          pagarme_account_id: string
+          page_cursor?: number
+          page_size?: number
+          preview?: Json | null
+          status?: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          charges_seen?: number
+          created_at?: string
+          created_by?: string | null
+          created_since?: string
+          created_until?: string
+          dry_run?: boolean
+          id?: string
+          jobs_created?: number
+          jobs_skipped?: number
+          last_error?: string | null
+          metadata?: Json
+          organization_id?: string
+          pagarme_account_id?: string
+          page_cursor?: number
+          page_size?: number
+          preview?: Json | null
+          status?: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_backfill_runs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_backfill_runs_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_jobs: {
         Row: {
           aliquota_iss: number | null
@@ -1159,6 +1240,7 @@ export type Database = {
           metadata: Json
           organization_id: string
           owner_company_id: string
+          pagarme_api_key_ref: string | null
           slug: string
           updated_at: string
           webhook_secret_ref: string | null
@@ -1173,6 +1255,7 @@ export type Database = {
           metadata?: Json
           organization_id: string
           owner_company_id: string
+          pagarme_api_key_ref?: string | null
           slug?: string
           updated_at?: string
           webhook_secret_ref?: string | null
@@ -1187,6 +1270,7 @@ export type Database = {
           metadata?: Json
           organization_id?: string
           owner_company_id?: string
+          pagarme_api_key_ref?: string | null
           slug?: string
           updated_at?: string
           webhook_secret_ref?: string | null
@@ -2915,6 +2999,7 @@ export type Database = {
         }
       }
       get_focus_token: { Args: { p_company_id: string }; Returns: string }
+      get_pagarme_api_key: { Args: { p_account_id: string }; Returns: string }
       get_pagarme_webhook_secret: { Args: { p_slug: string }; Returns: string }
       has_company_access: { Args: { p_company_id: string }; Returns: boolean }
       ignore_statement_line: {
@@ -3142,6 +3227,10 @@ export type Database = {
         Args: { p_company_id: string; p_token: string }
         Returns: undefined
       }
+      set_pagarme_api_key: {
+        Args: { p_account_id: string; p_key: string }
+        Returns: undefined
+      }
       setup_payroll_mappings_defaults: {
         Args: { p_company_id: string }
         Returns: {
@@ -3267,6 +3356,7 @@ export type Database = {
         | "previewed"
         | "committed"
         | "failed"
+      invoice_backfill_status: "running" | "completed" | "failed" | "cancelled"
       invoice_job_status:
         | "pending_review"
         | "approved"
@@ -3510,6 +3600,7 @@ export const Constants = {
       employee_kind: ["clt", "pj", "intern", "partner"],
       employee_status: ["active", "on_leave", "terminated"],
       import_status: ["uploaded", "mapped", "previewed", "committed", "failed"],
+      invoice_backfill_status: ["running", "completed", "failed", "cancelled"],
       invoice_job_status: [
         "pending_review",
         "approved",
