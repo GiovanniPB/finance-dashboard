@@ -287,16 +287,23 @@ Wrapper fino sobre o `_shared`. Config em `config.toml`.
 
 ### Fase 5 — UI (`src/features/nfse/`, nova aba "Emissão retroativa")
 
-- **Segredo:** no `ConnectionDrawer`, campo seguro para a `sk_` do pagar.me →
-  `set_pagarme_api_key` (mesmo padrão do token do Focus). Nunca exibida de volta.
-- **Novo run:** form (conta, `created_since/until` obrigatórios) → botão **Dry-run**
-  → aguarda o cron rodar → exibe `preview` → botão **Confirmar emissão** cria o run
-  real (`dry_run=false`).
-- **Progresso:** lista de runs com status, páginas, `charges_seen`/`jobs_created`/
-  `jobs_skipped` (TanStack Query + invalidação, como o resto da feature).
-- **Bulk-approve:** ação que move os `pending_review` de um `backfill_run_id` para
-  `queued` de uma vez (RPC ou update em lote com `has_company_access`), zerando
-  `attempts`. Espelha `approveInvoiceJob`, mas por run.
+> **Status: concluída** (branch `feat/nfse-backfill-fase5`). Frontend puro — sem
+> migration/function, sem deploy de Supabase (o deploy do front é Cloudflare).
+
+- ✅ **Segredo:** o campo da `sk_` no `ConnectionDrawer` **já existia** (PR #40,
+  `set_pagarme_account_secret`) — reusado, nada a fazer.
+- ✅ **Novo run (`BackfillPanel`):** form (conta + janela `De/Até`) → **Simular
+  emissão** (cria run `dry_run=true`). O preview aparece quando o cron processa
+  (lista com `refetchInterval` de 5s enquanto há run `running`).
+- ✅ **Fluxo dry-run→real:** cada dry-run concluído mostra o preview (notas
+  previstas, valor total, endereço incompleto) e um botão **Emitir de verdade**
+  que cria o run real com a mesma janela — força a simulação antes de emitir.
+- ✅ **Bulk-approve:** `bulkApproveBackfillRun` move os `pending_review` do run
+  (`metadata->>backfillRunId`) para `queued` de uma vez; a RLS por empresa garante
+  o escopo. Cancelar run `running` também disponível.
+- **Nota de UX:** o preview depende do tick do cron (≤ 2 min). Um `nfse_backfill_kick()`
+  (RPC → `net.http_post`) daria preview instantâneo — deixado como melhoria futura
+  para manter esta fase frontend-only.
 
 ---
 
