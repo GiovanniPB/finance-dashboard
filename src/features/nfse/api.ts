@@ -33,7 +33,9 @@ export type InvoiceJob = InvoiceJobRow & {
 export interface InvoiceJobFilters {
   statuses: string[] | null; // null = todas
   accountId?: string | null;
-  source?: string | null; // metadata.source (ex.: 'backfill')
+  source?: string | null; // metadata.source exato (ex.: 'backfill')
+  ambiente?: string | null; // 'homologacao' | 'producao'
+  origin?: string | null; // 'webhook' (source nulo) | 'backfill' (source='backfill')
   page?: number | null; // 0-based; null/undefined = sem paginação (limit padrão)
   pageSize?: number | null;
 }
@@ -302,6 +304,15 @@ export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<Invo
   }
   if (filters.source) {
     query = query.eq("metadata->>source", filters.source);
+  }
+  if (filters.ambiente) {
+    query = query.eq("ambiente", filters.ambiente as NfseAmbiente);
+  }
+  // origem: backfill = source 'backfill'; webhook = sem source (tempo real)
+  if (filters.origin === "backfill") {
+    query = query.eq("metadata->>source", "backfill");
+  } else if (filters.origin === "webhook") {
+    query = query.is("metadata->>source", null);
   }
 
   const pageSize = filters.pageSize ?? JOB_LIST_LIMIT;

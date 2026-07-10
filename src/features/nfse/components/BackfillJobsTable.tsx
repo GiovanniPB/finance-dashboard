@@ -20,6 +20,7 @@ import { formatBRL } from "@/lib/format";
 import type { InvoiceJob, InvoiceJobFilters } from "../api";
 import { AMBIENTE_META, JOB_STATUS_FILTERS, JOB_STATUS_META } from "../constants";
 import { useApproveInvoiceJobs, useConnections, useInvoiceJobs } from "../hooks";
+import { useJobSelection } from "../useJobSelection";
 import { InvoiceJobDrawer } from "./InvoiceJobDrawer";
 
 const PAGE_SIZE = 20;
@@ -38,14 +39,7 @@ export function BackfillJobsTable({ polling }: Props) {
   const [statusFilter, setStatusFilter] = React.useState<string>("review");
   const [accountId, setAccountId] = React.useState<string>("all");
   const [page, setPage] = React.useState(0);
-  const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [detail, setDetail] = React.useState<InvoiceJob | null>(null);
-
-  // filtro mudou -> volta para a primeira página e zera a seleção (evita contagem órfã)
-  React.useEffect(() => {
-    setPage(0);
-    setSelected(new Set());
-  }, [statusFilter, accountId]);
 
   const filters = React.useMemo<InvoiceJobFilters>(() => {
     const group = JOB_STATUS_FILTERS.find((f) => f.value === statusFilter);
@@ -66,43 +60,21 @@ export function BackfillJobsTable({ polling }: Props) {
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const pendingIds = jobs.filter((j) => j.status === "pending_review").map((j) => j.id);
-  const selectedOnPage = pendingIds.filter((id) => selected.has(id)).length;
-  const headerChecked: boolean | "indeterminate" =
-    pendingIds.length > 0 && selectedOnPage === pendingIds.length
-      ? true
-      : selectedOnPage > 0
-        ? "indeterminate"
-        : false;
+  const { selected, toggle, toggleAll, headerChecked, pendingIds, clear } = useJobSelection(jobs);
 
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-  function toggleAll() {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      const allOn = pendingIds.every((id) => next.has(id));
-      for (const id of pendingIds) {
-        if (allOn) next.delete(id);
-        else next.add(id);
-      }
-      return next;
-    });
-  }
+  // filtro mudou -> volta para a primeira página e zera a seleção (evita contagem órfã)
+  React.useEffect(() => {
+    setPage(0);
+    clear();
+  }, [statusFilter, accountId, clear]);
 
   function emitSelected() {
-    const ids = [...selected];
     approveJobs.mutate(
-      { ids, userId: user?.id ?? "" },
+      { ids: [...selected], userId: user?.id ?? "" },
       {
         onSuccess: (n) => {
           toast.success(`${n} nota(s) enviadas para a fila de emissão.`);
-          setSelected(new Set());
+          clear();
         },
         onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao emitir."),
       },
