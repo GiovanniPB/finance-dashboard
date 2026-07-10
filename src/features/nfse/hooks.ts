@@ -10,6 +10,7 @@ import {
   createConnection,
   createRecipient,
   createSandboxCharge,
+  deleteBackfillRun,
   deleteRecipient,
   fetchBackfillRuns,
   fetchConnections,
@@ -207,6 +208,18 @@ export function useCancelBackfillRun() {
   return useMutation({
     mutationFn: (runId: string) => cancelBackfillRun(runId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.backfillRuns }),
+  });
+}
+
+export function useDeleteBackfillRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => deleteBackfillRun(runId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: nfseKeys.backfillRuns });
+      // a exclusão também remove notas pendentes da carga -> atualiza a lista
+      void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] });
+    },
   });
 }
 

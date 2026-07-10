@@ -32,7 +32,9 @@ export function InvoiceJobsPanel() {
     };
   }, [statusFilter, accountId]);
 
-  const { data: jobs = [], isLoading } = useInvoiceJobs(filters);
+  const { data, isLoading } = useInvoiceJobs(filters);
+  const jobs = data?.rows ?? [];
+  const total = data?.total ?? 0;
 
   return (
     <div className="space-y-4">
@@ -64,7 +66,7 @@ export function InvoiceJobsPanel() {
           </SelectContent>
         </Select>
 
-        <span className="text-xs text-text-muted">{jobs.length} nota(s)</span>
+        <span className="text-xs text-text-muted">{total} nota(s)</span>
       </div>
 
       {isLoading ? (

@@ -18,8 +18,8 @@ import {
   type BackfillPreview,
   type BackfillRun,
 } from "../api";
+import { fmtWindow, runProgress } from "../backfill-format";
 import { useCancelBackfillRun } from "../hooks";
-import { fmtWindow, runProgress } from "./BackfillPanel";
 
 interface Props {
   open: boolean;
