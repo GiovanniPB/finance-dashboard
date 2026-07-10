@@ -98,8 +98,15 @@ export async function applyFocusDocument(
   };
   if (nextStatus) update.status = nextStatus;
   if (asString(doc.numero)) update.numero_nfse = asString(doc.numero);
-  const chave = asString(doc.chave_nfse) ?? asString(doc.codigo_verificacao);
-  if (chave) update.chave_nfse = chave;
+  // série real usada pelo Focus/SEFAZ (pode diferir do que enviamos)
+  if (asString(doc.serie)) update.serie = asString(doc.serie);
+  // protocolo de autorização (a contabilidade precisa)
+  if (asString(doc.protocolo)) update.protocolo = asString(doc.protocolo);
+  // chave de acesso: NF-e usa `chave_nfe` (prefixo "NFe"), NFS-e `chave_nfse`/
+  // `codigo_verificacao`. Guardamos só os dígitos da chave (sem o prefixo).
+  const chaveRaw =
+    asString(doc.chave_nfse) ?? asString(doc.chave_nfe) ?? asString(doc.codigo_verificacao);
+  if (chaveRaw) update.chave_nfse = chaveRaw.replace(/^NFe/u, "");
 
   if (focusStatus === "autorizado" && token) {
     const base = FOCUS_BASE[job.ambiente] ?? FOCUS_BASE.homologacao;

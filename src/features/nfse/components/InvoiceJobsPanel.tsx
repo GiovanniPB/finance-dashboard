@@ -23,7 +23,12 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
-import { fetchAllInvoiceJobs, type InvoiceJob, type InvoiceJobFilters } from "../api";
+import {
+  downloadNfseFile,
+  fetchAllInvoiceJobs,
+  type InvoiceJob,
+  type InvoiceJobFilters,
+} from "../api";
 import {
   AMBIENTE_FILTER_OPTIONS,
   AMBIENTE_META,
@@ -31,7 +36,7 @@ import {
   JOB_STATUS_META,
   ORIGIN_FILTER_OPTIONS,
 } from "../constants";
-import { exportInvoiceJobs, type ExportFormat } from "../export";
+import { exportInvoiceJobs, exportInvoiceJobsZip, type ExportFormat } from "../export";
 import { useApproveInvoiceJobs, useConnections, useInvoiceJobs } from "../hooks";
 import { useJobSelection } from "../useJobSelection";
 import { InvoiceJobDrawer } from "./InvoiceJobDrawer";
@@ -57,7 +62,7 @@ export function InvoiceJobsPanel() {
   const [origin, setOrigin] = React.useState<string>("all");
   const [page, setPage] = React.useState(0);
   const [detail, setDetail] = React.useState<InvoiceJob | null>(null);
-  const [exporting, setExporting] = React.useState<ExportFormat | null>(null);
+  const [exporting, setExporting] = React.useState<ExportFormat | "zip" | null>(null);
 
   const filters = React.useMemo<InvoiceJobFilters>(() => {
     const group = JOB_STATUS_FILTERS.find((f) => f.value === statusFilter);
@@ -110,6 +115,28 @@ export function InvoiceJobsPanel() {
       toast.success(`${rows.length} nota(s) exportadas.`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao exportar.");
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  // pacote contábil: planilha + XMLs/DANFEs das notas autorizadas do filtro
+  async function handleExportZip() {
+    setExporting("zip");
+    try {
+      const rows = await fetchAllInvoiceJobs(filters);
+      if (rows.length === 0) {
+        toast.info("Nenhuma nota neste filtro para exportar.");
+        return;
+      }
+      const { xmls, missing } = await exportInvoiceJobsZip(rows, downloadNfseFile);
+      toast.success(
+        `Pacote gerado: ${rows.length} nota(s), ${xmls} XML(s)` +
+          (missing > 0 ? ` · ${missing} sem arquivo` : "") +
+          ".",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao gerar o pacote.");
     } finally {
       setExporting(null);
     }
@@ -194,6 +221,9 @@ export function InvoiceJobsPanel() {
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => void handleExport("csv")}>
                 CSV (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void handleExportZip()}>
+                Pacote contábil (ZIP + XMLs)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

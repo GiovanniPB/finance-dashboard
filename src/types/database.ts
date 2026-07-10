@@ -1083,6 +1083,7 @@ export type Database = {
           created_at: string
           danfse_path: string | null
           document_type: Database["public"]["Enums"]["fiscal_document_type"]
+          emitida_em: string | null
           erros: Json | null
           focus_ref: string
           focus_status: string | null
@@ -1123,6 +1124,7 @@ export type Database = {
           created_at?: string
           danfse_path?: string | null
           document_type?: Database["public"]["Enums"]["fiscal_document_type"]
+          emitida_em?: string | null
           erros?: Json | null
           focus_ref?: string
           focus_status?: string | null
@@ -1163,6 +1165,7 @@ export type Database = {
           created_at?: string
           danfse_path?: string | null
           document_type?: Database["public"]["Enums"]["fiscal_document_type"]
+          emitida_em?: string | null
           erros?: Json | null
           focus_ref?: string
           focus_status?: string | null
@@ -2773,6 +2776,7 @@ export type Database = {
           created_at: string
           danfse_path: string | null
           document_type: Database["public"]["Enums"]["fiscal_document_type"]
+          emitida_em: string | null
           erros: Json | null
           focus_ref: string
           focus_status: string | null

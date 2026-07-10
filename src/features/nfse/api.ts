@@ -399,6 +399,13 @@ export async function nfseFileUrl(path: string): Promise<string> {
   return data.signedUrl;
 }
 
+/** Baixa um arquivo do Storage como Blob (para empacotar no ZIP). null se falhar. */
+export async function downloadNfseFile(path: string): Promise<Blob | null> {
+  const { data, error } = await supabase.storage.from(NFSE_FILES_BUCKET).download(path);
+  if (error || !data) return null;
+  return data;
+}
+
 // ---------------------------------------------------------------------------
 // Emissão retroativa em lote (invoice_backfill_runs)
 // O run é criado pela UI; o pg_cron aciona a Edge Function nfse-backfill que o
