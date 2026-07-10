@@ -328,6 +328,24 @@ export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<Invo
   return { rows: data ?? [], total: count ?? 0 };
 }
 
+/**
+ * Busca TODAS as notas que casam com os filtros (para exportação), paginando em
+ * lotes para não truncar silenciosamente num limite do servidor. Ignora page/
+ * pageSize dos filtros (controla a paginação internamente).
+ */
+const EXPORT_BATCH = 1000;
+const EXPORT_HARD_CAP = 50000;
+
+export async function fetchAllInvoiceJobs(filters: InvoiceJobFilters): Promise<InvoiceJob[]> {
+  const all: InvoiceJob[] = [];
+  for (let page = 0; ; page += 1) {
+    const { rows } = await fetchInvoiceJobs({ ...filters, page, pageSize: EXPORT_BATCH });
+    all.push(...rows);
+    if (rows.length < EXPORT_BATCH || all.length >= EXPORT_HARD_CAP) break;
+  }
+  return all;
+}
+
 /** Aprova em lote por ids (seleção da tabela): pending_review -> queued. Retorna quantos. */
 export async function approveInvoiceJobs(ids: string[], userId: string): Promise<number> {
   if (ids.length === 0) return 0;
