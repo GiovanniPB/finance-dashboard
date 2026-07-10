@@ -330,6 +330,19 @@ export async function approveInvoiceJobs(ids: string[], userId: string): Promise
   return data?.length ?? 0;
 }
 
+/**
+ * Reemissão em produção: clona as notas AUTORIZADAS de homologação de uma
+ * conexão em novos jobs `producao` + `pending_review` (nada é emitido). Retorna
+ * quantas notas foram criadas. Idempotente — reexecutar não duplica.
+ */
+export async function reemitAuthorizedToProducao(accountId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("reemit_authorized_to_producao", {
+    p_account_id: accountId,
+  });
+  if (error) throw error;
+  return typeof data === "number" ? data : 0;
+}
+
 /** Aprova um job em revisão manual: vai para a fila de emissão. */
 export async function approveInvoiceJob(id: string, userId: string): Promise<void> {
   const { error } = await supabase

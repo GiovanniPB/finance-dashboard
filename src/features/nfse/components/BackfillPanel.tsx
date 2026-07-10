@@ -19,6 +19,7 @@ import { useBackfillRuns, useConnections, useCreateBackfillRun } from "../hooks"
 import { BackfillJobsTable } from "./BackfillJobsTable";
 import { BackfillRunDrawer } from "./BackfillRunDrawer";
 import { BackfillRunsList } from "./BackfillRunsList";
+import { ReemitProducaoCard } from "./ReemitProducaoCard";
 
 export function BackfillPanel() {
   const { user } = useAuth();
@@ -113,6 +114,8 @@ export function BackfillPanel() {
       </div>
 
       <BackfillRunsList runs={runs} onOpenDetail={setRunDetail} />
+
+      <ReemitProducaoCard />
 
       <BackfillJobsTable polling={hasRunning} />
 

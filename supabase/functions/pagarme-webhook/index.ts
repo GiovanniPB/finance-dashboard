@@ -149,7 +149,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (jobs.length > 0) {
     const rows = jobs.map((j) => toRow(applySplitMeta(j, splitMeta)));
     const { error: jobsErr } = await supabase.from("invoice_jobs").upsert(rows, {
-      onConflict: "pagarme_charge_id,pagarme_recipient_id",
+      onConflict: "pagarme_charge_id,pagarme_recipient_id,ambiente",
       ignoreDuplicates: true,
     });
     if (jobsErr) return json({ error: "invoice_jobs_failed", detail: jobsErr.message }, 500);

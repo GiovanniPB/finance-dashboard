@@ -18,6 +18,7 @@ import {
   fetchInvoiceJobs,
   fetchRecipients,
   fetchWebhookEvents,
+  reemitAuthorizedToProducao,
   requeueInvoiceJob,
   rotateWebhookSecret,
   setFocusToken,
@@ -172,6 +173,14 @@ export function useApproveInvoiceJobs() {
   return useMutation({
     mutationFn: ({ ids, userId }: { ids: string[]; userId: string }) =>
       approveInvoiceJobs(ids, userId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
+  });
+}
+
+export function useReemitToProducao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) => reemitAuthorizedToProducao(accountId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
   });
 }

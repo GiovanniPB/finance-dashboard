@@ -18,7 +18,7 @@ import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
 import type { InvoiceJob, InvoiceJobFilters } from "../api";
-import { JOB_STATUS_FILTERS, JOB_STATUS_META } from "../constants";
+import { AMBIENTE_META, JOB_STATUS_FILTERS, JOB_STATUS_META } from "../constants";
 import { useApproveInvoiceJobs, useConnections, useInvoiceJobs } from "../hooks";
 import { InvoiceJobDrawer } from "./InvoiceJobDrawer";
 
@@ -177,6 +177,7 @@ export function BackfillJobsTable({ polling }: Props) {
                 <th className="px-3 py-2.5 text-left">Empresa</th>
                 <th className="px-3 py-2.5 text-left">Tomador</th>
                 <th className="px-3 py-2.5 text-right">Valor</th>
+                <th className="px-3 py-2.5 text-left">Ambiente</th>
                 <th className="px-3 py-2.5 text-left">Status</th>
                 <th className="px-3 py-2.5 text-left">Criada</th>
               </tr>
@@ -209,6 +210,15 @@ export function BackfillJobsTable({ polling }: Props) {
                     </td>
                     <td className="px-3 py-2.5 text-right font-mono">
                       {formatBRL(job.valor_servicos)}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {(() => {
+                        const amb = AMBIENTE_META[job.ambiente] ?? {
+                          label: job.ambiente,
+                          tone: "default" as const,
+                        };
+                        return <Badge tone={amb.tone}>{amb.label}</Badge>;
+                      })()}
                     </td>
                     <td className="px-3 py-2.5">
                       <Badge tone={status.tone}>{status.label}</Badge>
