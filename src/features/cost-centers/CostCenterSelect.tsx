@@ -32,7 +32,7 @@ export function CostCenterSelect({
     <Select
       value={value ?? NONE}
       onValueChange={(v) => onChange(v === NONE ? null : v)}
-      disabled={isLoading}
+      disabled={isLoading || !companyId}
     >
       <SelectTrigger id={id}>
         <SelectValue placeholder={placeholder} />
