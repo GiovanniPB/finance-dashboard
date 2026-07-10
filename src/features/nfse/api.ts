@@ -328,6 +328,24 @@ export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<Invo
   return { rows: data ?? [], total: count ?? 0 };
 }
 
+/**
+ * Busca TODAS as notas que casam com os filtros (para exportação), paginando em
+ * lotes para não truncar silenciosamente num limite do servidor. Ignora page/
+ * pageSize dos filtros (controla a paginação internamente).
+ */
+const EXPORT_BATCH = 1000;
+const EXPORT_HARD_CAP = 50000;
+
+export async function fetchAllInvoiceJobs(filters: InvoiceJobFilters): Promise<InvoiceJob[]> {
+  const all: InvoiceJob[] = [];
+  for (let page = 0; ; page += 1) {
+    const { rows } = await fetchInvoiceJobs({ ...filters, page, pageSize: EXPORT_BATCH });
+    all.push(...rows);
+    if (rows.length < EXPORT_BATCH || all.length >= EXPORT_HARD_CAP) break;
+  }
+  return all;
+}
+
 /** Aprova em lote por ids (seleção da tabela): pending_review -> queued. Retorna quantos. */
 export async function approveInvoiceJobs(ids: string[], userId: string): Promise<number> {
   if (ids.length === 0) return 0;
@@ -379,6 +397,13 @@ export async function nfseFileUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage.from(NFSE_FILES_BUCKET).createSignedUrl(path, 60);
   if (error) throw error;
   return data.signedUrl;
+}
+
+/** Baixa um arquivo do Storage como Blob (para empacotar no ZIP). null se falhar. */
+export async function downloadNfseFile(path: string): Promise<Blob | null> {
+  const { data, error } = await supabase.storage.from(NFSE_FILES_BUCKET).download(path);
+  if (error || !data) return null;
+  return data;
 }
 
 // ---------------------------------------------------------------------------

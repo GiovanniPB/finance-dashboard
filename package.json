@@ -60,6 +60,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dinero.js": "2.0.0-alpha.14",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.469.0",
     "nuqs": "^2.3.2",
     "papaparse": "^5.5.3",
@@ -70,6 +71,7 @@
     "recharts": "^2.15.0",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1",
     "zustand": "^5.0.2"
   },
@@ -81,6 +83,7 @@
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",
     "@types/dinero.js": "^1.9.4",
+    "@types/jszip": "^3.4.1",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

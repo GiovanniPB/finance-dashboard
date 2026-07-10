@@ -1,10 +1,16 @@
 import * as React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -17,7 +23,12 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
-import type { InvoiceJob, InvoiceJobFilters } from "../api";
+import {
+  downloadNfseFile,
+  fetchAllInvoiceJobs,
+  type InvoiceJob,
+  type InvoiceJobFilters,
+} from "../api";
 import {
   AMBIENTE_FILTER_OPTIONS,
   AMBIENTE_META,
@@ -25,6 +36,7 @@ import {
   JOB_STATUS_META,
   ORIGIN_FILTER_OPTIONS,
 } from "../constants";
+import { exportInvoiceJobs, exportInvoiceJobsZip, type ExportFormat } from "../export";
 import { useApproveInvoiceJobs, useConnections, useInvoiceJobs } from "../hooks";
 import { useJobSelection } from "../useJobSelection";
 import { InvoiceJobDrawer } from "./InvoiceJobDrawer";
@@ -50,6 +62,7 @@ export function InvoiceJobsPanel() {
   const [origin, setOrigin] = React.useState<string>("all");
   const [page, setPage] = React.useState(0);
   const [detail, setDetail] = React.useState<InvoiceJob | null>(null);
+  const [exporting, setExporting] = React.useState<ExportFormat | "zip" | null>(null);
 
   const filters = React.useMemo<InvoiceJobFilters>(() => {
     const group = JOB_STATUS_FILTERS.find((f) => f.value === statusFilter);
@@ -87,6 +100,46 @@ export function InvoiceJobsPanel() {
         onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao emitir."),
       },
     );
+  }
+
+  // exporta TODAS as notas do filtro atual (não só a página) para a contabilidade
+  async function handleExport(format: ExportFormat) {
+    setExporting(format);
+    try {
+      const rows = await fetchAllInvoiceJobs(filters);
+      if (rows.length === 0) {
+        toast.info("Nenhuma nota neste filtro para exportar.");
+        return;
+      }
+      await exportInvoiceJobs(rows, format);
+      toast.success(`${rows.length} nota(s) exportadas.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao exportar.");
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  // pacote contábil: planilha + XMLs/DANFEs das notas autorizadas do filtro
+  async function handleExportZip() {
+    setExporting("zip");
+    try {
+      const rows = await fetchAllInvoiceJobs(filters);
+      if (rows.length === 0) {
+        toast.info("Nenhuma nota neste filtro para exportar.");
+        return;
+      }
+      const { xmls, missing } = await exportInvoiceJobsZip(rows, downloadNfseFile);
+      toast.success(
+        `Pacote gerado: ${rows.length} nota(s), ${xmls} XML(s)` +
+          (missing > 0 ? ` · ${missing} sem arquivo` : "") +
+          ".",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao gerar o pacote.");
+    } finally {
+      setExporting(null);
+    }
   }
 
   const firstRow = total === 0 ? 0 : page * PAGE_SIZE + 1;
@@ -150,14 +203,40 @@ export function InvoiceJobsPanel() {
           </Select>
         </div>
 
-        <Button
-          type="button"
-          size="sm"
-          disabled={selected.size === 0 || approveJobs.isPending}
-          onClick={emitSelected}
-        >
-          Emitir selecionadas ({selected.size})
-        </Button>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" size="sm" variant="outline" disabled={exporting !== null}>
+                {exporting ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Download className="size-4" />
+                )}
+                Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => void handleExport("xlsx")}>
+                Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void handleExport("csv")}>
+                CSV (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void handleExportZip()}>
+                Pacote contábil (ZIP + XMLs)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            type="button"
+            size="sm"
+            disabled={selected.size === 0 || approveJobs.isPending}
+            onClick={emitSelected}
+          >
+            Emitir selecionadas ({selected.size})
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

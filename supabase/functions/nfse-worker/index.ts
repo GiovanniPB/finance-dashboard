@@ -114,8 +114,8 @@ function assemblePayload(
   job: InvoiceJobRow,
   company: CompanyRow | null,
   settings: FiscalSettingsRow | null,
+  dataEmissao: string,
 ): Record<string, unknown> {
-  const dataEmissao = new Date().toISOString();
   const params = (job.parametros ?? {}) as Record<string, unknown>;
 
   if (documentType === "nfe") {
@@ -224,11 +224,14 @@ async function emitJob(
 
   // roteia por tipo de documento (NF-e produto × NFS-e serviço)
   const documentType: FiscalDocumentType = job.document_type ?? "nfse";
+  // data de emissão carimbada no documento; persistida no job (emitida_em)
+  const dataEmissao = new Date().toISOString();
   const payload = assemblePayload(
     documentType,
     job,
     company as CompanyRow | null,
     settings as FiscalSettingsRow | null,
+    dataEmissao,
   );
 
   const base = FOCUS_BASE[job.ambiente] ?? FOCUS_BASE.homologacao;
@@ -249,6 +252,7 @@ async function emitJob(
       .update({
         status: "processing_authorization",
         focus_status: (focusBody.status as string | undefined) ?? null,
+        emitida_em: dataEmissao,
       })
       .eq("id", job.id);
     return { id: job.id, http: res.status, status: "processing_authorization" };
@@ -272,6 +276,12 @@ async function emitJob(
   const confirmed = await queryFocusDoc(base, documentType, job.focus_ref, token);
   if (confirmed) {
     const applied = await applyFocusDocument(supabase, jobRef, confirmed, token);
+    // a nota existe no Focus -> foi emitida; carimba a data uma única vez
+    await supabase
+      .from("invoice_jobs")
+      .update({ emitida_em: dataEmissao })
+      .eq("id", job.id)
+      .is("emitida_em", null);
     return { id: job.id, http: res.status, status: applied ?? "processing_authorization" };
   }
 
