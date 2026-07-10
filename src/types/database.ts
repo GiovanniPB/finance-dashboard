@@ -3277,6 +3277,10 @@ export type Database = {
           has_mapping: boolean
         }[]
       }
+      reemit_authorized_to_producao: {
+        Args: { p_account_id: string }
+        Returns: number
+      }
       register_payment: {
         Args: {
           p_amount: number

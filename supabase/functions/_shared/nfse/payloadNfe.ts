@@ -16,7 +16,7 @@
  *    para CST 41; outros estados não).
  */
 
-import { enrichTomadorAddress } from "./address.ts";
+import { enrichTomadorAddress, NO_STREET_NUMBER } from "./address.ts";
 import { onlyDigits } from "./document.ts";
 import type { NfeProductClassification, PagarmeAddress } from "./types.ts";
 
@@ -133,7 +133,7 @@ export function buildNfePayload(input: NfePayloadInput): Record<string, unknown>
     indicador_inscricao_estadual_destinatario: 9, // não contribuinte
     email_destinatario: destinatario.email,
     logradouro_destinatario: dest.logradouro,
-    numero_destinatario: dest.numero,
+    numero_destinatario: dest.numero ?? NO_STREET_NUMBER,
     bairro_destinatario: dest.bairro,
     municipio_destinatario: dest.municipio,
     uf_destinatario: dest.uf,

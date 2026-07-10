@@ -51,6 +51,20 @@ export const JOB_STATUS_META: Record<string, { label: string; tone: BadgeTone }>
   failed: { label: "Falhou", tone: "expense" },
 };
 
+/** Opções do filtro de ambiente na fila de notas. */
+export const AMBIENTE_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "all", label: "Todos os ambientes" },
+  { value: "homologacao", label: "Homologação" },
+  { value: "producao", label: "Produção" },
+];
+
+/** Opções do filtro de origem: webhook (tempo real) vs. backfill (retroativa). */
+export const ORIGIN_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "all", label: "Todas as origens" },
+  { value: "webhook", label: "Webhook (tempo real)" },
+  { value: "backfill", label: "Retroativa (backfill)" },
+];
+
 /** Agrupamentos de status para o filtro da fila de notas. `statuses: null` = todas. */
 export const JOB_STATUS_FILTERS: { value: string; label: string; statuses: string[] | null }[] = [
   { value: "review", label: "Aguardando revisão", statuses: ["pending_review"] },

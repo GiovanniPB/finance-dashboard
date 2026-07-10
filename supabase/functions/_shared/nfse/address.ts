@@ -16,6 +16,14 @@
 
 import type { PagarmeAddress } from "./types.ts";
 
+/**
+ * Valor de `numero` quando não conseguimos extrair um número do endereço. É o
+ * que o Focus (NF-e e NFS-e) documenta para endereços sem número — sem isso o
+ * schema rejeita (`numero_destinatario não pode ser vazio`). O endereço ainda é
+ * marcado como incompleto (`missing` inclui "numero") para sinalizar revisão.
+ */
+export const NO_STREET_NUMBER = "S/N";
+
 export interface NfseEndereco {
   logradouro: string | null;
   numero: string | null;
@@ -47,12 +55,20 @@ function clean(value: string | null | undefined): string | null {
   return t.length > 0 ? t : null;
 }
 
+/** Parte que parece um número de logradouro puro (ex.: "100", "83", "12A"). */
+function isStreetNumber(part: string | undefined): boolean {
+  return part != null && /^\d+[a-zA-Z]?$/u.test(part);
+}
+
 /**
- * Quebra `line_1` em logradouro/numero/bairro por vírgulas (melhor esforço):
- *  - 3+ partes: "numero, logradouro, bairro";
- *  - 2 partes:  "numero, logradouro";
- *  - 1 parte:   logradouro (sem número).
- * Se a 1ª parte não parecer um número, assume "logradouro[, bairro]".
+ * Quebra `line_1` em logradouro/numero/bairro por vírgulas (melhor esforço).
+ * O pagar.me não tem campo de número dedicado, e os lojistas escrevem `line_1`
+ * de dois jeitos comuns — cobrimos ambos detectando ONDE está o número:
+ *  - número 1º:  "100, Rua Exemplo, Centro"        -> {numero, logradouro, bairro}
+ *  - número 2º:  "Rua Camarão, 144, Apto 703"      -> {logradouro, numero, resto}
+ *  - sem número: "D03, Condomínio X, Praia Y"      -> {logradouro, bairro} (numero null)
+ * Quando o número está em 2ª posição, o que vier depois costuma ser complemento
+ * (não bairro) — tudo bem: o ViaCEP (cep_info) tem precedência sobre o bairro.
  */
 function parseLine1(line1: string | null): {
   logradouro: string | null;
@@ -67,21 +83,16 @@ function parseLine1(line1: string | null): {
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
 
-  const firstIsNumber = parts.length > 0 && /^\d+[a-zA-Z]?$/u.test(parts[0]);
-
-  if (firstIsNumber) {
-    return {
-      numero: parts[0],
-      logradouro: parts[1] ?? null,
-      bairro: parts[2] ?? null,
-    };
+  // número na 1ª posição: "numero, logradouro, bairro"
+  if (isStreetNumber(parts[0])) {
+    return { numero: parts[0], logradouro: parts[1] ?? null, bairro: parts[2] ?? null };
   }
-  // primeira parte não é número: logradouro[, bairro]
-  return {
-    numero: null,
-    logradouro: parts[0] ?? null,
-    bairro: parts[1] ?? null,
-  };
+  // número na 2ª posição: "logradouro, numero, complemento/bairro"
+  if (isStreetNumber(parts[1])) {
+    return { logradouro: parts[0], numero: parts[1], bairro: parts[2] ?? null };
+  }
+  // sem número identificável: logradouro[, bairro]
+  return { numero: null, logradouro: parts[0] ?? null, bairro: parts[1] ?? null };
 }
 
 const REQUIRED_FIELDS: (keyof NfseEndereco)[] = [

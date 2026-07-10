@@ -33,7 +33,17 @@ export type InvoiceJob = InvoiceJobRow & {
 export interface InvoiceJobFilters {
   statuses: string[] | null; // null = todas
   accountId?: string | null;
-  source?: string | null; // metadata.source (ex.: 'backfill')
+  source?: string | null; // metadata.source exato (ex.: 'backfill')
+  ambiente?: string | null; // 'homologacao' | 'producao'
+  origin?: string | null; // 'webhook' (source nulo) | 'backfill' (source='backfill')
+  page?: number | null; // 0-based; null/undefined = sem paginação (limit padrão)
+  pageSize?: number | null;
+}
+
+/** Página de notas + total (para paginação server-side). */
+export interface InvoiceJobPage {
+  rows: InvoiceJob[];
+  total: number;
 }
 
 export type WebhookProvider = "pagarme" | "focus";
@@ -277,14 +287,14 @@ export async function createSandboxCharge(input: SandboxChargeInput): Promise<Sa
 // ---------------------------------------------------------------------------
 const JOB_LIST_LIMIT = 300;
 
-export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<InvoiceJob[]> {
+export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<InvoiceJobPage> {
   let query = supabase
     .from("invoice_jobs")
     .select(
       "*, company:companies!company_id(id, legal_name, trade_name), account:pagarme_accounts!pagarme_account_id(id, label, slug)",
+      { count: "exact" },
     )
-    .order("created_at", { ascending: false })
-    .limit(JOB_LIST_LIMIT);
+    .order("created_at", { ascending: false });
 
   if (filters.statuses && filters.statuses.length > 0) {
     query = query.in("status", filters.statuses as InvoiceJobStatus[]);
@@ -295,10 +305,27 @@ export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<Invo
   if (filters.source) {
     query = query.eq("metadata->>source", filters.source);
   }
+  if (filters.ambiente) {
+    query = query.eq("ambiente", filters.ambiente as NfseAmbiente);
+  }
+  // origem: backfill = source 'backfill'; webhook = sem source (tempo real)
+  if (filters.origin === "backfill") {
+    query = query.eq("metadata->>source", "backfill");
+  } else if (filters.origin === "webhook") {
+    query = query.is("metadata->>source", null);
+  }
 
-  const { data, error } = await query;
+  const pageSize = filters.pageSize ?? JOB_LIST_LIMIT;
+  if (filters.page != null) {
+    const from = filters.page * pageSize;
+    query = query.range(from, from + pageSize - 1);
+  } else {
+    query = query.limit(pageSize);
+  }
+
+  const { data, error, count } = await query;
   if (error) throw error;
-  return data ?? [];
+  return { rows: data ?? [], total: count ?? 0 };
 }
 
 /** Aprova em lote por ids (seleção da tabela): pending_review -> queued. Retorna quantos. */
@@ -312,6 +339,19 @@ export async function approveInvoiceJobs(ids: string[], userId: string): Promise
     .select("id");
   if (error) throw error;
   return data?.length ?? 0;
+}
+
+/**
+ * Reemissão em produção: clona as notas AUTORIZADAS de homologação de uma
+ * conexão em novos jobs `producao` + `pending_review` (nada é emitido). Retorna
+ * quantas notas foram criadas. Idempotente — reexecutar não duplica.
+ */
+export async function reemitAuthorizedToProducao(accountId: string): Promise<number> {
+  const { data, error } = await supabase.rpc("reemit_authorized_to_producao", {
+    p_account_id: accountId,
+  });
+  if (error) throw error;
+  return typeof data === "number" ? data : 0;
 }
 
 /** Aprova um job em revisão manual: vai para a fila de emissão. */
@@ -422,6 +462,27 @@ export async function cancelBackfillRun(runId: string): Promise<void> {
     .eq("id", runId)
     .eq("status", "running");
   if (error) throw error;
+}
+
+/**
+ * Exclui uma carga por completo. Antes de remover o registro, apaga as notas
+ * ainda `pending_review` geradas por ela (metadata.backfillRunId) — notas já
+ * enviadas para emissão (queued em diante) são PRESERVADAS. Assim dá para
+ * re-testar a mesma janela sem colidir com a dedup. Retorna quantas notas
+ * pendentes foram removidas.
+ */
+export async function deleteBackfillRun(runId: string): Promise<number> {
+  const { data: removed, error: jobsErr } = await supabase
+    .from("invoice_jobs")
+    .delete()
+    .eq("metadata->>backfillRunId", runId)
+    .eq("status", "pending_review")
+    .select("id");
+  if (jobsErr) throw jobsErr;
+
+  const { error } = await supabase.from("invoice_backfill_runs").delete().eq("id", runId);
+  if (error) throw error;
+  return removed?.length ?? 0;
 }
 
 // ---------------------------------------------------------------------------

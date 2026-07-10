@@ -18,36 +18,26 @@ import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
 import type { InvoiceJob, InvoiceJobFilters } from "../api";
-import {
-  AMBIENTE_FILTER_OPTIONS,
-  AMBIENTE_META,
-  JOB_STATUS_FILTERS,
-  JOB_STATUS_META,
-  ORIGIN_FILTER_OPTIONS,
-} from "../constants";
+import { AMBIENTE_META, JOB_STATUS_FILTERS, JOB_STATUS_META } from "../constants";
 import { useApproveInvoiceJobs, useConnections, useInvoiceJobs } from "../hooks";
 import { useJobSelection } from "../useJobSelection";
 import { InvoiceJobDrawer } from "./InvoiceJobDrawer";
 
 const PAGE_SIZE = 20;
 
-/** Origem da nota: retroativa (backfill) vs. tempo real (webhook do charge.paid). */
-function jobOrigin(job: InvoiceJob): { label: string; tone: "accent" | "default" } {
-  const source = (job.metadata as { source?: string } | null)?.source;
-  return source === "backfill"
-    ? { label: "Retroativa", tone: "accent" }
-    : { label: "Webhook", tone: "default" };
+interface Props {
+  /** enquanto uma carga está rodando, novas notas chegam -> atualiza sozinho. */
+  polling: boolean;
 }
 
-export function InvoiceJobsPanel() {
+/** Notas retroativas (source=backfill) com filtros, paginação e emissão em lote. */
+export function BackfillJobsTable({ polling }: Props) {
   const { user } = useAuth();
   const { data: connections = [] } = useConnections();
   const approveJobs = useApproveInvoiceJobs();
 
   const [statusFilter, setStatusFilter] = React.useState<string>("review");
   const [accountId, setAccountId] = React.useState<string>("all");
-  const [ambiente, setAmbiente] = React.useState<string>("all");
-  const [origin, setOrigin] = React.useState<string>("all");
   const [page, setPage] = React.useState(0);
   const [detail, setDetail] = React.useState<InvoiceJob | null>(null);
 
@@ -55,26 +45,28 @@ export function InvoiceJobsPanel() {
     const group = JOB_STATUS_FILTERS.find((f) => f.value === statusFilter);
     return {
       statuses: group?.statuses ?? null,
+      source: "backfill",
       accountId: accountId === "all" ? null : accountId,
-      ambiente: ambiente === "all" ? null : ambiente,
-      origin: origin === "all" ? null : origin,
       page,
       pageSize: PAGE_SIZE,
     };
-  }, [statusFilter, accountId, ambiente, origin, page]);
+  }, [statusFilter, accountId, page]);
 
-  const { data, isLoading } = useInvoiceJobs(filters);
+  const { data, isLoading } = useInvoiceJobs(
+    filters,
+    polling ? { refetchInterval: 5000 } : undefined,
+  );
   const jobs = data?.rows ?? [];
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const { selected, toggle, toggleAll, headerChecked, pendingIds, clear } = useJobSelection(jobs);
 
-  // qualquer filtro muda -> volta à primeira página e zera a seleção
+  // filtro mudou -> volta para a primeira página e zera a seleção (evita contagem órfã)
   React.useEffect(() => {
     setPage(0);
     clear();
-  }, [statusFilter, accountId, ambiente, origin, clear]);
+  }, [statusFilter, accountId, clear]);
 
   function emitSelected() {
     approveJobs.mutate(
@@ -93,9 +85,10 @@ export function InvoiceJobsPanel() {
   const lastRow = Math.min(total, page * PAGE_SIZE + jobs.length);
 
   return (
-    <div className="space-y-4">
+    <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
+          <h2 className="mr-1 text-sm font-semibold">Notas retroativas</h2>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-48">
               <SelectValue />
@@ -104,32 +97,6 @@ export function InvoiceJobsPanel() {
               {JOB_STATUS_FILTERS.map((f) => (
                 <SelectItem key={f.value} value={f.value}>
                   {f.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={ambiente} onValueChange={setAmbiente}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AMBIENTE_FILTER_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={origin} onValueChange={setOrigin}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ORIGIN_FILTER_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -164,7 +131,7 @@ export function InvoiceJobsPanel() {
         <Skeleton className="h-64 w-full" />
       ) : jobs.length === 0 ? (
         <div className="rounded-[var(--radius-md)] border border-dashed border-border bg-surface p-12 text-center text-sm text-text-muted">
-          Nenhuma nota neste filtro.
+          Nenhuma nota neste filtro. Carregue um período acima.
         </div>
       ) : (
         <div className="overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface">
@@ -179,14 +146,12 @@ export function InvoiceJobsPanel() {
                     aria-label="Selecionar todas as pendentes desta página"
                   />
                 </th>
-                <th className="px-3 py-2.5 text-left">Criada</th>
                 <th className="px-3 py-2.5 text-left">Empresa</th>
-                <th className="px-3 py-2.5 text-left">Origem</th>
-                <th className="px-3 py-2.5 text-left">Conexão</th>
                 <th className="px-3 py-2.5 text-left">Tomador</th>
                 <th className="px-3 py-2.5 text-right">Valor</th>
                 <th className="px-3 py-2.5 text-left">Ambiente</th>
                 <th className="px-3 py-2.5 text-left">Status</th>
+                <th className="px-3 py-2.5 text-left">Criada</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -195,19 +160,10 @@ export function InvoiceJobsPanel() {
                   label: job.status,
                   tone: "default" as const,
                 };
-                const origem = jobOrigin(job);
-                const amb = AMBIENTE_META[job.ambiente] ?? {
-                  label: job.ambiente,
-                  tone: "default" as const,
-                };
                 const selectable = job.status === "pending_review";
                 return (
-                  <tr
-                    key={job.id}
-                    className="cursor-pointer hover:bg-surface-2/60"
-                    onClick={() => setDetail(job)}
-                  >
-                    <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                  <tr key={job.id} className="hover:bg-surface-2/60">
+                    <td className="px-3 py-2.5">
                       <Checkbox
                         checked={selected.has(job.id)}
                         disabled={!selectable}
@@ -215,17 +171,10 @@ export function InvoiceJobsPanel() {
                         aria-label="Selecionar nota"
                       />
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-text-muted">
-                      {formatDate(job.created_at)}
-                    </td>
-                    <td className="px-3 py-2.5">
+                    <td className="cursor-pointer px-3 py-2.5" onClick={() => setDetail(job)}>
                       {job.company?.trade_name ?? job.company?.legal_name ?? "—"}
                     </td>
-                    <td className="px-3 py-2.5">
-                      <Badge tone={origem.tone}>{origem.label}</Badge>
-                    </td>
-                    <td className="px-3 py-2.5 text-text-muted">{job.account?.label ?? "—"}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="cursor-pointer px-3 py-2.5" onClick={() => setDetail(job)}>
                       <div className="truncate">{job.tomador_nome ?? "—"}</div>
                       <div className="text-2xs font-mono text-text-subtle">
                         {job.tomador_documento ?? ""}
@@ -235,10 +184,19 @@ export function InvoiceJobsPanel() {
                       {formatBRL(job.valor_servicos)}
                     </td>
                     <td className="px-3 py-2.5">
-                      <Badge tone={amb.tone}>{amb.label}</Badge>
+                      {(() => {
+                        const amb = AMBIENTE_META[job.ambiente] ?? {
+                          label: job.ambiente,
+                          tone: "default" as const,
+                        };
+                        return <Badge tone={amb.tone}>{amb.label}</Badge>;
+                      })()}
                     </td>
                     <td className="px-3 py-2.5">
                       <Badge tone={status.tone}>{status.label}</Badge>
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-text-muted">
+                      {formatDate(job.created_at)}
                     </td>
                   </tr>
                 );
@@ -284,6 +242,6 @@ export function InvoiceJobsPanel() {
         onOpenChange={(o) => !o && setDetail(null)}
         job={detail}
       />
-    </div>
+    </section>
   );
 }

@@ -10,6 +10,7 @@ import {
   createConnection,
   createRecipient,
   createSandboxCharge,
+  deleteBackfillRun,
   deleteRecipient,
   fetchBackfillRuns,
   fetchConnections,
@@ -17,6 +18,7 @@ import {
   fetchInvoiceJobs,
   fetchRecipients,
   fetchWebhookEvents,
+  reemitAuthorizedToProducao,
   requeueInvoiceJob,
   rotateWebhookSecret,
   setFocusToken,
@@ -175,6 +177,14 @@ export function useApproveInvoiceJobs() {
   });
 }
 
+export function useReemitToProducao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) => reemitAuthorizedToProducao(accountId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
+  });
+}
+
 export function useRequeueInvoiceJob() {
   const qc = useQueryClient();
   return useMutation({
@@ -207,6 +217,18 @@ export function useCancelBackfillRun() {
   return useMutation({
     mutationFn: (runId: string) => cancelBackfillRun(runId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: nfseKeys.backfillRuns }),
+  });
+}
+
+export function useDeleteBackfillRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => deleteBackfillRun(runId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: nfseKeys.backfillRuns });
+      // a exclusão também remove notas pendentes da carga -> atualiza a lista
+      void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] });
+    },
   });
 }
 
