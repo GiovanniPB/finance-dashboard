@@ -66,11 +66,18 @@ export function CounterpartyDrawer({ open, onOpenChange, counterparty, organizat
     register,
     control,
     handleSubmit,
+    reset,
     formState: { errors, isDirty },
   } = useForm<CounterpartyFormValues>({
     resolver: zodResolver(counterpartyFormSchema),
     defaultValues: initialValues,
   });
+
+  React.useEffect(() => {
+    if (open) {
+      reset(initialValues);
+    }
+  }, [open, initialValues, reset]);
 
   const onSubmit = handleSubmit((values) => {
     const payload = {

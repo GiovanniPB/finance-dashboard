@@ -59,11 +59,18 @@ export function CostCenterDrawer({ open, onOpenChange, costCenter, companyId }: 
     register,
     control,
     handleSubmit,
+    reset,
     formState: { errors, isDirty },
   } = useForm<CostCenterFormValues>({
     resolver: zodResolver(costCenterFormSchema),
     defaultValues: initialValues,
   });
+
+  React.useEffect(() => {
+    if (open) {
+      reset(initialValues);
+    }
+  }, [open, initialValues, reset]);
 
   const onSubmit = handleSubmit((values) => {
     const payload = {
