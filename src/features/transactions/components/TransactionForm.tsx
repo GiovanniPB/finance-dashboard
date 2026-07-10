@@ -45,6 +45,7 @@ export function TransactionForm({
     handleSubmit,
     control,
     watch,
+    setValue,
     formState: { errors, isDirty },
   } = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
@@ -52,15 +53,62 @@ export function TransactionForm({
   });
 
   const companyId = watch("companyId");
+  const direction = watch("direction");
   const isEditing = Boolean(existingTransaction);
 
   // Counterparties are organization-scoped; resolve the org from the company.
-  const { companies } = useCompanyScope();
+  const { companies, isConsolidated } = useCompanyScope();
   const organizationId = companies.find((c) => c.id === companyId)?.organization_id ?? null;
+
+  // No consolidado, ao criar, o usuário precisa escolher a empresa do lançamento
+  // (não há escopo fixo). Ao editar, a empresa é imutável.
+  const operationalCompanies = companies.filter((c) => !c.is_holding);
+  const showCompanySelect = !isEditing && isConsolidated;
+
+  // Trocar a empresa invalida os campos scoped por empresa/organização.
+  function handleCompanyChange(nextCompanyId: string) {
+    setValue("companyId", nextCompanyId, { shouldValidate: true, shouldDirty: true });
+    setValue("accountId", "");
+    setValue("costCenterId", null);
+    setValue("bankAccountId", null);
+    setValue("counterpartyId", null);
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
       <SheetBody className="space-y-5">
+        {/* Company (obrigatório escolher no consolidado ao criar) */}
+        {showCompanySelect && (
+          <div className="space-y-1.5">
+            <Label htmlFor="companyId">Empresa</Label>
+            <Controller
+              name="companyId"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={handleCompanyChange}
+                  disabled={isPending}
+                >
+                  <SelectTrigger id="companyId" aria-invalid={Boolean(errors.companyId)}>
+                    <SelectValue placeholder="Selecione a empresa do lançamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {operationalCompanies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.trade_name ?? c.legal_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.companyId && (
+              <p className="text-2xs text-expense">{errors.companyId.message}</p>
+            )}
+          </div>
+        )}
+
         {/* Direction + Status */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -175,6 +223,7 @@ export function TransactionForm({
                 organizationId={organizationId}
                 value={field.value ?? null}
                 onChange={field.onChange}
+                createKind={direction === "inflow" ? "customer" : "supplier"}
                 disabled={isPending}
               />
             )}

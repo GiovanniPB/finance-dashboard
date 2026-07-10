@@ -71,11 +71,21 @@ export function BankAccountDrawer({ open, onOpenChange, account, companyId }: Pr
     register,
     control,
     handleSubmit,
+    reset,
     formState: { errors, isDirty },
   } = useForm<BankAccountFormValues>({
     resolver: zodResolver(bankAccountFormSchema),
     defaultValues: initialValues,
   });
+
+  // O `useForm` só lê `defaultValues` na montagem; como o drawer fica montado e
+  // apenas a prop `account` muda ao editar, é preciso resetar o formulário sempre
+  // que ele abre para popular os campos com os dados atuais da conta.
+  React.useEffect(() => {
+    if (open) {
+      reset(initialValues);
+    }
+  }, [open, initialValues, reset]);
 
   const onSubmit = handleSubmit((values) => {
     const payload = {

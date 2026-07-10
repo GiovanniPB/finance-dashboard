@@ -35,7 +35,9 @@ interface Props {
   sortBy: string;
   sortOrder: "asc" | "desc";
   onSortChange: (sortBy: string, sortOrder: "asc" | "desc") => void;
-  showCompany: boolean;
+  /** Ids das colunas a exibir, já resolvidos na ordem preferida do escopo atual. */
+  orderedColumnIds: string[];
+  isHidden: (id: string) => boolean;
   onEdit: (transaction: TransactionWithRelations) => void;
   onDelete: (transaction: TransactionWithRelations) => void;
 }
@@ -46,7 +48,8 @@ export function TransactionsTable({
   sortBy,
   sortOrder,
   onSortChange,
-  showCompany,
+  orderedColumnIds,
+  isHidden,
   onEdit,
   onDelete,
 }: Props) {
@@ -56,8 +59,8 @@ export function TransactionsTable({
   );
 
   const columns = React.useMemo<ColumnDef<TransactionWithRelations>[]>(() => {
-    const cols: ColumnDef<TransactionWithRelations>[] = [
-      {
+    const defs: Record<string, ColumnDef<TransactionWithRelations>> = {
+      accrual_date: {
         accessorKey: "accrual_date",
         header: "Competência",
         enableSorting: true,
@@ -67,7 +70,7 @@ export function TransactionsTable({
           </span>
         ),
       },
-      {
+      cash_date: {
         accessorKey: "cash_date",
         header: "Caixa",
         enableSorting: true,
@@ -77,22 +80,30 @@ export function TransactionsTable({
           </span>
         ),
       },
-      {
+      description: {
         accessorKey: "description",
         header: "Descrição",
         enableSorting: true,
         cell: ({ row }) => (
-          <div className="flex max-w-[420px] flex-col">
-            <span className="truncate text-sm text-text">{row.original.description}</span>
-            {row.original.counterparty && (
-              <span className="text-2xs truncate text-text-subtle">
-                {row.original.counterparty.name}
-              </span>
-            )}
-          </div>
+          <span className="block max-w-[420px] truncate text-sm text-text">
+            {row.original.description}
+          </span>
         ),
       },
-      {
+      counterparty: {
+        id: "counterparty",
+        header: "Fornecedor",
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.counterparty ? (
+            <span className="block max-w-[220px] truncate text-xs text-text-muted">
+              {row.original.counterparty.name}
+            </span>
+          ) : (
+            <span className="text-2xs text-text-subtle">—</span>
+          ),
+      },
+      account: {
         accessorKey: "account",
         header: "Conta",
         enableSorting: false,
@@ -108,10 +119,7 @@ export function TransactionsTable({
             <span className="text-2xs text-text-subtle">—</span>
           ),
       },
-    ];
-
-    if (showCompany) {
-      cols.push({
+      company: {
         id: "company",
         header: "Empresa",
         enableSorting: false,
@@ -120,17 +128,14 @@ export function TransactionsTable({
             {row.original.company?.trade_name ?? row.original.company?.legal_name ?? "—"}
           </span>
         ),
-      });
-    }
-
-    cols.push(
-      {
+      },
+      status: {
         accessorKey: "status",
         header: "Status",
         enableSorting: false,
         cell: ({ row }) => <TransactionStatusBadge status={row.original.status} />,
       },
-      {
+      amount: {
         accessorKey: "amount",
         header: "Valor",
         enableSorting: true,
@@ -152,46 +157,53 @@ export function TransactionsTable({
           );
         },
       },
-      {
-        id: "actions",
-        header: "",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                aria-label="Ações do lançamento"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-                className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-text-muted hover:bg-surface-2 hover:text-text"
-              >
-                <MoreHorizontal className="size-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onSelect={() => {
-                  onEdit(row.original);
-                }}
-              >
-                <Pencil className="size-4" /> Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  onDelete(row.original);
-                }}
-                className="text-expense"
-              >
-                <Trash2 className="size-4" /> Excluir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ),
-      },
-    );
-    return cols;
-  }, [showCompany, onEdit, onDelete]);
+    };
+
+    const actions: ColumnDef<TransactionWithRelations> = {
+      id: "actions",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label="Ações do lançamento"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              className="grid size-7 place-items-center rounded-[var(--radius-sm)] text-text-muted hover:bg-surface-2 hover:text-text"
+            >
+              <MoreHorizontal className="size-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => {
+                onEdit(row.original);
+              }}
+            >
+              <Pencil className="size-4" /> Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                onDelete(row.original);
+              }}
+              className="text-expense"
+            >
+              <Trash2 className="size-4" /> Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    };
+
+    const visible = orderedColumnIds
+      .filter((id) => !isHidden(id))
+      .map((id) => defs[id])
+      .filter((c): c is ColumnDef<TransactionWithRelations> => Boolean(c));
+
+    return [...visible, actions];
+  }, [orderedColumnIds, isHidden, onEdit, onDelete]);
 
   const table = useReactTable({
     data: rows,

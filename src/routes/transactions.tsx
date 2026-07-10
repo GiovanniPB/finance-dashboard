@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/features/auth/usePermissions";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { availableColumnIds, resolveColumnOrder } from "@/features/transactions/columns";
+import { TransactionColumnsMenu } from "@/features/transactions/components/TransactionColumnsMenu";
 import { TransactionDrawer } from "@/features/transactions/components/TransactionDrawer";
 import { TransactionsFilters } from "@/features/transactions/components/TransactionsFilters";
 import { TransactionsPagination } from "@/features/transactions/components/TransactionsPagination";
@@ -17,24 +19,32 @@ import {
   useTransactions,
 } from "@/features/transactions/hooks";
 import type { TransactionWithRelations } from "@/features/transactions/types";
+import { useTransactionColumnPrefs } from "@/features/transactions/useColumnPrefs";
 import { useTransactionFilters } from "@/features/transactions/useTransactionFilters";
 import { downloadCsv, toCsv } from "@/lib/csv";
 
 const PAGE_SIZE = 50;
 
 export default function TransactionsPage() {
-  const { selectedCompanyId, isConsolidated, selectedCompany, companies } = useCompanyScope();
+  const { selectedCompanyId, isConsolidated, selectedCompany } = useCompanyScope();
   const { canEdit } = usePermissions();
   const [filters, setFilters] = useTransactionFilters();
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+  const columnPrefs = useTransactionColumnPrefs();
+
+  const orderedColumnIds = React.useMemo(
+    () => resolveColumnOrder(columnPrefs.prefs.order, availableColumnIds(isConsolidated)),
+    [columnPrefs.prefs.order, isConsolidated],
+  );
 
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<TransactionWithRelations | null>(null);
 
   const companyId = isConsolidated ? null : selectedCompanyId;
 
-  // No modo consolidado, abrir o drawer de criar requer escolher uma empresa
-  const drawerCompanyId = companyId ?? companies.find((c) => !c.is_holding)?.id ?? null;
+  // No consolidado (companyId nulo), o drawer abre sem empresa fixa e o form
+  // exige que o usuário escolha a empresa do lançamento.
+  const drawerCompanyId = companyId;
 
   const { data, isLoading, isFetching } = useTransactions({
     companyId,
@@ -135,6 +145,15 @@ export default function TransactionsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <TransactionColumnsMenu
+            order={orderedColumnIds}
+            isHidden={columnPrefs.isHidden}
+            onToggle={columnPrefs.toggleVisibility}
+            onMove={(id, direction) => {
+              columnPrefs.move(orderedColumnIds, id, direction);
+            }}
+            onReset={columnPrefs.reset}
+          />
           <Button
             variant="outline"
             size="sm"
@@ -145,6 +164,11 @@ export default function TransactionsPage() {
                 { key: "accrual_date", header: "Competência", getValue: (r) => r.accrual_date },
                 { key: "cash_date", header: "Caixa", getValue: (r) => r.cash_date ?? "" },
                 { key: "description", header: "Descrição", getValue: (r) => r.description },
+                {
+                  key: "counterparty",
+                  header: "Fornecedor",
+                  getValue: (r) => r.counterparty?.name ?? "",
+                },
                 {
                   key: "account",
                   header: "Conta",
@@ -184,7 +208,8 @@ export default function TransactionsPage() {
             sortOrder,
           })
         }
-        showCompany={isConsolidated}
+        orderedColumnIds={orderedColumnIds}
+        isHidden={columnPrefs.isHidden}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
