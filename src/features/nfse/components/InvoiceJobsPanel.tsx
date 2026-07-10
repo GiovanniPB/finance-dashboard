@@ -17,6 +17,14 @@ import { JOB_STATUS_FILTERS, JOB_STATUS_META } from "../constants";
 import { useConnections, useInvoiceJobs } from "../hooks";
 import { InvoiceJobDrawer } from "./InvoiceJobDrawer";
 
+/** Origem da nota: retroativa (backfill) vs. tempo real (webhook do charge.paid). */
+function jobOrigin(job: InvoiceJob): { label: string; tone: "accent" | "default" } {
+  const source = (job.metadata as { source?: string } | null)?.source;
+  return source === "backfill"
+    ? { label: "Retroativa", tone: "accent" }
+    : { label: "Webhook", tone: "default" };
+}
+
 export function InvoiceJobsPanel() {
   const [statusFilter, setStatusFilter] = React.useState<string>("review");
   const [accountId, setAccountId] = React.useState<string>("all");
@@ -82,6 +90,7 @@ export function InvoiceJobsPanel() {
               <tr className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
                 <th className="px-3 py-2.5 text-left">Criada</th>
                 <th className="px-3 py-2.5 text-left">Empresa</th>
+                <th className="px-3 py-2.5 text-left">Origem</th>
                 <th className="px-3 py-2.5 text-left">Conexão</th>
                 <th className="px-3 py-2.5 text-left">Tomador</th>
                 <th className="px-3 py-2.5 text-right">Valor</th>
@@ -105,6 +114,12 @@ export function InvoiceJobsPanel() {
                     </td>
                     <td className="px-3 py-2.5">
                       {job.company?.trade_name ?? job.company?.legal_name ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {(() => {
+                        const origin = jobOrigin(job);
+                        return <Badge tone={origin.tone}>{origin.label}</Badge>;
+                      })()}
                     </td>
                     <td className="px-3 py-2.5 text-text-muted">{job.account?.label ?? "—"}</td>
                     <td className="px-3 py-2.5">

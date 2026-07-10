@@ -25,6 +25,44 @@ describe("enrichTomadorAddress", () => {
     });
   });
 
+  it("extrai número na 2ª posição (formato 'logradouro, numero, complemento')", () => {
+    const r = enrichTomadorAddress({
+      line_1: "Rua Camarão, 144, Apto 703",
+      zip_code: "06401000",
+      city: "Barueri",
+      state: "SP",
+    });
+
+    expect(r.endereco.logradouro).toBe("Rua Camarão");
+    expect(r.endereco.numero).toBe("144");
+    expect(r.missing).not.toContain("numero");
+  });
+
+  it("extrai número na 2ª posição com 2 partes ('Av. Brasil, 250')", () => {
+    const r = enrichTomadorAddress({
+      line_1: "Av. Brasil, 250",
+      zip_code: "06401000",
+      city: "Barueri",
+      state: "SP",
+    });
+
+    expect(r.endereco.logradouro).toBe("Av. Brasil");
+    expect(r.endereco.numero).toBe("250");
+  });
+
+  it("sem número identificável ('D03, Condomínio X, Praia Y') -> numero null e incompleto", () => {
+    const r = enrichTomadorAddress({
+      line_1: "D03, Condomínio Barlavento, Praia Vermelha",
+      zip_code: "06401000",
+      city: "Barueri",
+      state: "SP",
+    });
+
+    expect(r.endereco.numero).toBeNull();
+    expect(r.endereco.logradouro).toBe("D03");
+    expect(r.missing).toContain("numero");
+  });
+
   it("marca incompleto e lista o que falta quando não há bairro nem número", () => {
     const r = enrichTomadorAddress({
       line_1: "Rua Sem Numero",

@@ -78,6 +78,27 @@ describe("buildNfePayload", () => {
     expect(cnpj.cpf_destinatario).toBeUndefined();
   });
 
+  it("extrai numero_destinatario quando o número vem na 2ª posição de line_1", () => {
+    const input = baseInput();
+    input.destinatario.endereco = {
+      ...input.destinatario.endereco,
+      line_1: "Rua Camarão, 144, Apto 703",
+    };
+    const p = buildNfePayload(input) as Obj;
+    expect(p.logradouro_destinatario).toBe("Rua Camarão");
+    expect(p.numero_destinatario).toBe("144");
+  });
+
+  it("usa 'S/N' quando não há número no endereço (evita rejeição de schema)", () => {
+    const input = baseInput();
+    input.destinatario.endereco = {
+      ...input.destinatario.endereco,
+      line_1: "D03, Condomínio Barlavento, Praia Vermelha",
+    };
+    const p = buildNfePayload(input) as Obj;
+    expect(p.numero_destinatario).toBe("S/N");
+  });
+
   it("emite emitente, série, NCM e info complementar a partir da config", () => {
     const p = buildNfePayload(baseInput()) as Obj;
     expect(p.cnpj_emitente).toBe("11222333000181");

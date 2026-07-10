@@ -10,7 +10,7 @@
  * `codigo_tributario_municipio` e `aliquota_iss`. Sem eles o Focus rejeita.
  */
 
-import { enrichTomadorAddress } from "./address.ts";
+import { enrichTomadorAddress, NO_STREET_NUMBER } from "./address.ts";
 import { onlyDigits } from "./document.ts";
 import type { PagarmeAddress } from "./types.ts";
 
@@ -61,7 +61,7 @@ function enderecoObj(endereco: PagarmeAddress | null): Record<string, unknown> |
   const { endereco: e } = enrichTomadorAddress(endereco);
   return {
     logradouro: e.logradouro,
-    numero: e.numero,
+    numero: e.numero ?? NO_STREET_NUMBER,
     complemento: e.complemento,
     bairro: e.bairro,
     cep: e.cep,
