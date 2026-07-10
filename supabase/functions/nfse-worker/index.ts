@@ -10,16 +10,24 @@
  * Acionada por pg_cron (agendado) ou manualmente (POST). Idempotente por job:
  * a `focus_ref` é única; reenviar com a mesma ref é seguro no Focus.
  *
- * Resultado:
- *   202/200/201 -> job 'processing_authorization' (aguarda webhook do Focus)
- *   422/erro     -> job 'rejected' (mensagem_sefaz/erros preenchidos)
- *   exceção/5xx  -> volta para 'queued' com backoff (next_attempt_at)
+ * Resultado (a `focus_ref` é idempotente, então em dúvida CONSULTAMOS o Focus):
+ *   202/200/201  -> job 'processing_authorization' (aguarda webhook/reconcile)
+ *   5xx          -> transitório: volta para 'queued' com backoff
+ *   4xx          -> confirma no Focus (GET ref): se a nota existe, aplica o status
+ *                   real (autorizado/erro); só marca 'rejected' com erro REAL no
+ *                   corpo; corpo vazio => ambíguo => retry (nunca rejeita "no vácuo")
+ *   exceção      -> volta para 'queued' com backoff (next_attempt_at)
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { focusEmitPath, focusQueryPath } from "../_shared/nfse/builder.ts";
-import { applyFocusDocument, FOCUS_BASE, type FocusJobRef } from "../_shared/nfse/focus.ts";
+import {
+  applyFocusDocument,
+  FOCUS_BASE,
+  hasFocusError,
+  type FocusJobRef,
+} from "../_shared/nfse/focus.ts";
 import { buildNfsePayload } from "../_shared/nfse/payload.ts";
 import { buildNfePayload, type NfeEmitenteEndereco } from "../_shared/nfse/payloadNfe.ts";
 import type {
@@ -171,6 +179,25 @@ function assemblePayload(
   });
 }
 
+/**
+ * Consulta o documento no Focus por `ref` (GET no endpoint do tipo). Como a
+ * `focus_ref` é idempotente, esta é a FONTE DA VERDADE: usada para confirmar se
+ * uma resposta ruim do POST na verdade criou/autorizou a nota. Retorna o doc
+ * (HTTP 200) ou null (404/erro — nota inexistente no Focus).
+ */
+async function queryFocusDoc(
+  base: string,
+  documentType: FiscalDocumentType,
+  ref: string,
+  token: string,
+): Promise<Record<string, unknown> | null> {
+  const res = await fetch(`${base}${focusQueryPath(documentType, ref)}`, {
+    headers: { Authorization: "Basic " + btoa(`${token}:`) },
+  });
+  if (!res.ok) return null;
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
 async function emitJob(
   supabase: SupabaseClient,
   job: InvoiceJobRow,
@@ -227,36 +254,84 @@ async function emitJob(
     return { id: job.id, http: res.status, status: "processing_authorization" };
   }
 
-  // rejeição (422 etc.)
-  await supabase
-    .from("invoice_jobs")
-    .update({
-      status: "rejected",
-      focus_status: (focusBody.status as string | undefined) ?? null,
-      mensagem_sefaz: (focusBody.mensagem as string | undefined) ?? null,
-      erros: focusBody,
-    })
-    .eq("id", job.id);
-  return { id: job.id, http: res.status, status: "rejected" };
+  // 5xx: erro transitório do Focus -> relança para o retry com backoff (não rejeita)
+  if (res.status >= 500) {
+    throw new Error(`Focus ${res.status} ao emitir ref ${job.focus_ref}`);
+  }
+
+  // 4xx: pode ser rejeição REAL ou uma resposta enganosa (a nota pode ter sido
+  // criada/autorizada mesmo assim — visto em produção: nº 17 autorizado, mas o
+  // POST voltou não-2xx). Como a ref é idempotente, confirmamos no Focus antes de
+  // marcar terminal.
+  const jobRef: FocusJobRef = {
+    id: job.id,
+    company_id: job.company_id,
+    ambiente: job.ambiente,
+    focus_ref: job.focus_ref,
+  };
+  const confirmed = await queryFocusDoc(base, documentType, job.focus_ref, token);
+  if (confirmed) {
+    const applied = await applyFocusDocument(supabase, jobRef, confirmed, token);
+    return { id: job.id, http: res.status, status: applied ?? "processing_authorization" };
+  }
+
+  // Focus não tem a nota (404). Só rejeita se houver ERRO REAL no corpo do POST;
+  // corpo vazio => resposta ambígua => relança para retry (nunca rejeita "no vácuo").
+  if (hasFocusError(focusBody)) {
+    await supabase
+      .from("invoice_jobs")
+      .update({
+        status: "rejected",
+        focus_status: (focusBody.status as string | undefined) ?? null,
+        mensagem_sefaz: (focusBody.mensagem as string | undefined) ?? null,
+        erros: focusBody,
+      })
+      .eq("id", job.id);
+    return { id: job.id, http: res.status, status: "rejected" };
+  }
+
+  throw new Error(`resposta ambígua do Focus (HTTP ${res.status}, sem corpo de erro)`);
 }
 
 /**
- * Reconciliação: jobs presos em `processing_authorization`/`submitting` há mais
- * de RECONCILE_STALE_MINUTES são reconsultados no Focus (GET no endpoint do tipo
- * — /v2/nfe ou /v2/nfse) e têm o status reaplicado — cobre o caso de o webhook
- * do Focus não ter chegado.
+ * Reconciliação: reconsulta o Focus (GET por ref, fonte da verdade) e reaplica o
+ * status. Cobre dois casos:
+ *   1. jobs presos em `processing_authorization`/`submitting` (webhook não chegou);
+ *   2. jobs marcados `rejected` SEM erro real (focus_status null + erros vazio) —
+ *      a "rejeição falsa" que este fix passou a evitar; aqui curamos as antigas
+ *      (a nota pode estar autorizada no Focus mesmo constando rejeitada aqui).
+ * O GET só altera quando o Focus devolve a nota (200); 404 mantém o job como está.
  */
 async function reconcile(supabase: SupabaseClient): Promise<{ checked: number; updated: number }> {
   const cutoff = new Date(Date.now() - RECONCILE_STALE_MINUTES * 60_000).toISOString();
-  const { data: jobs } = await supabase
-    .from("invoice_jobs")
-    .select("id, company_id, document_type, ambiente, focus_ref")
-    .in("status", ["processing_authorization", "submitting"])
-    .lt("updated_at", cutoff)
-    .limit(50);
+  const cols = "id, company_id, document_type, ambiente, focus_ref";
+
+  const [{ data: stale }, { data: rejectedCandidates }] = await Promise.all([
+    supabase
+      .from("invoice_jobs")
+      .select(cols)
+      .in("status", ["processing_authorization", "submitting"])
+      .lt("updated_at", cutoff)
+      .limit(50),
+    // candidatos a "rejeição falsa": rejeitados sem status do Focus. O corpo de
+    // erro é filtrado em JS (hasFocusError) — jsonb vazio via PostgREST é frágil.
+    supabase
+      .from("invoice_jobs")
+      .select(`${cols}, erros`)
+      .eq("status", "rejected")
+      .is("focus_status", null)
+      .limit(100),
+  ]);
+
+  // só cura os que NÃO têm erro real capturado (o resto é rejeição legítima)
+  const falseRejects = (rejectedCandidates ?? []).filter(
+    (j) => !hasFocusError((j as { erros?: Record<string, unknown> | null }).erros),
+  );
+
+  const jobs = [...(stale ?? []), ...falseRejects];
 
   let updated = 0;
-  for (const job of (jobs ?? []) as (FocusJobRef & {
+  for (const job of jobs as (FocusJobRef & {
     document_type: FiscalDocumentType | null;
   })[]) {
     const { data: token } = await supabase.rpc("get_focus_token", { p_company_id: job.company_id });
@@ -273,7 +348,7 @@ async function reconcile(supabase: SupabaseClient): Promise<{ checked: number; u
     if (next) updated += 1;
   }
 
-  return { checked: (jobs ?? []).length, updated };
+  return { checked: jobs.length, updated };
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {

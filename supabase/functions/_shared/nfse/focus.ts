@@ -36,6 +36,22 @@ function asString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+/**
+ * true quando o corpo do Focus traz um erro REAL (não vazio). É a base para
+ * decidir se uma resposta não-2xx do POST é uma rejeição legítima — um corpo
+ * vazio (`{}`) NÃO é rejeição (pode ser timeout/dedup e a nota existir no Focus).
+ */
+export function hasFocusError(body: Record<string, unknown> | null | undefined): boolean {
+  if (!body) return false;
+  const erros = body.erros;
+  const hasErros = Array.isArray(erros)
+    ? erros.length > 0
+    : erros != null && typeof erros === "object"
+      ? Object.keys(erros as Record<string, unknown>).length > 0
+      : false;
+  return hasErros || typeof body.codigo === "string" || typeof body.mensagem === "string";
+}
+
 async function downloadToStorage(
   supabase: SupabaseClient,
   base: string,
