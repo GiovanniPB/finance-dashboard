@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Pencil, TriangleAlert } from "lucide-react";
 
@@ -6,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AccountBalanceChart } from "@/features/bank-accounts/components/AccountBalanceChart";
 import { AccountLedgerTable } from "@/features/bank-accounts/components/AccountLedgerTable";
 import { AccountPeriodCards } from "@/features/bank-accounts/components/AccountPeriodCards";
+import { toBalanceSeries } from "@/features/bank-accounts/compute";
 import { useAccountLedger, useAccountPeriod, useBankAccount } from "@/features/bank-accounts/hooks";
 import { periodPresets, useAccountFilters } from "@/features/bank-accounts/useAccountFilters";
 import { formatDate } from "@/lib/dates";
@@ -31,6 +34,12 @@ export default function AccountDetailPage() {
   const ledger = useAccountLedger(id, from, to);
 
   const presets = periodPresets();
+
+  // A série do gráfico sai do próprio extrato — sem consulta extra.
+  const series = React.useMemo(
+    () => toBalanceSeries(ledger.data ?? [], period.data?.opening_balance ?? 0, from),
+    [ledger.data, period.data?.opening_balance, from],
+  );
 
   if (account.isLoading) {
     return (
@@ -137,6 +146,11 @@ export default function AccountDetailPage() {
       </div>
 
       <AccountPeriodCards data={period.data} loading={period.isLoading} from={from} to={to} />
+
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold tracking-tight">Evolução do saldo</h2>
+        <AccountBalanceChart data={series} loading={ledger.isLoading || period.isLoading} />
+      </div>
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
