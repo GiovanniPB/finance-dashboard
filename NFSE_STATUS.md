@@ -121,7 +121,8 @@ pagar.me ──charge.paid?account=<slug>──►  Edge Function pagarme-webhoo
 3. Payload do Focus NFS-e é **aninhado** (`prestador`/`tomador`/`servico`) — formato plano dá `requisicao_invalida`; o da NF-e é **plano** (`*_emitente`/`*_destinatario` + `items[]`).
 4. Barueri exige no endereço do tomador: `numero`, `bairro` (+ logradouro/cep/municipio/uf) e `item_lista_servico`.
 5. **NFS-e Barueri (Simples):** exige `codigo_opcao_simples_nacional=3` (ME/EPP) + `regime_tributario_simples_nacional=1`; código de serviço 2026 = `080201220` (o antigo `080214211` saiu de uso).
-6. **NF-e (produto/livro):** imunidade é só do ICMS (CST 41) e SP exige `cBenef` (`SP070130`); **PIS/COFINS são tributados** (0,65% / 3%); CFOP `5101` interno / `6107` interestadual; série própria (`101`) p/ não colidir com emissor legado.
+6. **NF-e (produto/livro):** imunidade é só do ICMS (CST 41) e SP exige `cBenef` (`SP070130`); **PIS/COFINS são tributados** (0,65% / 3%) e a **base de cálculo tem de ir explícita** (`pis_base_calculo`/`cofins_base_calculo`) — sem ela a nota é autorizada com vBC e valores zerados; CFOP `5101` interno / `6107` interestadual.
+   **Numeração não é nossa:** série e próximo número vivem no painel do Focus (Empresa → Documentos fiscais), por ambiente. O `serie` do perfil fiscal só acompanha o que está lá — a faixa é definida pela contabilidade (produção: série `2` a partir do nº 1).
 7. **Split:** o `/payables?charge_id=` é a fonte confiável da fatia (crédito − estorno/chargeback); o `/payables` global é quebrado p/ paginação.
 
 ---
