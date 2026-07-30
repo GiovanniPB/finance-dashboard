@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +41,12 @@ interface Props {
   isHidden: (id: string) => boolean;
   onEdit: (transaction: TransactionWithRelations) => void;
   onDelete: (transaction: TransactionWithRelations) => void;
+  /** Seleção em massa — ausente quando o usuário não pode editar. */
+  selection?: {
+    selectedIds: Set<string>;
+    onToggleRow: (id: string) => void;
+    onTogglePage: () => void;
+  };
 }
 
 export function TransactionsTable({
@@ -52,6 +59,7 @@ export function TransactionsTable({
   isHidden,
   onEdit,
   onDelete,
+  selection,
 }: Props) {
   const sorting = React.useMemo<SortingState>(
     () => [{ id: sortBy, desc: sortOrder === "desc" }],
@@ -202,8 +210,41 @@ export function TransactionsTable({
       .map((id) => defs[id])
       .filter((c): c is ColumnDef<TransactionWithRelations> => Boolean(c));
 
-    return [...visible, actions];
-  }, [orderedColumnIds, isHidden, onEdit, onDelete]);
+    if (!selection) return [...visible, actions];
+
+    const allOnPageSelected = rows.length > 0 && rows.every((r) => selection.selectedIds.has(r.id));
+    const someOnPageSelected = rows.some((r) => selection.selectedIds.has(r.id));
+
+    const select: ColumnDef<TransactionWithRelations> = {
+      id: "select",
+      enableSorting: false,
+      header: () => (
+        <Checkbox
+          aria-label="Selecionar todos os lançamentos desta página"
+          checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
+          onCheckedChange={selection.onTogglePage}
+        />
+      ),
+      cell: ({ row }) => (
+        // O clique na linha abre o drawer; aqui ele precisa parar no checkbox.
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <Checkbox
+            aria-label={`Selecionar ${row.original.description}`}
+            checked={selection.selectedIds.has(row.original.id)}
+            onCheckedChange={() => {
+              selection.onToggleRow(row.original.id);
+            }}
+          />
+        </div>
+      ),
+    };
+
+    return [select, ...visible, actions];
+  }, [orderedColumnIds, isHidden, onEdit, onDelete, selection, rows]);
 
   const table = useReactTable({
     data: rows,
@@ -276,7 +317,10 @@ export function TransactionsTable({
                 onClick={() => {
                   onEdit(row.original);
                 }}
-                className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-surface-2/50"
+                className={cn(
+                  "cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-surface-2/50",
+                  selection?.selectedIds.has(row.original.id) && "bg-accent/5",
+                )}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="px-4 py-3 align-middle">

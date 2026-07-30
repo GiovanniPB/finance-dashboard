@@ -2880,6 +2880,10 @@ export type Database = {
           outflow: number
         }[]
       }
+      bulk_update_transactions: {
+        Args: { p_ids: string[]; p_patch: Json }
+        Returns: number
+      }
       calculate_simples_anexo_iii: {
         Args: { p_period_revenue: number; p_rbt12: number }
         Returns: {
