@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createBankAccount,
   deleteBankAccount,
+  fetchAccountLedger,
+  fetchAccountPeriod,
+  fetchBalancesMulti,
+  fetchBankAccount,
   fetchBankAccounts,
   fetchBankAccountUsage,
   toggleBankAccountActive,
@@ -13,8 +17,48 @@ import {
 
 export const bankKeys = {
   byCompany: (companyId: string) => ["bank-accounts", companyId] as const,
+  one: (id: string) => ["bank-accounts", "one", id] as const,
   usage: (id: string) => ["bank-accounts", "usage", id] as const,
+  balances: (asOf: string, companyIds: string[] | null) =>
+    ["bank-accounts", "balances", asOf, companyIds] as const,
+  ledger: (id: string, from: string, to: string) =>
+    ["bank-accounts", "ledger", id, from, to] as const,
+  period: (id: string, from: string, to: string) =>
+    ["bank-accounts", "period", id, from, to] as const,
 };
+
+/** Saldos das contas em `asOf`. `companyIds` null = todas as empresas acessíveis. */
+export function useBalancesMulti(asOf: string, companyIds: string[] | null) {
+  return useQuery({
+    queryKey: bankKeys.balances(asOf, companyIds),
+    queryFn: () => fetchBalancesMulti(asOf, companyIds),
+    enabled: Boolean(asOf),
+  });
+}
+
+export function useBankAccount(id: string | null | undefined) {
+  return useQuery({
+    queryKey: bankKeys.one(id ?? ""),
+    queryFn: () => fetchBankAccount(id ?? ""),
+    enabled: Boolean(id),
+  });
+}
+
+export function useAccountLedger(id: string | null | undefined, from: string, to: string) {
+  return useQuery({
+    queryKey: bankKeys.ledger(id ?? "", from, to),
+    queryFn: () => fetchAccountLedger(id ?? "", from, to),
+    enabled: Boolean(id) && Boolean(from) && Boolean(to),
+  });
+}
+
+export function useAccountPeriod(id: string | null | undefined, from: string, to: string) {
+  return useQuery({
+    queryKey: bankKeys.period(id ?? "", from, to),
+    queryFn: () => fetchAccountPeriod(id ?? "", from, to),
+    enabled: Boolean(id) && Boolean(from) && Boolean(to),
+  });
+}
 
 export function useBankAccounts(companyId: string | null) {
   return useQuery({

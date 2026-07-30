@@ -4,6 +4,95 @@ export type BankAccount = Tables["bank_accounts"]["Row"];
 export type BankAccountInsert = Tables["bank_accounts"]["Insert"];
 export type BankAccountUpdate = Tables["bank_accounts"]["Update"];
 
+export interface BankAccountWithBalance {
+  company_id: string;
+  company_name: string;
+  bank_account_id: string;
+  bank_name: string;
+  nickname: string;
+  account_type: string;
+  initial_balance: number;
+  inflow: number;
+  outflow: number;
+  closing_balance: number;
+}
+
+export interface LedgerEntry {
+  transaction_id: string;
+  cash_date: string;
+  description: string;
+  direction: "inflow" | "outflow";
+  amount: number;
+  signed_amount: number;
+  account_code: string | null;
+  account_name: string | null;
+  counterparty_name: string | null;
+  document_ref: string | null;
+  running_balance: number;
+}
+
+export interface AccountPeriodSummary {
+  opening_balance: number;
+  inflow: number;
+  outflow: number;
+  closing_balance: number;
+}
+
+/**
+ * Saldo das contas de várias empresas numa data. `companyIds` null busca todas
+ * as empresas que o usuário acessa — é o modo consolidado.
+ */
+export async function fetchBalancesMulti(
+  asOf: string,
+  companyIds: string[] | null,
+): Promise<BankAccountWithBalance[]> {
+  const { data, error } = await supabase.rpc("bank_balances_multi", {
+    p_as_of: asOf,
+    // O default da RPC (todas as empresas acessíveis) é o parâmetro ausente.
+    p_company_ids: companyIds ?? undefined,
+  });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Extrato de uma conta no período, com saldo corrente linha a linha. */
+export async function fetchAccountLedger(
+  bankAccountId: string,
+  from: string,
+  to: string,
+): Promise<LedgerEntry[]> {
+  const { data, error } = await supabase.rpc("bank_account_ledger", {
+    p_bank_account_id: bankAccountId,
+    p_from: from,
+    p_to: to,
+  });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Abertura, entradas, saídas e fechamento de uma conta no período. */
+export async function fetchAccountPeriod(
+  bankAccountId: string,
+  from: string,
+  to: string,
+): Promise<AccountPeriodSummary> {
+  const { data, error } = await supabase
+    .rpc("bank_account_period", {
+      p_bank_account_id: bankAccountId,
+      p_from: from,
+      p_to: to,
+    })
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchBankAccount(id: string): Promise<BankAccount> {
+  const { data, error } = await supabase.from("bank_accounts").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchBankAccounts(companyId: string): Promise<BankAccount[]> {
   const { data, error } = await supabase
     .from("bank_accounts")

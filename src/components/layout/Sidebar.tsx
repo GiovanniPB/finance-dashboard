@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Upload,
   Users,
+  Wallet,
 } from "lucide-react";
 
 import type { DataModule } from "@/features/auth/modules";
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { to: "/bills", label: "Contas a Pagar/Receber", icon: Receipt, module: "financials" },
   { to: "/dre", label: "DRE", icon: FileBarChart, module: "financials" },
   { to: "/cashflow", label: "Fluxo de Caixa", icon: TrendingUp, module: "financials" },
+  { to: "/contas", label: "Contas", icon: Wallet, module: "financials" },
   { to: "/reconciliation", label: "Conciliação", icon: GitCompare, module: "financials" },
   { to: "/forecast", label: "Forecast 90d", icon: CalendarRange, module: "financials" },
   { to: "/reports", label: "Relatórios", icon: BarChart3, module: "financials" },

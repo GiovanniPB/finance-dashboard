@@ -2710,6 +2710,31 @@ export type Database = {
         Args: { p_template_id: string; p_through_date?: string }
         Returns: number
       }
+      bank_account_ledger: {
+        Args: { p_bank_account_id: string; p_from: string; p_to: string }
+        Returns: {
+          account_code: string
+          account_name: string
+          amount: number
+          cash_date: string
+          counterparty_name: string
+          description: string
+          direction: Database["public"]["Enums"]["transaction_direction"]
+          document_ref: string
+          running_balance: number
+          signed_amount: number
+          transaction_id: string
+        }[]
+      }
+      bank_account_period: {
+        Args: { p_bank_account_id: string; p_from: string; p_to: string }
+        Returns: {
+          closing_balance: number
+          inflow: number
+          opening_balance: number
+          outflow: number
+        }[]
+      }
       bank_account_usage: {
         Args: { p_id: string }
         Returns: {
@@ -2726,6 +2751,21 @@ export type Database = {
           bank_account_id: string
           bank_name: string
           closing_balance: number
+          inflow: number
+          initial_balance: number
+          nickname: string
+          outflow: number
+        }[]
+      }
+      bank_balances_multi: {
+        Args: { p_as_of: string; p_company_ids?: string[] }
+        Returns: {
+          account_type: Database["public"]["Enums"]["bank_account_type"]
+          bank_account_id: string
+          bank_name: string
+          closing_balance: number
+          company_id: string
+          company_name: string
           inflow: number
           initial_balance: number
           nickname: string
