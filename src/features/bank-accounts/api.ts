@@ -28,7 +28,34 @@ export interface LedgerEntry {
   account_name: string | null;
   counterparty_name: string | null;
   document_ref: string | null;
+  /** Perna de uma transferência entre contas — não é receita nem despesa. */
+  is_transfer: boolean;
   running_balance: number;
+}
+
+export interface TransferInput {
+  companyId: string;
+  fromAccountId: string;
+  toAccountId: string;
+  amount: number;
+  date: string;
+  description?: string | null;
+  notes?: string | null;
+}
+
+/** Cria as duas pernas da transferência atomicamente. Devolve o transfer_group_id. */
+export async function createTransfer(input: TransferInput): Promise<string> {
+  const { data, error } = await supabase.rpc("create_transfer", {
+    p_company_id: input.companyId,
+    p_from_account: input.fromAccountId,
+    p_to_account: input.toAccountId,
+    p_amount: input.amount,
+    p_date: input.date,
+    p_description: input.description ?? undefined,
+    p_notes: input.notes ?? undefined,
+  });
+  if (error) throw error;
+  return data;
 }
 
 export interface AccountPeriodSummary {

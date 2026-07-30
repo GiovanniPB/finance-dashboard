@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   countUnassignedSettled,
   createBankAccount,
+  createTransfer,
   deleteBankAccount,
   fetchAccountLedger,
   fetchAccountPeriod,
@@ -14,6 +15,7 @@ import {
   updateBankAccount,
   type BankAccountInsert,
   type BankAccountUpdate,
+  type TransferInput,
 } from "./api";
 
 export const bankKeys = {
@@ -42,6 +44,19 @@ export function useUnassignedCount(companyIds: string[] | null) {
   return useQuery({
     queryKey: ["bank-accounts", "unassigned", companyIds] as const,
     queryFn: () => countUnassignedSettled(companyIds),
+  });
+}
+
+export function useCreateTransfer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: TransferInput) => createTransfer(input),
+    onSuccess: () => {
+      // A transferência mexe no saldo das duas contas e nas listas de lançamentos.
+      void qc.invalidateQueries({ queryKey: ["bank-accounts"] });
+      void qc.invalidateQueries({ queryKey: ["transactions"] });
+      void qc.invalidateQueries({ queryKey: ["cashflow"] });
+    },
   });
 }
 

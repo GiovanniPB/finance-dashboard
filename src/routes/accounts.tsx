@@ -1,8 +1,11 @@
+import * as React from "react";
 import { Link } from "react-router-dom";
-import { Globe2, Landmark, TriangleAlert } from "lucide-react";
+import { ArrowLeftRight, Globe2, Landmark, TriangleAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TransferDrawer } from "@/features/bank-accounts/components/TransferDrawer";
 import { useBalancesMulti, useUnassignedCount } from "@/features/bank-accounts/hooks";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { NO_BANK_ACCOUNT } from "@/features/transactions/types";
@@ -28,6 +31,7 @@ export default function AccountsPage() {
   const companyIds = isConsolidated ? null : selectedCompanyId ? [selectedCompanyId] : null;
   const { data, isLoading } = useBalancesMulti(today, companyIds);
   const unassigned = useUnassignedCount(companyIds);
+  const [transferOpen, setTransferOpen] = React.useState(false);
 
   const total = data?.reduce((acc, a) => acc + a.closing_balance, 0) ?? 0;
 
@@ -55,21 +59,29 @@ export default function AccountsPage() {
             ver o extrato.
           </p>
         </div>
-        {!isLoading && data && data.length > 0 && (
-          <div className="text-right">
-            <div className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
-              Total disponível
+        <div className="flex items-end gap-4">
+          {!isLoading && data && data.length > 0 && (
+            <div className="text-right">
+              <div className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
+                Total disponível
+              </div>
+              <div
+                className={cn(
+                  "font-mono text-2xl font-semibold tabular-nums",
+                  total < 0 ? "text-expense" : "text-accent",
+                )}
+              >
+                {formatBRL(total)}
+              </div>
             </div>
-            <div
-              className={cn(
-                "font-mono text-2xl font-semibold tabular-nums",
-                total < 0 ? "text-expense" : "text-accent",
-              )}
-            >
-              {formatBRL(total)}
-            </div>
-          </div>
-        )}
+          )}
+          {/* Transferir exige uma empresa definida: as duas contas têm que ser dela. */}
+          {!isConsolidated && selectedCompanyId && (
+            <Button onClick={() => setTransferOpen(true)}>
+              <ArrowLeftRight className="size-4" /> Transferir
+            </Button>
+          )}
+        </div>
       </div>
 
       {(unassigned.data ?? 0) > 0 && (
@@ -177,6 +189,14 @@ export default function AccountsPage() {
             </Link>
           </span>
         </div>
+      )}
+
+      {!isConsolidated && selectedCompanyId && (
+        <TransferDrawer
+          open={transferOpen}
+          onOpenChange={setTransferOpen}
+          companyId={selectedCompanyId}
+        />
       )}
     </div>
   );

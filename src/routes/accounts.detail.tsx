@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, Pencil, TriangleAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AccountBalanceChart } from "@/features/bank-accounts/components/AccountBalanceChart";
 import { AccountLedgerTable } from "@/features/bank-accounts/components/AccountLedgerTable";
 import { AccountPeriodCards } from "@/features/bank-accounts/components/AccountPeriodCards";
+import { TransferDrawer } from "@/features/bank-accounts/components/TransferDrawer";
 import { toBalanceSeries } from "@/features/bank-accounts/compute";
 import { useAccountLedger, useAccountPeriod, useBankAccount } from "@/features/bank-accounts/hooks";
 import { periodPresets, useAccountFilters } from "@/features/bank-accounts/useAccountFilters";
@@ -34,6 +35,7 @@ export default function AccountDetailPage() {
   const ledger = useAccountLedger(id, from, to);
 
   const presets = periodPresets();
+  const [transferOpen, setTransferOpen] = React.useState(false);
 
   // A série do gráfico sai do próprio extrato — sem consulta extra.
   const series = React.useMemo(
@@ -87,11 +89,16 @@ export default function AccountDetailPage() {
               {!acc.is_active && <Badge tone="warning">Inativa</Badge>}
             </p>
           </div>
-          <Button variant="secondary" asChild>
-            <Link to="/settings/banks">
-              <Pencil className="size-4" /> Editar conta
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" asChild>
+              <Link to="/settings/banks">
+                <Pencil className="size-4" /> Editar conta
+              </Link>
+            </Button>
+            <Button onClick={() => setTransferOpen(true)}>
+              <ArrowLeftRight className="size-4" /> Transferir
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -166,6 +173,13 @@ export default function AccountDetailPage() {
           from={from}
         />
       </div>
+
+      <TransferDrawer
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        companyId={acc.company_id}
+        defaultFromAccountId={acc.id}
+      />
     </div>
   );
 }

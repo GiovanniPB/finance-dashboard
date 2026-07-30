@@ -1,3 +1,5 @@
+import { ArrowLeftRight } from "lucide-react";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
@@ -69,7 +71,15 @@ export function AccountLedgerTable({ data, loading, openingBalance, from }: Prop
             >
               <td className="px-4 py-2.5 whitespace-nowrap">{formatDate(row.cash_date)}</td>
               <td className="px-4 py-2.5">
-                <div className="font-medium">{row.description}</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{row.description}</span>
+                  {row.is_transfer && (
+                    <span className="text-2xs inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-1.5 py-0.5 text-text-subtle">
+                      <ArrowLeftRight className="size-2.5" />
+                      Transferência
+                    </span>
+                  )}
+                </div>
                 {(row.counterparty_name ?? row.document_ref) && (
                   <div className="text-2xs text-text-subtle">
                     {[row.counterparty_name, row.document_ref].filter(Boolean).join(" · ")}

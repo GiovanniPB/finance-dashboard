@@ -14,6 +14,7 @@ function entry(partial: Partial<LedgerEntry> & Pick<LedgerEntry, "cash_date">): 
     account_name: null,
     counterparty_name: null,
     document_ref: null,
+    is_transfer: false,
     running_balance: 0,
     ...partial,
   };
