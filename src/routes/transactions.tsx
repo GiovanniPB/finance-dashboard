@@ -261,24 +261,6 @@ export default function TransactionsPage() {
 
       <TransactionsFilters companyId={companyId} />
 
-      <TransactionsTable
-        rows={data?.rows ?? []}
-        loading={isLoading}
-        sortBy={filters.sortBy}
-        sortOrder={filters.sortOrder}
-        onSortChange={(sortBy, sortOrder) =>
-          void setFilters({
-            sortBy: sortBy as typeof filters.sortBy,
-            sortOrder,
-          })
-        }
-        orderedColumnIds={orderedColumnIds}
-        isHidden={columnPrefs.isHidden}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        selection={selection}
-      />
-
       <BulkActionsBar
         selectedCount={selectedIds.size}
         totalCount={data?.totalCount ?? 0}
@@ -300,6 +282,24 @@ export default function TransactionsPage() {
         onEdit={() => {
           setBulkOpen(true);
         }}
+      />
+
+      <TransactionsTable
+        rows={data?.rows ?? []}
+        loading={isLoading}
+        sortBy={filters.sortBy}
+        sortOrder={filters.sortOrder}
+        onSortChange={(sortBy, sortOrder) =>
+          void setFilters({
+            sortBy: sortBy as typeof filters.sortBy,
+            sortOrder,
+          })
+        }
+        orderedColumnIds={orderedColumnIds}
+        isHidden={columnPrefs.isHidden}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        selection={selection}
       />
 
       <TransactionsPagination

@@ -28,7 +28,9 @@ export function BulkActionsBar({
   const exceedsLimit = totalCount > limit;
 
   return (
-    <div className="sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-accent/40 bg-surface p-3 shadow-[var(--shadow-md)]">
+    // Gruda logo abaixo da topbar (que é sticky em z-30) para seguir visível
+    // enquanto o usuário rola a lista escolhendo linhas.
+    <div className="sticky top-[calc(var(--topbar-height)+0.5rem)] z-20 flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-accent/40 bg-surface p-3 shadow-[var(--shadow-md)]">
       <span className="text-sm font-medium">
         {selectedCount.toLocaleString("pt-BR")} selecionado(s)
       </span>
