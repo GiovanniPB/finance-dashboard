@@ -33,6 +33,7 @@ export type InvoiceJob = InvoiceJobRow & {
 export interface InvoiceJobFilters {
   statuses: string[] | null; // null = todas
   accountId?: string | null;
+  companyId?: string | null; // null = consolidado (todas as empresas visíveis pela RLS)
   source?: string | null; // metadata.source exato (ex.: 'backfill')
   ambiente?: string | null; // 'homologacao' | 'producao'
   origin?: string | null; // 'webhook' (source nulo) | 'backfill' (source='backfill')
@@ -301,6 +302,9 @@ export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<Invo
   }
   if (filters.accountId) {
     query = query.eq("pagarme_account_id", filters.accountId);
+  }
+  if (filters.companyId) {
+    query = query.eq("company_id", filters.companyId);
   }
   if (filters.source) {
     query = query.eq("metadata->>source", filters.source);

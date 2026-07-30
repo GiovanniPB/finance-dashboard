@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
@@ -64,17 +65,22 @@ export function InvoiceJobsPanel() {
   const [detail, setDetail] = React.useState<InvoiceJob | null>(null);
   const [exporting, setExporting] = React.useState<ExportFormat | "zip" | null>(null);
 
+  // segue o switcher global: empresa selecionada filtra a fila; consolidado = todas
+  const { selectedCompanyId, isConsolidated, selectedCompany } = useCompanyScope();
+  const companyId = isConsolidated ? null : selectedCompanyId;
+
   const filters = React.useMemo<InvoiceJobFilters>(() => {
     const group = JOB_STATUS_FILTERS.find((f) => f.value === statusFilter);
     return {
       statuses: group?.statuses ?? null,
       accountId: accountId === "all" ? null : accountId,
+      companyId,
       ambiente: ambiente === "all" ? null : ambiente,
       origin: origin === "all" ? null : origin,
       page,
       pageSize: PAGE_SIZE,
     };
-  }, [statusFilter, accountId, ambiente, origin, page]);
+  }, [statusFilter, accountId, companyId, ambiente, origin, page]);
 
   const { data, isLoading } = useInvoiceJobs(filters);
   const jobs = data?.rows ?? [];
@@ -87,7 +93,7 @@ export function InvoiceJobsPanel() {
   React.useEffect(() => {
     setPage(0);
     clear();
-  }, [statusFilter, accountId, ambiente, origin, clear]);
+  }, [statusFilter, accountId, companyId, ambiente, origin, clear]);
 
   function emitSelected() {
     approveJobs.mutate(
@@ -330,7 +336,10 @@ export function InvoiceJobsPanel() {
       {total > 0 && (
         <div className="flex items-center justify-between">
           <span className="text-2xs text-text-muted">
-            {firstRow}–{lastRow} de {total}
+            {firstRow}–{lastRow} de {total} ·{" "}
+            {selectedCompany
+              ? (selectedCompany.trade_name ?? selectedCompany.legal_name)
+              : "todas as empresas"}
           </span>
           <div className="flex items-center gap-1">
             <Button
