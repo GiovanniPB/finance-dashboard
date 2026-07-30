@@ -1647,6 +1647,7 @@ export type Database = {
           day_of_week: number | null
           description: string
           direction: Database["public"]["Enums"]["transaction_direction"]
+          document_ref: string | null
           end_date: string | null
           frequency: Database["public"]["Enums"]["recurrence_frequency"]
           id: string
@@ -1656,6 +1657,7 @@ export type Database = {
           max_occurrences: number | null
           metadata: Json
           next_run_date: string
+          notes: string | null
           start_date: string
           total_generated: number
           updated_at: string
@@ -1674,6 +1676,7 @@ export type Database = {
           day_of_week?: number | null
           description: string
           direction: Database["public"]["Enums"]["transaction_direction"]
+          document_ref?: string | null
           end_date?: string | null
           frequency: Database["public"]["Enums"]["recurrence_frequency"]
           id?: string
@@ -1683,6 +1686,7 @@ export type Database = {
           max_occurrences?: number | null
           metadata?: Json
           next_run_date: string
+          notes?: string | null
           start_date: string
           total_generated?: number
           updated_at?: string
@@ -1701,6 +1705,7 @@ export type Database = {
           day_of_week?: number | null
           description?: string
           direction?: Database["public"]["Enums"]["transaction_direction"]
+          document_ref?: string | null
           end_date?: string | null
           frequency?: Database["public"]["Enums"]["recurrence_frequency"]
           id?: string
@@ -1710,6 +1715,7 @@ export type Database = {
           max_occurrences?: number | null
           metadata?: Json
           next_run_date?: string
+          notes?: string | null
           start_date?: string
           total_generated?: number
           updated_at?: string
