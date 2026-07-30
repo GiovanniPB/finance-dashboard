@@ -190,23 +190,45 @@ Tailwind em [src/styles/globals.css](src/styles/globals.css) via `@theme inline`
 
 ## Deploy (Cloudflare Pages)
 
-1. Conectar repositório no Cloudflare Pages
-2. Build command: `bun install --frozen-lockfile && bun run build`
-3. Build output: `dist` (declarado em [wrangler.toml](wrangler.toml))
-4. Env vars (Production **e** Preview):
+Configuração no dashboard do Pages (a build é estática, sem Pages Functions):
+
+1. Build command: `bun install --frozen-lockfile && bun run build`
+2. Build output: `dist`
+3. Env vars (Production **e** Preview):
    - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
    - `BUN_VERSION` = a mesma versão do dev/CI (hoje `1.3.13`)
    - `SKIP_DEPENDENCY_INSTALL` = `1`
-5. SPA fallback já configurado em [public/\_redirects](public/_redirects)
+4. SPA fallback já configurado em [public/\_redirects](public/_redirects)
+
+### ⚠️ Não adicione `wrangler.toml` a este projeto
+
+Com um Wrangler config no repo, **o arquivo passa a ser a fonte da verdade** e a
+configuração do dashboard vira somente-leitura — inclusive as variáveis de
+build. O log do Pages mostra o efeito:
+
+```
+Found wrangler.toml file. Reading build configuration...
+Build environment variables: (none found)
+```
+
+As variáveis salvas no dashboard param de chegar ao build. Como este projeto é
+SPA estática (sem `functions/`), o `wrangler.toml` só declarava
+`pages_build_output_dir`, que o dashboard já tem — e em troca engolia as
+variáveis. Foi removido em 30/07/2026.
+
+Se algum dia entrarem Pages Functions e o arquivo voltar, as variáveis de build
+têm de ir para dentro dele; o dashboard deixará de valer.
 
 ### Por que `SKIP_DEPENDENCY_INSTALL`
 
 O Pages detecta o gerenciador de pacotes pelo lockfile e **não reconhece o
-`bun.lock` em texto** (bun ≥ 1.2) — só o antigo `bun.lockb`. Sem isso ele cai
-no `npm install` antes do build command, com o npm que vem no Node da imagem.
-Em 30/07/2026 esse fallback quebrou o deploy: `npm error Cannot read properties
-of null (reading 'edgesOut')` — bug do arborist do npm 10.9.2, que não acontece
-no npm 11 nem no bun, com o mesmo `package.json`.
+`bun.lock` em texto** (bun ≥ 1.2) — só o antigo `bun.lockb`. Sem isso ele roda
+`npm install` **antes** do build command, com o npm que vem no Node da imagem —
+o build command com bun nem chega a executar. Em 30/07/2026 esse fallback
+quebrou o deploy: `npm error Cannot read properties of null (reading
+'edgesOut')` — bug do arborist do npm 10.9.2, que não acontece no npm 11 nem no
+bun, com o mesmo `package.json`. Nada havia mudado no repo; o npm apenas passou
+a engasgar com a árvore de dependências.
 
 `SKIP_DEPENDENCY_INSTALL=1` desliga a instalação automática; quem instala é o
 build command, com bun e o mesmo lockfile do CI e do dev. Uma só cadeia de
