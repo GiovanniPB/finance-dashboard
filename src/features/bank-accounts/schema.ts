@@ -38,6 +38,35 @@ export const bankAccountFormSchema = z.object({
 
 export type BankAccountFormValues = z.infer<typeof bankAccountFormSchema>;
 
+export const transferFormSchema = z
+  .object({
+    companyId: z.string().uuid(),
+    fromAccountId: z.string().uuid("Escolha a conta de origem"),
+    toAccountId: z.string().uuid("Escolha a conta de destino"),
+    amount: z.number().positive("Valor deve ser maior que zero"),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, "Data inválida"),
+    description: z.string().max(300).nullable().optional(),
+    notes: z.string().max(2000).nullable().optional(),
+  })
+  .refine((v) => v.fromAccountId !== v.toAccountId, {
+    message: "Origem e destino devem ser contas diferentes",
+    path: ["toAccountId"],
+  });
+
+export type TransferFormValues = z.infer<typeof transferFormSchema>;
+
+export function emptyTransferForm(companyId: string, fromAccountId = ""): TransferFormValues {
+  return {
+    companyId,
+    fromAccountId,
+    toAccountId: "",
+    amount: 0,
+    date: new Date().toISOString().slice(0, 10),
+    description: null,
+    notes: null,
+  };
+}
+
 export function emptyBankAccountForm(companyId: string): BankAccountFormValues {
   return {
     companyId,

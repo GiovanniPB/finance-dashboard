@@ -22,6 +22,12 @@ export interface TransactionWithRelations extends TransactionRow {
   counterparty: { id: string; name: string } | null;
 }
 
+/**
+ * Valor sentinela do filtro de conta bancária: lançamentos sem conta atribuída.
+ * Eles não entram no saldo de nenhuma conta, então precisam ser localizáveis.
+ */
+export const NO_BANK_ACCOUNT = "__none__";
+
 export interface TransactionFilters {
   companyId?: string | null;
   from?: string | null;

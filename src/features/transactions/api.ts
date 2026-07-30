@@ -1,12 +1,14 @@
 import { supabase } from "@/lib/supabase";
 
-import type {
-  TransactionFilters,
-  TransactionInsert,
-  TransactionRow,
-  TransactionsListResult,
-  TransactionUpdate,
-  TransactionWithRelations,
+import {
+  NO_BANK_ACCOUNT,
+  type TransactionFilters,
+  type TransactionInsert,
+  type TransactionRow,
+  type TransactionsListResult,
+  type TransactionStatus,
+  type TransactionUpdate,
+  type TransactionWithRelations,
 } from "./types";
 
 const SELECT_WITH_RELATIONS = `
@@ -40,7 +42,8 @@ export async function fetchTransactions(
   if (filters.direction) query = query.eq("direction", filters.direction);
   if (filters.accountId) query = query.eq("account_id", filters.accountId);
   if (filters.costCenterId) query = query.eq("cost_center_id", filters.costCenterId);
-  if (filters.bankAccountId) query = query.eq("bank_account_id", filters.bankAccountId);
+  if (filters.bankAccountId === NO_BANK_ACCOUNT) query = query.is("bank_account_id", null);
+  else if (filters.bankAccountId) query = query.eq("bank_account_id", filters.bankAccountId);
   if (filters.search) query = query.ilike("description", `%${filters.search}%`);
 
   query = query.order(sortBy, { ascending: sortOrder === "asc" }).range(from, to);
@@ -61,6 +64,57 @@ export async function fetchTransactions(
   }
 
   return { rows, totalCount, pageCount, inflowTotal, outflowTotal };
+}
+
+/** Teto por operação, espelhando a validação da RPC. */
+export const BULK_EDIT_LIMIT = 2000;
+
+/**
+ * Campos editáveis em massa. Chave ausente = não altera; chave com null = limpa
+ * o campo. `account_id` e `status` não aceitam null (são not null na tabela).
+ */
+export interface BulkPatch {
+  bank_account_id?: string | null;
+  account_id?: string;
+  cost_center_id?: string | null;
+  counterparty_id?: string | null;
+  status?: TransactionStatus;
+  cash_date?: string;
+  // O parâmetro da RPC é jsonb; o tipo gerado exige index signature.
+  [key: string]: string | null | undefined;
+}
+
+/** Aplica o patch aos lançamentos. Devolve quantos foram alterados. */
+export async function bulkUpdateTransactions(ids: string[], patch: BulkPatch): Promise<number> {
+  const { data, error } = await supabase.rpc("bulk_update_transactions", {
+    p_ids: ids,
+    p_patch: patch,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Ids de todos os lançamentos que batem com o filtro, para "selecionar tudo"
+ * sem depender da página atual. Limitado ao teto da edição em massa.
+ */
+export async function fetchTransactionIds(filters: TransactionFilters): Promise<string[]> {
+  let query = supabase.from("transactions").select("id").is("deleted_at", null);
+
+  if (filters.companyId) query = query.eq("company_id", filters.companyId);
+  if (filters.from) query = query.gte("accrual_date", filters.from);
+  if (filters.to) query = query.lte("accrual_date", filters.to);
+  if (filters.status && filters.status.length > 0) query = query.in("status", filters.status);
+  if (filters.direction) query = query.eq("direction", filters.direction);
+  if (filters.accountId) query = query.eq("account_id", filters.accountId);
+  if (filters.costCenterId) query = query.eq("cost_center_id", filters.costCenterId);
+  if (filters.bankAccountId === NO_BANK_ACCOUNT) query = query.is("bank_account_id", null);
+  else if (filters.bankAccountId) query = query.eq("bank_account_id", filters.bankAccountId);
+  if (filters.search) query = query.ilike("description", `%${filters.search}%`);
+
+  const { data, error } = await query.limit(BULK_EDIT_LIMIT);
+  if (error) throw error;
+  return (data ?? []).map((r) => r.id);
 }
 
 export async function createTransaction(payload: TransactionInsert): Promise<TransactionRow> {

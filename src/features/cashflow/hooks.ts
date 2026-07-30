@@ -8,8 +8,7 @@ export const cashflowKeys = {
   daily: (companyId: string, from: string, to: string) =>
     ["cashflow", "daily", companyId, from, to] as const,
   monthly: (companyId: string, year: number) => ["cashflow", "monthly", companyId, year] as const,
-  banks: (companyId: string, refMonth: string) =>
-    ["cashflow", "banks", companyId, refMonth] as const,
+  banks: (companyId: string, asOf: string) => ["cashflow", "banks", companyId, asOf] as const,
 };
 
 export function useCashflowDaily(
@@ -47,10 +46,11 @@ export function useCashflowMonthly(
   return { ...query, data };
 }
 
-export function useBankBalances(companyId: string | null | undefined, referenceMonth: string) {
+/** Saldo por conta na data `asOf` (ISO YYYY-MM-DD). */
+export function useBankBalances(companyId: string | null | undefined, asOf: string) {
   return useQuery({
-    queryKey: cashflowKeys.banks(companyId ?? "", referenceMonth),
-    queryFn: () => fetchBankBalances(companyId ?? "", referenceMonth),
-    enabled: Boolean(companyId) && Boolean(referenceMonth),
+    queryKey: cashflowKeys.banks(companyId ?? "", asOf),
+    queryFn: () => fetchBankBalances(companyId ?? "", asOf),
+    enabled: Boolean(companyId) && Boolean(asOf),
   });
 }

@@ -1,11 +1,14 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  bulkUpdateTransactions,
   createTransaction,
+  fetchTransactionIds,
   fetchTransactions,
   restoreTransaction,
   softDeleteTransaction,
   updateTransaction,
+  type BulkPatch,
 } from "./api";
 import type { TransactionFilters, TransactionInsert, TransactionUpdate } from "./types";
 
@@ -20,6 +23,28 @@ export function useTransactions(filters: TransactionFilters) {
     queryKey: transactionKeys.list(filters),
     queryFn: () => fetchTransactions(filters),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useBulkUpdateTransactions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ids, patch }: { ids: string[]; patch: BulkPatch }) =>
+      bulkUpdateTransactions(ids, patch),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: transactionKeys.all });
+      // Mexer em conta bancária ou status muda saldos, fluxo e DRE.
+      void qc.invalidateQueries({ queryKey: ["bank-accounts"] });
+      void qc.invalidateQueries({ queryKey: ["cashflow"] });
+      void qc.invalidateQueries({ queryKey: ["dre"] });
+    },
+  });
+}
+
+/** Busca os ids de tudo que bate com o filtro, para "selecionar todos". */
+export function useTransactionIds() {
+  return useMutation({
+    mutationFn: (filters: TransactionFilters) => fetchTransactionIds(filters),
   });
 }
 

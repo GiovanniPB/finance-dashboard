@@ -2,6 +2,8 @@ import { Landmark } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/cn";
+import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
 import type { BankAccountBalance } from "../types";
@@ -9,6 +11,8 @@ import type { BankAccountBalance } from "../types";
 interface Props {
   data: BankAccountBalance[] | undefined;
   loading: boolean;
+  /** Data de corte do saldo (ISO YYYY-MM-DD). */
+  asOf: string;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -21,21 +25,31 @@ const TYPE_LABELS: Record<string, string> = {
   cash: "Caixa",
 };
 
-export function BankBalancesCard({ data, loading }: Props) {
+export function BankBalancesCard({ data, loading, asOf }: Props) {
   const total = data?.reduce((acc, b) => acc + b.closing_balance, 0) ?? 0;
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="flex items-center gap-2">
-          <Landmark className="size-4 text-accent" />
-          Saldos por conta
-        </CardTitle>
-        {!loading && data && (
-          <span className="font-mono text-sm font-semibold text-text tabular-nums">
-            Total: {formatBRL(total)}
-          </span>
-        )}
+      <CardHeader className="space-y-1">
+        <div className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Landmark className="size-4 text-accent" />
+            Saldos por conta
+          </CardTitle>
+          {!loading && data && (
+            <span
+              className={cn(
+                "font-mono text-sm font-semibold tabular-nums",
+                total < 0 ? "text-expense" : "text-text",
+              )}
+            >
+              Total: {formatBRL(total)}
+            </span>
+          )}
+        </div>
+        <p className="text-2xs text-text-subtle">
+          Saldo inicial + lançamentos liquidados até {formatDate(asOf)}
+        </p>
       </CardHeader>
       <CardContent className="space-y-2.5 pt-0">
         {loading ? (
@@ -55,8 +69,17 @@ export function BankBalancesCard({ data, loading }: Props) {
                 <div className="text-2xs text-text-subtle">
                   {b.bank_name} · {TYPE_LABELS[b.account_type] ?? b.account_type}
                 </div>
+                <div className="text-2xs mt-0.5 font-mono text-text-subtle tabular-nums">
+                  Inicial {formatBRL(b.initial_balance)} · +{formatBRL(b.inflow)} · −
+                  {formatBRL(b.outflow)}
+                </div>
               </div>
-              <span className="font-mono text-sm font-semibold tabular-nums">
+              <span
+                className={cn(
+                  "font-mono text-sm font-semibold tabular-nums",
+                  b.closing_balance < 0 ? "text-expense" : undefined,
+                )}
+              >
                 {formatBRL(b.closing_balance)}
               </span>
             </div>

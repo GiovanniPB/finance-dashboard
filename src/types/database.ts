@@ -1647,6 +1647,7 @@ export type Database = {
           day_of_week: number | null
           description: string
           direction: Database["public"]["Enums"]["transaction_direction"]
+          document_ref: string | null
           end_date: string | null
           frequency: Database["public"]["Enums"]["recurrence_frequency"]
           id: string
@@ -1656,6 +1657,7 @@ export type Database = {
           max_occurrences: number | null
           metadata: Json
           next_run_date: string
+          notes: string | null
           start_date: string
           total_generated: number
           updated_at: string
@@ -1674,6 +1676,7 @@ export type Database = {
           day_of_week?: number | null
           description: string
           direction: Database["public"]["Enums"]["transaction_direction"]
+          document_ref?: string | null
           end_date?: string | null
           frequency: Database["public"]["Enums"]["recurrence_frequency"]
           id?: string
@@ -1683,6 +1686,7 @@ export type Database = {
           max_occurrences?: number | null
           metadata?: Json
           next_run_date: string
+          notes?: string | null
           start_date: string
           total_generated?: number
           updated_at?: string
@@ -1701,6 +1705,7 @@ export type Database = {
           day_of_week?: number | null
           description?: string
           direction?: Database["public"]["Enums"]["transaction_direction"]
+          document_ref?: string | null
           end_date?: string | null
           frequency?: Database["public"]["Enums"]["recurrence_frequency"]
           id?: string
@@ -1710,6 +1715,7 @@ export type Database = {
           max_occurrences?: number | null
           metadata?: Json
           next_run_date?: string
+          notes?: string | null
           start_date?: string
           total_generated?: number
           updated_at?: string
@@ -2032,6 +2038,7 @@ export type Database = {
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tags: string[]
+          transfer_group_id: string | null
           updated_at: string
         }
         Insert: {
@@ -2066,6 +2073,7 @@ export type Database = {
           recurring_template_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           tags?: string[]
+          transfer_group_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -2100,6 +2108,7 @@ export type Database = {
           recurring_template_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           tags?: string[]
+          transfer_group_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2386,16 +2395,24 @@ export type Database = {
           deleted_by: string | null
           description: string | null
           direction: Database["public"]["Enums"]["transaction_direction"] | null
+          discount_amount: number | null
           document_ref: string | null
           due_date: string | null
+          fine_amount: number | null
           id: string | null
           import_batch_id: string | null
+          installment_n: number | null
+          installment_total: number | null
+          interest_amount: number | null
           metadata: Json | null
           notes: string | null
+          paid_amount: number | null
+          parent_id: string | null
           payroll_item_id: string | null
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"] | null
           tags: string[] | null
+          transfer_group_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -2415,16 +2432,24 @@ export type Database = {
           direction?:
             | Database["public"]["Enums"]["transaction_direction"]
             | null
+          discount_amount?: number | null
           document_ref?: string | null
           due_date?: string | null
+          fine_amount?: number | null
           id?: string | null
           import_batch_id?: string | null
+          installment_n?: number | null
+          installment_total?: number | null
+          interest_amount?: number | null
           metadata?: Json | null
           notes?: string | null
+          paid_amount?: number | null
+          parent_id?: string | null
           payroll_item_id?: string | null
           recurring_template_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
           tags?: string[] | null
+          transfer_group_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -2444,16 +2469,24 @@ export type Database = {
           direction?:
             | Database["public"]["Enums"]["transaction_direction"]
             | null
+          discount_amount?: number | null
           document_ref?: string | null
           due_date?: string | null
+          fine_amount?: number | null
           id?: string | null
           import_batch_id?: string | null
+          installment_n?: number | null
+          installment_total?: number | null
+          interest_amount?: number | null
           metadata?: Json | null
           notes?: string | null
+          paid_amount?: number | null
+          parent_id?: string | null
           payroll_item_id?: string | null
           recurring_template_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
           tags?: string[] | null
+          transfer_group_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -2511,6 +2544,34 @@ export type Database = {
             columns: ["counterparty_id"]
             isOneToOne: false
             referencedRelation: "counterparties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_signed"
             referencedColumns: ["id"]
           },
         ]
@@ -2531,17 +2592,25 @@ export type Database = {
           deleted_by: string | null
           description: string | null
           direction: Database["public"]["Enums"]["transaction_direction"] | null
+          discount_amount: number | null
           document_ref: string | null
           due_date: string | null
+          fine_amount: number | null
           id: string | null
           import_batch_id: string | null
+          installment_n: number | null
+          installment_total: number | null
+          interest_amount: number | null
           metadata: Json | null
           notes: string | null
+          paid_amount: number | null
+          parent_id: string | null
           payroll_item_id: string | null
           recurring_template_id: string | null
           signed_amount: number | null
           status: Database["public"]["Enums"]["transaction_status"] | null
           tags: string[] | null
+          transfer_group_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -2561,17 +2630,25 @@ export type Database = {
           direction?:
             | Database["public"]["Enums"]["transaction_direction"]
             | null
+          discount_amount?: number | null
           document_ref?: string | null
           due_date?: string | null
+          fine_amount?: number | null
           id?: string | null
           import_batch_id?: string | null
+          installment_n?: number | null
+          installment_total?: number | null
+          interest_amount?: number | null
           metadata?: Json | null
           notes?: string | null
+          paid_amount?: number | null
+          parent_id?: string | null
           payroll_item_id?: string | null
           recurring_template_id?: string | null
           signed_amount?: never
           status?: Database["public"]["Enums"]["transaction_status"] | null
           tags?: string[] | null
+          transfer_group_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -2591,17 +2668,25 @@ export type Database = {
           direction?:
             | Database["public"]["Enums"]["transaction_direction"]
             | null
+          discount_amount?: number | null
           document_ref?: string | null
           due_date?: string | null
+          fine_amount?: number | null
           id?: string | null
           import_batch_id?: string | null
+          installment_n?: number | null
+          installment_total?: number | null
+          interest_amount?: number | null
           metadata?: Json | null
           notes?: string | null
+          paid_amount?: number | null
+          parent_id?: string | null
           payroll_item_id?: string | null
           recurring_template_id?: string | null
           signed_amount?: never
           status?: Database["public"]["Enums"]["transaction_status"] | null
           tags?: string[] | null
+          transfer_group_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -2659,6 +2744,34 @@ export type Database = {
             columns: ["counterparty_id"]
             isOneToOne: false
             referencedRelation: "counterparties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_signed"
             referencedColumns: ["id"]
           },
         ]
@@ -2710,6 +2823,32 @@ export type Database = {
         Args: { p_template_id: string; p_through_date?: string }
         Returns: number
       }
+      bank_account_ledger: {
+        Args: { p_bank_account_id: string; p_from: string; p_to: string }
+        Returns: {
+          account_code: string
+          account_name: string
+          amount: number
+          cash_date: string
+          counterparty_name: string
+          description: string
+          direction: Database["public"]["Enums"]["transaction_direction"]
+          document_ref: string
+          is_transfer: boolean
+          running_balance: number
+          signed_amount: number
+          transaction_id: string
+        }[]
+      }
+      bank_account_period: {
+        Args: { p_bank_account_id: string; p_from: string; p_to: string }
+        Returns: {
+          closing_balance: number
+          inflow: number
+          opening_balance: number
+          outflow: number
+        }[]
+      }
       bank_account_usage: {
         Args: { p_id: string }
         Returns: {
@@ -2720,14 +2859,36 @@ export type Database = {
         }[]
       }
       bank_balances: {
-        Args: { p_company_id: string; p_reference_month: string }
+        Args: { p_as_of: string; p_company_id: string }
         Returns: {
           account_type: Database["public"]["Enums"]["bank_account_type"]
           bank_account_id: string
           bank_name: string
           closing_balance: number
+          inflow: number
+          initial_balance: number
           nickname: string
+          outflow: number
         }[]
+      }
+      bank_balances_multi: {
+        Args: { p_as_of: string; p_company_ids?: string[] }
+        Returns: {
+          account_type: Database["public"]["Enums"]["bank_account_type"]
+          bank_account_id: string
+          bank_name: string
+          closing_balance: number
+          company_id: string
+          company_name: string
+          inflow: number
+          initial_balance: number
+          nickname: string
+          outflow: number
+        }[]
+      }
+      bulk_update_transactions: {
+        Args: { p_ids: string[]; p_patch: Json }
+        Returns: number
       }
       calculate_simples_anexo_iii: {
         Args: { p_period_revenue: number; p_rbt12: number }
@@ -2913,6 +3074,7 @@ export type Database = {
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tags: string[]
+          transfer_group_id: string | null
           updated_at: string
         }[]
         SetofOptions: {
@@ -2965,6 +3127,7 @@ export type Database = {
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tags: string[]
+          transfer_group_id: string | null
           updated_at: string
         }
         SetofOptions: {
@@ -2973,6 +3136,18 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      create_transfer: {
+        Args: {
+          p_amount: number
+          p_company_id: string
+          p_date: string
+          p_description?: string
+          p_from_account: string
+          p_notes?: string
+          p_to_account: string
+        }
+        Returns: string
       }
       current_user_role: {
         Args: never
@@ -3327,6 +3502,7 @@ export type Database = {
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tags: string[]
+          transfer_group_id: string | null
           updated_at: string
         }
         SetofOptions: {
@@ -3339,6 +3515,10 @@ export type Database = {
       rotate_account_webhook_secret: {
         Args: { p_account_id: string }
         Returns: string
+      }
+      seed_company_chart_of_accounts: {
+        Args: { p_company_id: string }
+        Returns: number
       }
       set_company_focus_token: {
         Args: { p_company_id: string; p_token: string }

@@ -12,6 +12,12 @@ export const RECURRENCE_FREQUENCIES = [
 export const recurringFormSchema = z.object({
   companyId: z.string().uuid(),
   accountId: z.string().uuid({ message: "Conta obrigatória" }),
+  // Campos copiados para cada lançamento gerado.
+  bankAccountId: z.string().uuid().nullable().optional(),
+  costCenterId: z.string().uuid().nullable().optional(),
+  counterpartyId: z.string().uuid().nullable().optional(),
+  documentRef: z.string().max(120).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
   description: z.string().min(2, "Descrição obrigatória").max(200),
   amount: z.number().positive("Valor deve ser maior que zero"),
   direction: z.enum(["inflow", "outflow"]),
@@ -23,6 +29,7 @@ export const recurringFormSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/u)
     .nullable()
     .optional(),
+  maxOccurrences: z.number().int().positive().nullable().optional(),
   autoGenerate: z.boolean(),
   isActive: z.boolean(),
 });
@@ -33,6 +40,11 @@ export function emptyRecurringForm(companyId: string): RecurringFormValues {
   return {
     companyId,
     accountId: "",
+    bankAccountId: null,
+    costCenterId: null,
+    counterpartyId: null,
+    documentRef: null,
+    notes: null,
     description: "",
     amount: 0,
     direction: "outflow",
@@ -40,6 +52,7 @@ export function emptyRecurringForm(companyId: string): RecurringFormValues {
     dayOfMonth: 5,
     startDate: new Date().toISOString().slice(0, 10),
     endDate: null,
+    maxOccurrences: null,
     autoGenerate: true,
     isActive: true,
   };

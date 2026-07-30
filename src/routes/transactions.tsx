@@ -7,7 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/features/auth/usePermissions";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { BULK_EDIT_LIMIT } from "@/features/transactions/api";
 import { availableColumnIds, resolveColumnOrder } from "@/features/transactions/columns";
+import { BulkActionsBar } from "@/features/transactions/components/BulkActionsBar";
+import { BulkEditDrawer } from "@/features/transactions/components/BulkEditDrawer";
 import { TransactionColumnsMenu } from "@/features/transactions/components/TransactionColumnsMenu";
 import { TransactionDrawer } from "@/features/transactions/components/TransactionDrawer";
 import { TransactionsFilters } from "@/features/transactions/components/TransactionsFilters";
@@ -16,6 +19,7 @@ import { TransactionsTable } from "@/features/transactions/components/Transactio
 import {
   useRestoreTransaction,
   useSoftDeleteTransaction,
+  useTransactionIds,
   useTransactions,
 } from "@/features/transactions/hooks";
 import type { TransactionWithRelations } from "@/features/transactions/types";
@@ -39,6 +43,8 @@ export default function TransactionsPage() {
 
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<TransactionWithRelations | null>(null);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = React.useState(false);
 
   const companyId = isConsolidated ? null : selectedCompanyId;
 
@@ -46,14 +52,35 @@ export default function TransactionsPage() {
   // exige que o usuário escolha a empresa do lançamento.
   const drawerCompanyId = companyId;
 
+  // Só o recorte — sem ordenação nem página. É o que define "todos os
+  // lançamentos do filtro" para a seleção em massa.
+  const queryFilters = React.useMemo(
+    () => ({
+      companyId,
+      from: filters.from || null,
+      to: filters.to || null,
+      status: filters.status ? [filters.status] : undefined,
+      direction: filters.direction,
+      accountId: filters.accountId || null,
+      costCenterId: filters.costCenterId || null,
+      bankAccountId: filters.bankAccountId || null,
+      search: filters.search || null,
+    }),
+    [
+      companyId,
+      filters.from,
+      filters.to,
+      filters.status,
+      filters.direction,
+      filters.accountId,
+      filters.costCenterId,
+      filters.bankAccountId,
+      filters.search,
+    ],
+  );
+
   const { data, isLoading, isFetching } = useTransactions({
-    companyId,
-    from: filters.from || null,
-    to: filters.to || null,
-    status: filters.status ? [filters.status] : undefined,
-    direction: filters.direction,
-    accountId: filters.accountId || null,
-    search: filters.search || null,
+    ...queryFilters,
     sortBy: filters.sortBy,
     sortOrder: filters.sortOrder,
     page,
@@ -62,6 +89,43 @@ export default function TransactionsPage() {
 
   const softDelete = useSoftDeleteTransaction();
   const restore = useRestoreTransaction();
+  const selectAllMatching = useTransactionIds();
+
+  // Trocar de filtro muda o conjunto: manter a seleção antiga levaria a editar
+  // lançamentos que não estão mais à vista.
+  React.useEffect(() => {
+    setSelectedIds(new Set());
+  }, [queryFilters]);
+
+  const selection = React.useMemo(
+    () =>
+      canEdit
+        ? {
+            selectedIds,
+            onToggleRow: (id: string) => {
+              setSelectedIds((prev) => {
+                const next = new Set(prev);
+                if (next.has(id)) next.delete(id);
+                else next.add(id);
+                return next;
+              });
+            },
+            onTogglePage: () => {
+              const pageIds = data?.rows.map((r) => r.id) ?? [];
+              setSelectedIds((prev) => {
+                const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+                const next = new Set(prev);
+                for (const id of pageIds) {
+                  if (allSelected) next.delete(id);
+                  else next.add(id);
+                }
+                return next;
+              });
+            },
+          }
+        : undefined,
+    [canEdit, selectedIds, data?.rows],
+  );
 
   const handleEdit = React.useCallback((t: TransactionWithRelations) => {
     setEditing(t);
@@ -197,6 +261,29 @@ export default function TransactionsPage() {
 
       <TransactionsFilters companyId={companyId} />
 
+      <BulkActionsBar
+        selectedCount={selectedIds.size}
+        totalCount={data?.totalCount ?? 0}
+        limit={BULK_EDIT_LIMIT}
+        selectingAll={selectAllMatching.isPending}
+        onSelectAllMatching={() => {
+          selectAllMatching.mutate(queryFilters, {
+            onSuccess: (ids) => {
+              setSelectedIds(new Set(ids));
+            },
+            onError: (err) => {
+              toast.error("Erro ao selecionar", { description: err.message });
+            },
+          });
+        }}
+        onClear={() => {
+          setSelectedIds(new Set());
+        }}
+        onEdit={() => {
+          setBulkOpen(true);
+        }}
+      />
+
       <TransactionsTable
         rows={data?.rows ?? []}
         loading={isLoading}
@@ -212,6 +299,7 @@ export default function TransactionsPage() {
         isHidden={columnPrefs.isHidden}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        selection={selection}
       />
 
       <TransactionsPagination
@@ -230,6 +318,16 @@ export default function TransactionsPage() {
         onOpenChange={setDrawerOpen}
         transaction={editing}
         companyId={drawerCompanyId}
+      />
+
+      <BulkEditDrawer
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        ids={[...selectedIds]}
+        companyId={companyId}
+        onApplied={() => {
+          setSelectedIds(new Set());
+        }}
       />
     </div>
   );

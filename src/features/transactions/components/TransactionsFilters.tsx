@@ -11,7 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAccountsByCompany } from "@/features/accounts/hooks";
+import { useBankAccounts } from "@/features/bank-accounts/hooks";
 
+import { NO_BANK_ACCOUNT } from "../types";
 import { useTransactionFilters } from "../useTransactionFilters";
 
 interface Props {
@@ -21,15 +23,17 @@ interface Props {
 export function TransactionsFilters({ companyId }: Props) {
   const [filters, setFilters] = useTransactionFilters();
   const { data: accounts = [] } = useAccountsByCompany(companyId);
+  const { data: bankAccounts = [] } = useBankAccounts(companyId);
 
-  const hasAny = Boolean(
-    filters.from ??
-    filters.to ??
-    filters.status ??
-    filters.direction ??
-    filters.accountId ??
+  const hasAny = [
+    filters.from,
+    filters.to,
+    filters.status,
+    filters.direction,
+    filters.accountId,
+    filters.bankAccountId,
     filters.search,
-  );
+  ].some(Boolean);
 
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-[var(--radius-lg)] border border-border bg-surface p-4">
@@ -131,6 +135,28 @@ export function TransactionsFilters({ companyId }: Props) {
             {accounts.map((a) => (
               <SelectItem key={a.id} value={a.id}>
                 {a.code} · {a.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="bankAccount">Banco</Label>
+        <Select
+          value={filters.bankAccountId || "__all__"}
+          onValueChange={(v) => void setFilters({ bankAccountId: v === "__all__" ? "" : v })}
+          disabled={!companyId}
+        >
+          <SelectTrigger id="bankAccount" className="w-[220px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos</SelectItem>
+            <SelectItem value={NO_BANK_ACCOUNT}>Sem conta atribuída</SelectItem>
+            {bankAccounts.map((b) => (
+              <SelectItem key={b.id} value={b.id}>
+                {b.nickname}
               </SelectItem>
             ))}
           </SelectContent>
