@@ -1,12 +1,13 @@
 import { supabase } from "@/lib/supabase";
 
-import type {
-  TransactionFilters,
-  TransactionInsert,
-  TransactionRow,
-  TransactionsListResult,
-  TransactionUpdate,
-  TransactionWithRelations,
+import {
+  NO_BANK_ACCOUNT,
+  type TransactionFilters,
+  type TransactionInsert,
+  type TransactionRow,
+  type TransactionsListResult,
+  type TransactionUpdate,
+  type TransactionWithRelations,
 } from "./types";
 
 const SELECT_WITH_RELATIONS = `
@@ -40,7 +41,8 @@ export async function fetchTransactions(
   if (filters.direction) query = query.eq("direction", filters.direction);
   if (filters.accountId) query = query.eq("account_id", filters.accountId);
   if (filters.costCenterId) query = query.eq("cost_center_id", filters.costCenterId);
-  if (filters.bankAccountId) query = query.eq("bank_account_id", filters.bankAccountId);
+  if (filters.bankAccountId === NO_BANK_ACCOUNT) query = query.is("bank_account_id", null);
+  else if (filters.bankAccountId) query = query.eq("bank_account_id", filters.bankAccountId);
   if (filters.search) query = query.ilike("description", `%${filters.search}%`);
 
   query = query.order(sortBy, { ascending: sortOrder === "asc" }).range(from, to);

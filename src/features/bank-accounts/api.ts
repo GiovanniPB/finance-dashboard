@@ -87,6 +87,23 @@ export async function fetchAccountPeriod(
   return data;
 }
 
+/**
+ * Quantos lançamentos liquidados não têm conta bancária. Eles não entram no
+ * saldo de conta nenhuma, então a diferença aparece como saldo faltante.
+ */
+export async function countUnassignedSettled(companyIds: string[] | null): Promise<number> {
+  let query = supabase
+    .from("transactions")
+    .select("id", { count: "exact", head: true })
+    .is("deleted_at", null)
+    .is("bank_account_id", null)
+    .eq("status", "settled");
+  if (companyIds) query = query.in("company_id", companyIds);
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function fetchBankAccount(id: string): Promise<BankAccount> {
   const { data, error } = await supabase.from("bank_accounts").select("*").eq("id", id).single();
   if (error) throw error;

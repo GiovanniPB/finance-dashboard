@@ -3,8 +3,9 @@ import { Globe2, Landmark, TriangleAlert } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useBalancesMulti } from "@/features/bank-accounts/hooks";
+import { useBalancesMulti, useUnassignedCount } from "@/features/bank-accounts/hooks";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { NO_BANK_ACCOUNT } from "@/features/transactions/types";
 import { cn } from "@/lib/cn";
 import { isoDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
@@ -26,6 +27,7 @@ export default function AccountsPage() {
   // Consolidado busca todas as empresas acessíveis (a RLS faz o recorte).
   const companyIds = isConsolidated ? null : selectedCompanyId ? [selectedCompanyId] : null;
   const { data, isLoading } = useBalancesMulti(today, companyIds);
+  const unassigned = useUnassignedCount(companyIds);
 
   const total = data?.reduce((acc, a) => acc + a.closing_balance, 0) ?? 0;
 
@@ -69,6 +71,27 @@ export default function AccountsPage() {
           </div>
         )}
       </div>
+
+      {(unassigned.data ?? 0) > 0 && (
+        <div className="flex flex-wrap items-start gap-2.5 rounded-[var(--radius-lg)] border border-warning/40 bg-warning/5 p-3.5 text-sm">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+          <div className="flex-1">
+            <span className="font-medium">
+              {unassigned.data} lançamentos liquidados sem conta bancária.
+            </span>{" "}
+            <span className="text-text-muted">
+              Eles não entram no saldo de nenhuma conta, então a soma acima fica menor que o caixa
+              real.
+            </span>
+          </div>
+          <Link
+            to={`/transactions?bankAccountId=${NO_BANK_ACCOUNT}&status=settled`}
+            className="font-medium text-accent hover:underline"
+          >
+            Revisar
+          </Link>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">

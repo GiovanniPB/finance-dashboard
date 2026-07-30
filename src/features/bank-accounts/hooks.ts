@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  countUnassignedSettled,
   createBankAccount,
   deleteBankAccount,
   fetchAccountLedger,
@@ -33,6 +34,14 @@ export function useBalancesMulti(asOf: string, companyIds: string[] | null) {
     queryKey: bankKeys.balances(asOf, companyIds),
     queryFn: () => fetchBalancesMulti(asOf, companyIds),
     enabled: Boolean(asOf),
+  });
+}
+
+/** Lançamentos liquidados sem conta atribuída — ficam fora de todos os saldos. */
+export function useUnassignedCount(companyIds: string[] | null) {
+  return useQuery({
+    queryKey: ["bank-accounts", "unassigned", companyIds] as const,
+    queryFn: () => countUnassignedSettled(companyIds),
   });
 }
 
