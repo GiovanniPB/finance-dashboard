@@ -191,10 +191,30 @@ Tailwind em [src/styles/globals.css](src/styles/globals.css) via `@theme inline`
 ## Deploy (Cloudflare Pages)
 
 1. Conectar repositório no Cloudflare Pages
-2. Build command: `bun run build`
-3. Build output: `dist`
-4. Env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+2. Build command: `bun install --frozen-lockfile && bun run build`
+3. Build output: `dist` (declarado em [wrangler.toml](wrangler.toml))
+4. Env vars (Production **e** Preview):
+   - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+   - `BUN_VERSION` = a mesma versão do dev/CI (hoje `1.3.13`)
+   - `SKIP_DEPENDENCY_INSTALL` = `1`
 5. SPA fallback já configurado em [public/\_redirects](public/_redirects)
+
+### Por que `SKIP_DEPENDENCY_INSTALL`
+
+O Pages detecta o gerenciador de pacotes pelo lockfile e **não reconhece o
+`bun.lock` em texto** (bun ≥ 1.2) — só o antigo `bun.lockb`. Sem isso ele cai
+no `npm install` antes do build command, com o npm que vem no Node da imagem.
+Em 30/07/2026 esse fallback quebrou o deploy: `npm error Cannot read properties
+of null (reading 'edgesOut')` — bug do arborist do npm 10.9.2, que não acontece
+no npm 11 nem no bun, com o mesmo `package.json`.
+
+`SKIP_DEPENDENCY_INSTALL=1` desliga a instalação automática; quem instala é o
+build command, com bun e o mesmo lockfile do CI e do dev. Uma só cadeia de
+dependências nos três lugares — o npm sai do circuito.
+
+Se alguém remover essa variável, o fallback npm volta e o deploy quebra de
+novo. O paliativo, nesse caso, é `NODE_VERSION` ≥ 24 (que traz npm 11); a
+correção é recolocar o `SKIP_DEPENDENCY_INSTALL`.
 
 ## Roadmap
 
