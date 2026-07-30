@@ -63,13 +63,37 @@ function destinatarioDocField(documento: string | null): Record<string, string> 
   return {};
 }
 
-/** Bloco de PIS/COFINS do item — tributados (CST 01), alíquotas da config. */
-function tributosFederais(c: NfeProductClassification): Record<string, unknown> {
+/** Centavos — evita 5.733000000000001 chegando no payload. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Bloco de PIS/COFINS do item — tributados (CST 01), alíquotas da config.
+ *
+ * A **base de cálculo vai explícita**: o Focus não a deriva do valor do item, e
+ * sem ela a nota é autorizada com vBC e vPIS/vCOFINS zerados — constatado em
+ * nota real (série 101 nº 2, apontada pela contabilidade). Em CST 01 a base é o
+ * valor da operação; como esta nota não tem frete, seguro nem desconto, a base
+ * é o próprio valor bruto do item.
+ *
+ * O valor também vai explícito para não depender do cálculo do provedor. Os
+ * totais da nota (vPIS/vCOFINS) o Focus soma dos itens quando omitidos.
+ */
+function tributosFederais(c: NfeProductClassification, valor: number): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (c.pisCst != null) out.pis_situacao_tributaria = c.pisCst;
-  if (c.pisAliquota != null) out.pis_aliquota_porcentual = c.pisAliquota;
+  if (c.pisAliquota != null) {
+    out.pis_base_calculo = valor;
+    out.pis_aliquota_porcentual = c.pisAliquota;
+    out.pis_valor = round2((valor * c.pisAliquota) / 100);
+  }
   if (c.cofinsCst != null) out.cofins_situacao_tributaria = c.cofinsCst;
-  if (c.cofinsAliquota != null) out.cofins_aliquota_porcentual = c.cofinsAliquota;
+  if (c.cofinsAliquota != null) {
+    out.cofins_base_calculo = valor;
+    out.cofins_aliquota_porcentual = c.cofinsAliquota;
+    out.cofins_valor = round2((valor * c.cofinsAliquota) / 100);
+  }
   return out;
 }
 
@@ -99,7 +123,7 @@ export function buildNfePayload(input: NfePayloadInput): Record<string, unknown>
     inclui_no_total: 1,
     icms_origem: c.origem ?? 0,
     icms_situacao_tributaria: c.cstIcms,
-    ...tributosFederais(c),
+    ...tributosFederais(c, valor),
   };
   // cBenef só quando configurado (SP exige p/ CST 41; outros estados não)
   if (c.codigoBeneficioFiscal != null) item.codigo_beneficio_fiscal = c.codigoBeneficioFiscal;

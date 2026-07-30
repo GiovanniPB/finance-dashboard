@@ -59,6 +59,26 @@ describe("buildNfePayload", () => {
     expect(item.cofins_aliquota_porcentual).toBe(3.0);
   });
 
+  it("manda base de cálculo e valor de PIS/COFINS (sem base, a nota sai zerada)", () => {
+    const item = (buildNfePayload(baseInput()).items as Obj[])[0];
+    // CST 01: base = valor da operação (sem frete/seguro/desconto nesta nota)
+    expect(item.pis_base_calculo).toBe(882.0);
+    expect(item.cofins_base_calculo).toBe(882.0);
+    // 882,00 × 0,65% = 5,733 -> 5,73 · 882,00 × 3% = 26,46
+    expect(item.pis_valor).toBe(5.73);
+    expect(item.cofins_valor).toBe(26.46);
+  });
+
+  it("omite base/valor de PIS/COFINS quando a alíquota não está configurada", () => {
+    const input = baseInput();
+    input.classificacao = { ...NFE_CLASSIFICATION, pisAliquota: null, cofinsAliquota: null };
+    const item = (buildNfePayload(input).items as Obj[])[0];
+    expect(item.pis_base_calculo).toBeUndefined();
+    expect(item.pis_valor).toBeUndefined();
+    expect(item.cofins_base_calculo).toBeUndefined();
+    expect(item.cofins_valor).toBeUndefined();
+  });
+
   it("omite cBenef quando não configurado", () => {
     const input = baseInput();
     input.classificacao = { ...NFE_CLASSIFICATION, codigoBeneficioFiscal: null };
