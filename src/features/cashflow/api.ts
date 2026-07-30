@@ -38,13 +38,14 @@ export async function fetchCashflowMonthly(
   }));
 }
 
+/** Saldo de cada conta na data `asOf` (ISO YYYY-MM-DD). */
 export async function fetchBankBalances(
   companyId: string,
-  referenceMonth: string,
+  asOf: string,
 ): Promise<BankAccountBalance[]> {
   const { data, error } = await supabase.rpc("bank_balances", {
     p_company_id: companyId,
-    p_reference_month: referenceMonth,
+    p_as_of: asOf,
   });
   if (error) throw error;
   return (data ?? []).map((r) => ({
@@ -52,6 +53,9 @@ export async function fetchBankBalances(
     bank_name: r.bank_name,
     nickname: r.nickname,
     account_type: r.account_type,
+    initial_balance: r.initial_balance,
+    inflow: r.inflow,
+    outflow: r.outflow,
     closing_balance: r.closing_balance,
   }));
 }

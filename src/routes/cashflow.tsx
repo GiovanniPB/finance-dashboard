@@ -16,7 +16,7 @@ import { CashflowTable } from "@/features/cashflow/components/CashflowTable";
 import { useBankBalances, useCashflowDaily, useCashflowMonthly } from "@/features/cashflow/hooks";
 import { useCashflowFilters } from "@/features/cashflow/useCashflowFilters";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
-import { isoDate, monthBounds } from "@/lib/dates";
+import { monthBounds } from "@/lib/dates";
 
 const MONTH_LABELS = [
   "Janeiro",
@@ -63,7 +63,8 @@ export default function CashflowPage() {
 
   const active = effectiveGranularity === "monthly" ? monthly : daily;
 
-  const banks = useBankBalances(effectiveCompanyId, isoDate(new Date(year, 0, 1)));
+  // Saldo das contas no fim do período visível, para casar com a tabela ao lado.
+  const banks = useBankBalances(effectiveCompanyId, range.end);
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
@@ -79,8 +80,7 @@ export default function CashflowPage() {
               : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—")}
           </h1>
           <p className="mt-1 text-sm text-text-muted">
-            Movimentação por data de caixa, com acumulado partindo de zero (saldo inicial dos bancos
-            ainda não cadastrado).
+            Movimentação por data de caixa, com acumulado partindo de zero.
           </p>
         </div>
         <Badge tone="info">Regime de caixa</Badge>
@@ -166,7 +166,7 @@ export default function CashflowPage() {
           />
         </div>
         <div>
-          <BankBalancesCard data={banks.data} loading={banks.isLoading} />
+          <BankBalancesCard data={banks.data} loading={banks.isLoading} asOf={range.end} />
         </div>
       </div>
     </div>

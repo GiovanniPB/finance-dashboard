@@ -2720,13 +2720,16 @@ export type Database = {
         }[]
       }
       bank_balances: {
-        Args: { p_company_id: string; p_reference_month: string }
+        Args: { p_as_of: string; p_company_id: string }
         Returns: {
           account_type: Database["public"]["Enums"]["bank_account_type"]
           bank_account_id: string
           bank_name: string
           closing_balance: number
+          inflow: number
+          initial_balance: number
           nickname: string
+          outflow: number
         }[]
       }
       calculate_simples_anexo_iii: {
@@ -3339,6 +3342,10 @@ export type Database = {
       rotate_account_webhook_secret: {
         Args: { p_account_id: string }
         Returns: string
+      }
+      seed_company_chart_of_accounts: {
+        Args: { p_company_id: string }
+        Returns: number
       }
       set_company_focus_token: {
         Args: { p_company_id: string; p_token: string }
