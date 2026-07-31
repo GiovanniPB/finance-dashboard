@@ -147,7 +147,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const { jobs, skipped } = explodeChargePaid(finalEvent, ctx);
 
   if (jobs.length > 0) {
-    const rows = jobs.map((j) => toRow(applySplitMeta(j, splitMeta)));
+    // carimba o evento de origem (FK): o uuid já está em mãos do ingest acima
+    const rows = jobs.map((j) => ({
+      ...toRow(applySplitMeta(j, splitMeta)),
+      sales_event_id: inserted[0].id,
+    }));
     const { error: jobsErr } = await supabase.from("invoice_jobs").upsert(rows, {
       onConflict: "pagarme_charge_id,pagarme_recipient_id,ambiente",
       ignoreDuplicates: true,

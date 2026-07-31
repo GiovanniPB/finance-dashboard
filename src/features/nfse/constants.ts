@@ -98,20 +98,31 @@ export const JOB_STATUS_FILTERS: {
 ];
 
 /**
- * Campo de data do filtro de período: quando a nota entrou na fila (`created_at`)
- * vs. quando foi efetivamente emitida/autorizada (`emitida_em`). O campo escolhido
- * também define a ordenação e a primeira coluna da tabela.
+ * Campo de data do filtro de período, do fato econômico ao fiscal: pagamento da
+ * cobrança (`paid_at` — o que gera a nota), criação da cobrança (`charge_created_at`
+ * — a compra), entrada na fila (`created_at`) e autorização na prefeitura
+ * (`emitida_em`). O campo escolhido também define a ordenação e a primeira coluna
+ * da tabela. Em cartão compra e pagamento ficam a segundos; em boleto/pix, a dias.
  */
-export const DATE_FIELD_VALUES = ["created_at", "emitida_em"] as const;
+export const DATE_FIELD_VALUES = [
+  "paid_at",
+  "charge_created_at",
+  "created_at",
+  "emitida_em",
+] as const;
 
 export const DATE_FIELD_OPTIONS: { value: InvoiceJobDateField; label: string }[] = [
-  { value: "created_at", label: "Data de criação" },
+  { value: "paid_at", label: "Data do pagamento" },
+  { value: "charge_created_at", label: "Data da compra" },
+  { value: "created_at", label: "Entrada na fila" },
   { value: "emitida_em", label: "Data de emissão" },
 ];
 
 /** Rótulo curto do campo de data para o cabeçalho da tabela. */
 export const DATE_FIELD_COLUMN_LABEL: Record<InvoiceJobDateField, string> = {
-  created_at: "Criada",
+  paid_at: "Pago em",
+  charge_created_at: "Compra",
+  created_at: "Na fila",
   emitida_em: "Emitida",
 };
 

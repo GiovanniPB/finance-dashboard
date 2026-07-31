@@ -34,7 +34,7 @@ export type InvoiceJob = InvoiceJobRow & {
 };
 
 /** Coluna de data usada pelo filtro de período (e pela ordenação da lista). */
-export type InvoiceJobDateField = "created_at" | "emitida_em";
+export type InvoiceJobDateField = "paid_at" | "charge_created_at" | "created_at" | "emitida_em";
 
 export interface InvoiceJobFilters {
   statuses: string[] | null; // null = todas
@@ -43,7 +43,7 @@ export interface InvoiceJobFilters {
   source?: string | null; // metadata.source exato (ex.: 'backfill')
   ambiente?: string | null; // 'homologacao' | 'producao'
   origin?: string | null; // 'webhook' (source nulo) | 'backfill' (source='backfill')
-  dateField?: InvoiceJobDateField | null; // padrão 'created_at'
+  dateField?: InvoiceJobDateField | null; // padrão 'paid_at' (data do pagamento)
   from?: string | null; // YYYY-MM-DD (dia local, inclusivo)
   to?: string | null; // YYYY-MM-DD (dia local, inclusivo)
   search?: string | null; // tomador (nome/documento), número/chave da nota, charge id
@@ -299,8 +299,8 @@ export async function createSandboxCharge(input: SandboxChargeInput): Promise<Sa
 const JOB_LIST_LIMIT = 300;
 
 export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<InvoiceJobPage> {
-  // o período e a ordenação seguem o mesmo campo (criada vs. emitida)
-  const dateField = filters.dateField ?? "created_at";
+  // o período e a ordenação seguem o mesmo campo (pagamento, compra, fila, emissão)
+  const dateField = filters.dateField ?? "paid_at";
 
   let query = supabase
     .from("invoice_jobs")

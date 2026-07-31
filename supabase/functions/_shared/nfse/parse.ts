@@ -48,6 +48,23 @@ function parseSplit(charge: Record<string, unknown>): PagarmeSplit[] {
   return out;
 }
 
+/** Tem sufixo de fuso ("Z" ou ±hh:mm)? */
+const HAS_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * Data do pagar.me -> instante ISO UTC. O payload real vem **sem** offset
+ * (`"2026-07-31T14:32:54"`) e a API documenta UTC; sem carimbar o fuso, o
+ * `new Date` do runtime interpretaria a string como hora local e deslocaria a
+ * data em até um dia nas pontas. Retorna null para ausente/inválida.
+ */
+export function pagarmeTimestamp(value: unknown): string | null {
+  const raw = asString(value);
+  if (!raw) return null;
+  const iso = HAS_OFFSET.test(raw) ? raw : `${raw}Z`;
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? null : new Date(ms).toISOString();
+}
+
 function parseAddress(customer: Record<string, unknown>): PagarmeAddress | null {
   if (!customer.address || typeof customer.address !== "object") return null;
   const a = customer.address as Record<string, unknown>;
@@ -77,6 +94,12 @@ function buildEvent(charge: Record<string, unknown>, eventId: string): ChargePai
     eventId,
     chargeId,
     amountCents: amount,
+    chargeCreatedAt: pagarmeTimestamp(charge.created_at),
+    // paid_at é a data do pagamento; em algumas formas de charge só a transação
+    // a traz, e sem nenhuma das duas fica null (não inventa a data da fila)
+    paidAt:
+      pagarmeTimestamp(charge.paid_at) ??
+      pagarmeTimestamp(asRecord(charge.last_transaction).paid_at),
     planId: asString(charge.plan_id), // ausente no charge.paid (só invoice.subscriptionId)
     subscriptionId: asString(invoice.subscriptionId),
     customer: {

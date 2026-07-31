@@ -139,7 +139,9 @@ timestamps, `created_by`. RLS: `has_company_access(owner_company_id)`. Auditada.
 `organization_id`, `company_id`, `pagarme_account_id`, `sales_event_id`,
 `pagarme_charge_id`, `pagarme_recipient_id` (null em cobrança sem split),
 `focus_ref` (único, alfanumérico s/ hífen), `ambiente`, `status`,
-`valor_servicos` (`numeric(18,2)`), snapshot do tomador
+`valor_servicos` (`numeric(18,2)`), datas da venda no pagar.me
+(`charge_created_at` = a compra, `paid_at` = o pagamento que gera a nota —
+normalizadas para UTC no parse, ver `pagarmeTimestamp`), snapshot do tomador
 (`tomador_documento/nome/email/endereco`), classificação resolvida
 (`item_lista_servico/codigo_tributario_municipio/aliquota_iss`), resultado Focus
 (`focus_status/chave_nfse/numero_nfse/xml_path/danfse_path/mensagem_sefaz/erros`),
@@ -272,7 +274,10 @@ verificam origem e são idempotentes; o front nunca vê service role nem segredo
 
 Item na sidebar (`FileText`). Página com 4 abas (estado na URL via nuqs):
 
-- **Notas** (`InvoiceJobsPanel`) — fila `invoice_jobs`: filtros (status agrupado/conexão),
+- **Notas** (`InvoiceJobsPanel`) — fila `invoice_jobs`: filtros na URL via nuqs
+  (status agrupado, ambiente, origem, conexão, busca livre e período sobre a data
+  escolhida — pagamento, compra, fila ou emissão, que também ordena a lista e
+  nomeia a 1ª coluna),
   detalhe (`InvoiceJobDrawer`: tomador, fiscal, resultado Focus), **aprovar**
   (`pending_review`→`queued`) e **reemitir** (`rejected/failed`→`queued`), baixar XML/DANFSe.
 - **Conexões pagar.me** (`ConnectionsPanel`) — CRUD de `pagarme_accounts`

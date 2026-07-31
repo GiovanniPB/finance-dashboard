@@ -224,6 +224,8 @@ export function toRow(draft: InvoiceJobDraft): Record<string, unknown> {
     ambiente: draft.ambiente,
     status: draft.status,
     valor_servicos: draft.valorServicos,
+    charge_created_at: draft.chargeCreatedAt,
+    paid_at: draft.paidAt,
     tomador_documento: draft.tomadorDocumento,
     tomador_nome: draft.tomadorNome,
     tomador_email: draft.tomadorEmail,
