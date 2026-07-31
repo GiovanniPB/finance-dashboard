@@ -74,6 +74,8 @@ export interface ChargePaidEvent {
   eventId: string; // id do webhook (hook_...) — idempotência
   chargeId: string; // ch_...
   amountCents: number; // total da cobrança, em centavos
+  chargeCreatedAt: string | null; // ISO UTC — quando a cobrança foi criada (a compra)
+  paidAt: string | null; // ISO UTC — quando foi paga (o fato que gera a nota)
   planId?: string | null; // plano (não vem no charge.paid; reservado p/ lookup futuro)
   subscriptionId?: string | null; // sub_... (de data.invoice.subscriptionId)
   customer: PagarmeCustomer; // tomador
@@ -173,6 +175,8 @@ export interface InvoiceJobDraft {
   ambiente: NfseAmbiente;
   status: InvoiceJobStatus;
   valorServicos: number; // reais — numeric(18,2)
+  chargeCreatedAt: string | null; // data da compra (cobrança criada no pagar.me)
+  paidAt: string | null; // data do pagamento (charge.paid)
   tomadorDocumento: string | null;
   tomadorNome: string | null;
   tomadorEmail: string | null;
