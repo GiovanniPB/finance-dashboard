@@ -11,13 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
@@ -31,16 +24,17 @@ import {
   type InvoiceJobFilters,
 } from "../api";
 import {
-  AMBIENTE_FILTER_OPTIONS,
   AMBIENTE_META,
+  DATE_FIELD_COLUMN_LABEL,
   JOB_STATUS_FILTERS,
   JOB_STATUS_META,
-  ORIGIN_FILTER_OPTIONS,
 } from "../constants";
 import { exportInvoiceJobs, exportInvoiceJobsZip, type ExportFormat } from "../export";
 import { useApproveInvoiceJobs, useConnections, useInvoiceJobs } from "../hooks";
+import { useInvoiceJobFilters } from "../useInvoiceJobFilters";
 import { useJobSelection } from "../useJobSelection";
 import { InvoiceJobDrawer } from "./InvoiceJobDrawer";
+import { InvoiceJobsFilters } from "./InvoiceJobsFilters";
 
 const PAGE_SIZE = 20;
 
@@ -57,11 +51,7 @@ export function InvoiceJobsPanel() {
   const { data: connections = [] } = useConnections();
   const approveJobs = useApproveInvoiceJobs();
 
-  const [statusFilter, setStatusFilter] = React.useState<string>("review");
-  const [accountId, setAccountId] = React.useState<string>("all");
-  const [ambiente, setAmbiente] = React.useState<string>("all");
-  const [origin, setOrigin] = React.useState<string>("all");
-  const [page, setPage] = React.useState(0);
+  const { filters: ui, setFilters, setPage, reset } = useInvoiceJobFilters();
   const [detail, setDetail] = React.useState<InvoiceJob | null>(null);
   const [exporting, setExporting] = React.useState<ExportFormat | "zip" | null>(null);
 
@@ -70,17 +60,21 @@ export function InvoiceJobsPanel() {
   const companyId = isConsolidated ? null : selectedCompanyId;
 
   const filters = React.useMemo<InvoiceJobFilters>(() => {
-    const group = JOB_STATUS_FILTERS.find((f) => f.value === statusFilter);
+    const group = JOB_STATUS_FILTERS.find((f) => f.value === ui.status);
     return {
       statuses: group?.statuses ?? null,
-      accountId: accountId === "all" ? null : accountId,
+      accountId: ui.accountId === "all" ? null : ui.accountId,
       companyId,
-      ambiente: ambiente === "all" ? null : ambiente,
-      origin: origin === "all" ? null : origin,
-      page,
+      ambiente: ui.ambiente === "all" ? null : ui.ambiente,
+      origin: ui.origin === "all" ? null : ui.origin,
+      dateField: ui.dateField,
+      from: ui.from || null,
+      to: ui.to || null,
+      search: ui.search || null,
+      page: ui.page,
       pageSize: PAGE_SIZE,
     };
-  }, [statusFilter, accountId, companyId, ambiente, origin, page]);
+  }, [ui, companyId]);
 
   const { data, isLoading } = useInvoiceJobs(filters);
   const jobs = data?.rows ?? [];
@@ -89,11 +83,31 @@ export function InvoiceJobsPanel() {
 
   const { selected, toggle, toggleAll, headerChecked, pendingIds, clear } = useJobSelection(jobs);
 
-  // qualquer filtro muda -> volta à primeira página e zera a seleção
+  // filtro muda -> a seleção deixa de fazer sentido (a página volta ao 1º no setter)
   React.useEffect(() => {
+    clear();
+  }, [
+    ui.status,
+    ui.accountId,
+    ui.ambiente,
+    ui.origin,
+    ui.dateField,
+    ui.from,
+    ui.to,
+    ui.search,
+    clear,
+  ]);
+
+  // troca de empresa no switcher global (sem atropelar a página de um link compartilhado)
+  const mounted = React.useRef(false);
+  React.useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
     setPage(0);
     clear();
-  }, [statusFilter, accountId, companyId, ambiente, origin, clear]);
+  }, [companyId, setPage, clear]);
 
   function emitSelected() {
     approveJobs.mutate(
@@ -148,66 +162,25 @@ export function InvoiceJobsPanel() {
     }
   }
 
-  const firstRow = total === 0 ? 0 : page * PAGE_SIZE + 1;
-  const lastRow = Math.min(total, page * PAGE_SIZE + jobs.length);
+  const firstRow = total === 0 ? 0 : ui.page * PAGE_SIZE + 1;
+  const lastRow = Math.min(total, ui.page * PAGE_SIZE + jobs.length);
 
   return (
     <div className="space-y-4">
+      <InvoiceJobsFilters
+        filters={ui}
+        setFilters={setFilters}
+        reset={reset}
+        connections={connections}
+      />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {JOB_STATUS_FILTERS.map((f) => (
-                <SelectItem key={f.value} value={f.value}>
-                  {f.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={ambiente} onValueChange={setAmbiente}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AMBIENTE_FILTER_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={origin} onValueChange={setOrigin}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ORIGIN_FILTER_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Conexão" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as conexões</SelectItem>
-              {connections.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <span className="text-2xs text-text-muted">
+          {total} nota(s) no filtro ·{" "}
+          {selectedCompany
+            ? (selectedCompany.trade_name ?? selectedCompany.legal_name)
+            : "todas as empresas"}
+        </span>
 
         <div className="flex items-center gap-2">
           <DropdownMenu>
@@ -264,7 +237,7 @@ export function InvoiceJobsPanel() {
                     aria-label="Selecionar todas as pendentes desta página"
                   />
                 </th>
-                <th className="px-3 py-2.5 text-left">Criada</th>
+                <th className="px-3 py-2.5 text-left">{DATE_FIELD_COLUMN_LABEL[ui.dateField]}</th>
                 <th className="px-3 py-2.5 text-left">Empresa</th>
                 <th className="px-3 py-2.5 text-left">Origem</th>
                 <th className="px-3 py-2.5 text-left">Conexão</th>
@@ -286,6 +259,8 @@ export function InvoiceJobsPanel() {
                   tone: "default" as const,
                 };
                 const selectable = job.status === "pending_review";
+                // a coluna de data acompanha o campo filtrado (criada vs. emitida)
+                const dateValue = ui.dateField === "emitida_em" ? job.emitida_em : job.created_at;
                 return (
                   <tr
                     key={job.id}
@@ -301,7 +276,7 @@ export function InvoiceJobsPanel() {
                       />
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-text-muted">
-                      {formatDate(job.created_at)}
+                      {dateValue ? formatDate(dateValue) : "—"}
                     </td>
                     <td className="px-3 py-2.5">
                       {job.company?.trade_name ?? job.company?.legal_name ?? "—"}
@@ -336,30 +311,27 @@ export function InvoiceJobsPanel() {
       {total > 0 && (
         <div className="flex items-center justify-between">
           <span className="text-2xs text-text-muted">
-            {firstRow}–{lastRow} de {total} ·{" "}
-            {selectedCompany
-              ? (selectedCompany.trade_name ?? selectedCompany.legal_name)
-              : "todas as empresas"}
+            {firstRow}–{lastRow} de {total}
           </span>
           <div className="flex items-center gap-1">
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              disabled={page <= 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={ui.page <= 0}
+              onClick={() => setPage(Math.max(0, ui.page - 1))}
             >
               <ChevronLeft className="size-4" /> Anterior
             </Button>
             <span className="text-2xs text-text-muted">
-              {page + 1}/{pageCount}
+              {ui.page + 1}/{pageCount}
             </span>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              disabled={page >= pageCount - 1}
-              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              disabled={ui.page >= pageCount - 1}
+              onClick={() => setPage(Math.min(pageCount - 1, ui.page + 1))}
             >
               Próxima <ChevronRight className="size-4" />
             </Button>

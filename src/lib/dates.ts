@@ -35,3 +35,16 @@ export function yearBounds(year: number): { start: string; end: string } {
 export function isoDate(date: Date = new Date()): string {
   return format(date, "yyyy-MM-dd");
 }
+
+/**
+ * Limites de um dia (YYYY-MM-DD) como instante ISO/UTC, interpretando a data no
+ * fuso local — a mesma referência que `formatDate` usa para exibir. Use para
+ * filtrar colunas `timestamptz` por período sem deslocar a janela.
+ */
+export function dayStartIso(date: string): string {
+  return new Date(`${date}T00:00:00`).toISOString();
+}
+
+export function dayEndIso(date: string): string {
+  return new Date(`${date}T23:59:59.999`).toISOString();
+}
