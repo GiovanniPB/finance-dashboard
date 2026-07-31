@@ -145,6 +145,8 @@ interface JobInput {
   tomador: ResolvedTomador;
   eventId: string;
   chargeId: string;
+  chargeCreatedAt: string | null;
+  paidAt: string | null;
   noSplit: boolean;
 }
 
@@ -180,6 +182,8 @@ function buildJob(
     ambiente: settings?.ambiente ?? input.account.ambiente,
     status: initialStatus(settings, input.tomador.valid),
     valorServicos: fromCents(input.valorCents),
+    chargeCreatedAt: input.chargeCreatedAt,
+    paidAt: input.paidAt,
     tomadorDocumento: input.tomador.documento,
     tomadorNome: input.tomador.nome,
     tomadorEmail: input.tomador.email,
@@ -219,6 +223,8 @@ export function explodeChargePaid(event: ChargePaidEvent, ctx: ExplodeContext): 
           tomador,
           eventId: event.eventId,
           chargeId: event.chargeId,
+          chargeCreatedAt: event.chargeCreatedAt,
+          paidAt: event.paidAt,
           noSplit: true,
         },
         ctx.services,
@@ -249,6 +255,8 @@ export function explodeChargePaid(event: ChargePaidEvent, ctx: ExplodeContext): 
           tomador,
           eventId: event.eventId,
           chargeId: event.chargeId,
+          chargeCreatedAt: event.chargeCreatedAt,
+          paidAt: event.paidAt,
           noSplit: false,
         },
         ctx.services,

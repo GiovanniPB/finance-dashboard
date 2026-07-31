@@ -30,7 +30,7 @@ export const JOB_FILTER_DEFAULTS: InvoiceJobFilterState = {
   ambiente: "all",
   origin: "all",
   accountId: "all",
-  dateField: "created_at",
+  dateField: "paid_at",
   from: "",
   to: "",
   search: "",

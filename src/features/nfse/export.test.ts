@@ -7,6 +7,8 @@ function job(overrides: Partial<InvoiceJob>): InvoiceJob {
   return {
     id: "j1",
     created_at: "2026-07-10T13:10:00Z",
+    charge_created_at: "2026-07-08T18:20:00Z",
+    paid_at: "2026-07-08T18:21:30Z",
     emitida_em: "2026-07-10T13:47:42Z",
     document_type: "nfe",
     ambiente: "producao",
@@ -33,6 +35,9 @@ describe("buildExportRows", () => {
   it("inclui os campos fiscais que a contabilidade imputa", () => {
     const [row] = buildExportRows([job({})]);
     expect(String(row["Data de emissão"])).toContain("2026");
+    // a venda: quando o cliente comprou e quando pagou (o que gera a nota)
+    expect(row["Data da compra"]).toBe("08/07/2026");
+    expect(row["Data do pagamento"]).toBe("08/07/2026");
     expect(row).toMatchObject({
       Empresa: "Empresa",
       Documento: "NF-e",
@@ -56,6 +61,8 @@ describe("buildExportRows", () => {
         metadata: {},
         status: "pending_review",
         emitida_em: null,
+        charge_created_at: null,
+        paid_at: null,
         numero_nfse: null,
         serie: null,
         chave_nfse: null,
@@ -65,6 +72,8 @@ describe("buildExportRows", () => {
     ]);
     expect(row.Origem).toBe("Webhook");
     expect(row["Data de emissão"]).toBe("");
+    expect(row["Data da compra"]).toBe("");
+    expect(row["Data do pagamento"]).toBe("");
     expect(row["Chave de acesso"]).toBe("");
     expect(row["Arquivo XML"]).toBe("");
   });

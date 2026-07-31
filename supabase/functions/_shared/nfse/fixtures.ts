@@ -22,6 +22,8 @@ export function baseEvent(): ChargePaidEvent {
     eventId: "hook_test_0001",
     chargeId: "ch_test_0001",
     amountCents: 29900,
+    chargeCreatedAt: "2026-06-03T11:59:58.000Z",
+    paidAt: "2026-06-03T12:00:00.000Z",
     planId: "plan_assinatura_basica",
     customer: {
       name: "Cliente Teste",
@@ -104,6 +106,9 @@ export function rawChargePaidWebhook(): Record<string, unknown> {
       id: "ch_test_0001",
       amount: 29900,
       status: "paid",
+      // no payload real o pagar.me manda as datas SEM sufixo de fuso (UTC implícito)
+      created_at: "2026-06-03T11:59:58",
+      paid_at: "2026-06-03T12:00:00",
       customer: {
         name: "Cliente Teste",
         email: "cliente@example.com",

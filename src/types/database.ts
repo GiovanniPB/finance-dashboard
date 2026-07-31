@@ -1077,6 +1077,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           attempts: number
+          charge_created_at: string | null
           chave_nfse: string | null
           codigo_tributario_municipio: string | null
           company_id: string
@@ -1098,6 +1099,7 @@ export type Database = {
           pagarme_account_id: string | null
           pagarme_charge_id: string | null
           pagarme_recipient_id: string | null
+          paid_at: string | null
           parametros: Json
           protocolo: string | null
           sales_event_id: string | null
@@ -1118,6 +1120,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           attempts?: number
+          charge_created_at?: string | null
           chave_nfse?: string | null
           codigo_tributario_municipio?: string | null
           company_id: string
@@ -1139,6 +1142,7 @@ export type Database = {
           pagarme_account_id?: string | null
           pagarme_charge_id?: string | null
           pagarme_recipient_id?: string | null
+          paid_at?: string | null
           parametros?: Json
           protocolo?: string | null
           sales_event_id?: string | null
@@ -1159,6 +1163,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           attempts?: number
+          charge_created_at?: string | null
           chave_nfse?: string | null
           codigo_tributario_municipio?: string | null
           company_id?: string
@@ -1180,6 +1185,7 @@ export type Database = {
           pagarme_account_id?: string | null
           pagarme_charge_id?: string | null
           pagarme_recipient_id?: string | null
+          paid_at?: string | null
           parametros?: Json
           protocolo?: string | null
           sales_event_id?: string | null
@@ -2931,6 +2937,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           attempts: number
+          charge_created_at: string | null
           chave_nfse: string | null
           codigo_tributario_municipio: string | null
           company_id: string
@@ -2952,6 +2959,7 @@ export type Database = {
           pagarme_account_id: string | null
           pagarme_charge_id: string | null
           pagarme_recipient_id: string | null
+          paid_at: string | null
           parametros: Json
           protocolo: string | null
           sales_event_id: string | null

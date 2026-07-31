@@ -259,8 +259,8 @@ export function InvoiceJobsPanel() {
                   tone: "default" as const,
                 };
                 const selectable = job.status === "pending_review";
-                // a coluna de data acompanha o campo filtrado (criada vs. emitida)
-                const dateValue = ui.dateField === "emitida_em" ? job.emitida_em : job.created_at;
+                // a coluna de data acompanha o campo filtrado
+                const dateValue = job[ui.dateField];
                 return (
                   <tr
                     key={job.id}

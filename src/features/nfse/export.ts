@@ -36,6 +36,8 @@ export function buildExportRows(jobs: InvoiceJob[]): ExportRow[] {
   return jobs.map((job) => {
     const authorized = job.status === "authorized";
     return {
+      "Data da compra": fmtDateOrEmpty(job.charge_created_at),
+      "Data do pagamento": fmtDateOrEmpty(job.paid_at),
       "Data de emissão": fmtDateOrEmpty(job.emitida_em),
       Empresa: companyName(job),
       Documento: DOCUMENT_TYPE_META[job.document_type ?? "nfse"]?.label ?? job.document_type ?? "",
@@ -53,7 +55,7 @@ export function buildExportRows(jobs: InvoiceJob[]): ExportRow[] {
       "Mensagem SEFAZ": job.mensagem_sefaz ?? "",
       "Cobrança (pagar.me)": job.pagarme_charge_id ?? "",
       "Arquivo XML": authorized && job.xml_path ? `${exportFileBaseName(job)}.xml` : "",
-      "Criada em": formatDate(job.created_at),
+      "Entrada na fila": formatDate(job.created_at),
     };
   });
 }
