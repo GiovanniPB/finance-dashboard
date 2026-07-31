@@ -1,4 +1,7 @@
+import { dayEndIso, dayStartIso } from "@/lib/dates";
 import { supabase, type Enums, type Tables } from "@/lib/supabase";
+
+import { jobSearchOr } from "./job-filters";
 
 /** Bucket de Storage dos XML/DANFSe (criado junto com a focus-webhook, Fase 5). */
 const NFSE_FILES_BUCKET = "nfse-files";
@@ -30,6 +33,9 @@ export type InvoiceJob = InvoiceJobRow & {
   account: { id: string; label: string; slug: string } | null;
 };
 
+/** Coluna de data usada pelo filtro de período (e pela ordenação da lista). */
+export type InvoiceJobDateField = "created_at" | "emitida_em";
+
 export interface InvoiceJobFilters {
   statuses: string[] | null; // null = todas
   accountId?: string | null;
@@ -37,6 +43,10 @@ export interface InvoiceJobFilters {
   source?: string | null; // metadata.source exato (ex.: 'backfill')
   ambiente?: string | null; // 'homologacao' | 'producao'
   origin?: string | null; // 'webhook' (source nulo) | 'backfill' (source='backfill')
+  dateField?: InvoiceJobDateField | null; // padrão 'created_at'
+  from?: string | null; // YYYY-MM-DD (dia local, inclusivo)
+  to?: string | null; // YYYY-MM-DD (dia local, inclusivo)
+  search?: string | null; // tomador (nome/documento), número/chave da nota, charge id
   page?: number | null; // 0-based; null/undefined = sem paginação (limit padrão)
   pageSize?: number | null;
 }
@@ -289,13 +299,16 @@ export async function createSandboxCharge(input: SandboxChargeInput): Promise<Sa
 const JOB_LIST_LIMIT = 300;
 
 export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<InvoiceJobPage> {
+  // o período e a ordenação seguem o mesmo campo (criada vs. emitida)
+  const dateField = filters.dateField ?? "created_at";
+
   let query = supabase
     .from("invoice_jobs")
     .select(
       "*, company:companies!company_id(id, legal_name, trade_name), account:pagarme_accounts!pagarme_account_id(id, label, slug)",
       { count: "exact" },
     )
-    .order("created_at", { ascending: false });
+    .order(dateField, { ascending: false, nullsFirst: false });
 
   if (filters.statuses && filters.statuses.length > 0) {
     query = query.in("status", filters.statuses as InvoiceJobStatus[]);
@@ -317,6 +330,17 @@ export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<Invo
     query = query.eq("metadata->>source", "backfill");
   } else if (filters.origin === "webhook") {
     query = query.is("metadata->>source", null);
+  }
+  // período: dia local inclusivo nas duas pontas (a tabela mostra data local)
+  if (filters.from) {
+    query = query.gte(dateField, dayStartIso(filters.from));
+  }
+  if (filters.to) {
+    query = query.lte(dateField, dayEndIso(filters.to));
+  }
+  const searchOr = jobSearchOr(filters.search);
+  if (searchOr) {
+    query = query.or(searchOr);
   }
 
   const pageSize = filters.pageSize ?? JOB_LIST_LIMIT;

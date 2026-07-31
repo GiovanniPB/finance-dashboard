@@ -1,4 +1,4 @@
-import type { NfseAmbiente, NfseEmissionMode } from "./api";
+import type { InvoiceJobDateField, NfseAmbiente, NfseEmissionMode } from "./api";
 
 /** Tons aceitos pelo componente Badge. */
 export type BadgeTone = "default" | "accent" | "income" | "expense" | "warning" | "info";
@@ -52,21 +52,40 @@ export const JOB_STATUS_META: Record<string, { label: string; tone: BadgeTone }>
 };
 
 /** Opções do filtro de ambiente na fila de notas. */
-export const AMBIENTE_FILTER_OPTIONS: { value: string; label: string }[] = [
+export const AMBIENTE_FILTER_VALUES = ["all", "homologacao", "producao"] as const;
+export type AmbienteFilter = (typeof AMBIENTE_FILTER_VALUES)[number];
+
+export const AMBIENTE_FILTER_OPTIONS: { value: AmbienteFilter; label: string }[] = [
   { value: "all", label: "Todos os ambientes" },
   { value: "homologacao", label: "Homologação" },
   { value: "producao", label: "Produção" },
 ];
 
 /** Opções do filtro de origem: webhook (tempo real) vs. backfill (retroativa). */
-export const ORIGIN_FILTER_OPTIONS: { value: string; label: string }[] = [
+export const ORIGIN_FILTER_VALUES = ["all", "webhook", "backfill"] as const;
+export type OriginFilter = (typeof ORIGIN_FILTER_VALUES)[number];
+
+export const ORIGIN_FILTER_OPTIONS: { value: OriginFilter; label: string }[] = [
   { value: "all", label: "Todas as origens" },
   { value: "webhook", label: "Webhook (tempo real)" },
   { value: "backfill", label: "Retroativa (backfill)" },
 ];
 
 /** Agrupamentos de status para o filtro da fila de notas. `statuses: null` = todas. */
-export const JOB_STATUS_FILTERS: { value: string; label: string; statuses: string[] | null }[] = [
+export const JOB_STATUS_FILTER_VALUES = [
+  "review",
+  "processing",
+  "authorized",
+  "problem",
+  "all",
+] as const;
+export type JobStatusFilter = (typeof JOB_STATUS_FILTER_VALUES)[number];
+
+export const JOB_STATUS_FILTERS: {
+  value: JobStatusFilter;
+  label: string;
+  statuses: string[] | null;
+}[] = [
   { value: "review", label: "Aguardando revisão", statuses: ["pending_review"] },
   {
     value: "processing",
@@ -77,6 +96,24 @@ export const JOB_STATUS_FILTERS: { value: string; label: string; statuses: strin
   { value: "problem", label: "Com erro", statuses: ["rejected", "failed"] },
   { value: "all", label: "Todas", statuses: null },
 ];
+
+/**
+ * Campo de data do filtro de período: quando a nota entrou na fila (`created_at`)
+ * vs. quando foi efetivamente emitida/autorizada (`emitida_em`). O campo escolhido
+ * também define a ordenação e a primeira coluna da tabela.
+ */
+export const DATE_FIELD_VALUES = ["created_at", "emitida_em"] as const;
+
+export const DATE_FIELD_OPTIONS: { value: InvoiceJobDateField; label: string }[] = [
+  { value: "created_at", label: "Data de criação" },
+  { value: "emitida_em", label: "Data de emissão" },
+];
+
+/** Rótulo curto do campo de data para o cabeçalho da tabela. */
+export const DATE_FIELD_COLUMN_LABEL: Record<InvoiceJobDateField, string> = {
+  created_at: "Criada",
+  emitida_em: "Emitida",
+};
 
 // ---------------------------------------------------------------------------
 // Cobrança de teste (sandbox). Os cenários DEVEM espelhar SANDBOX_SCENARIOS do
