@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarRange,
   FileBarChart,
+  FileDown,
   FileText,
   GitCompare,
   History,
@@ -42,7 +43,14 @@ const navItems: NavItem[] = [
   { to: "/contas", label: "Contas", icon: Wallet, module: "financials" },
   { to: "/reconciliation", label: "Conciliação", icon: GitCompare, module: "financials" },
   { to: "/forecast", label: "Forecast 90d", icon: CalendarRange, module: "financials" },
-  { to: "/reports", label: "Relatórios", icon: BarChart3, module: "financials" },
+  // `end` para o item não ficar ativo junto de /reports/builder.
+  { to: "/reports", label: "Relatórios", icon: BarChart3, end: true, module: "financials" },
+  {
+    to: "/reports/builder",
+    label: "Exportar Relatório",
+    icon: FileDown,
+    module: "financials",
+  },
   { to: "/taxes", label: "Impostos", icon: Landmark, module: "taxes" },
   { to: "/nfse", label: "NFS-e", icon: FileText, module: "nfse" },
   { to: "/payroll", label: "Folha", icon: Users, module: "payroll" },
