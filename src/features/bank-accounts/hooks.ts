@@ -105,7 +105,14 @@ export function useUpdateBankAccount() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: BankAccountUpdate }) =>
       updateBankAccount(id, payload),
-    onSuccess: (data) => qc.invalidateQueries({ queryKey: bankKeys.byCompany(data.company_id) }),
+    onSuccess: () => {
+      // Saldo inicial e data do saldo são editáveis, e ambos entram no cálculo
+      // feito no banco de saldo por conta, extrato, fluxo de caixa e projeção —
+      // invalidar só a lista deixaria esses números defasados na tela.
+      void qc.invalidateQueries({ queryKey: ["bank-accounts"] });
+      void qc.invalidateQueries({ queryKey: ["cashflow"] });
+      void qc.invalidateQueries({ queryKey: ["forecast"] });
+    },
   });
 }
 
