@@ -75,6 +75,8 @@ export interface UseReportConfigResult {
   setComparison: (comparison: ReportComparison) => void;
   updateDocument: (patch: Partial<ReportDocument>) => void;
   applyPreset: (preset: ReportPreset) => void;
+  /** Carrega uma config inteira (de um template salvo). */
+  loadConfig: (config: ReportConfig) => void;
   reset: () => void;
 }
 
@@ -167,6 +169,16 @@ export function useReportConfig(scope: ReportScope): UseReportConfigResult {
         });
       },
       [commit, config],
+    ),
+    // O escopo NÃO vem do template: a empresa em vigor é a do seletor do topo.
+    // Um template salvo por empresa aberto no consolidado tem blocos que aquele
+    // escopo não gera, então a poda entra aqui.
+    loadConfig: React.useCallback(
+      (loaded: ReportConfig) =>
+        commitPruned(
+          reducers.pruneIncompatibleBlocks({ ...loaded, scope, version: config.version }),
+        ),
+      [commitPruned, scope, config.version],
     ),
     reset: React.useCallback(() => void setDraft(null), [setDraft]),
   };

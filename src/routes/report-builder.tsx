@@ -19,6 +19,13 @@ import { BlockCatalog } from "@/features/report-builder/components/BlockCatalog"
 import { BlockComposition } from "@/features/report-builder/components/BlockComposition";
 import { ReportPreview } from "@/features/report-builder/components/ReportPreview";
 import { ReportSettings } from "@/features/report-builder/components/ReportSettings";
+import { TemplateBar } from "@/features/report-builder/components/TemplateBar";
+import {
+  useCreateReportTemplate,
+  useDeleteReportTemplate,
+  useReportTemplates,
+  useUpdateReportTemplate,
+} from "@/features/report-builder/hooks";
 import type { ReportScope } from "@/features/report-builder/schema";
 import { useReportConfig } from "@/features/report-builder/useReportConfig";
 
@@ -49,6 +56,20 @@ export default function ReportBuilderPage() {
     !isConsolidated && selectedCompanyId == null
       ? "Selecione uma empresa no seletor superior para gerar o relatório."
       : undefined;
+
+  const templates = useReportTemplates(ORGANIZATION_ID, config.scope.companyId);
+  const createTemplate = useCreateReportTemplate(ORGANIZATION_ID, config.scope.companyId);
+  const updateTemplate = useUpdateReportTemplate(ORGANIZATION_ID, config.scope.companyId);
+  const deleteTemplate = useDeleteReportTemplate(ORGANIZATION_ID, config.scope.companyId);
+  const [activeTemplateId, setActiveTemplateId] = React.useState<string | null>(null);
+
+  // Template consolidado vale para o grupo inteiro, então a policy restringe a
+  // escrita a super admin. A UI explica isso antes da tentativa falhar.
+  const templateBlockedReason =
+    disabledReason ??
+    (config.scope.mode === "consolidated"
+      ? "Templates do consolidado só podem ser criados por um super administrador."
+      : undefined);
 
   // Avisa o que a troca de escopo ou de comparativo removeu, em vez de o bloco
   // desaparecer da composição em silêncio.
@@ -84,25 +105,82 @@ export default function ReportBuilderPage() {
       </div>
 
       <Card>
-        <CardContent className="p-5">
-          <ReportSettings
-            config={config}
-            onPeriodChange={(preset) =>
-              report.setPeriod(
-                preset === "custom"
-                  ? {
-                      preset,
-                      from: config.period.from ?? isoToday(),
-                      to: config.period.to ?? isoToday(),
-                    }
-                  : { preset },
-              )
-            }
-            onCustomRangeChange={(from, to) => report.setPeriod({ preset: "custom", from, to })}
-            onComparisonChange={report.setComparison}
-            onDocumentChange={report.updateDocument}
-            onApplyPreset={report.applyPreset}
+        <CardContent className="space-y-4 p-5">
+          <TemplateBar
+            templates={templates.data ?? []}
+            isLoading={templates.isLoading}
+            activeId={activeTemplateId}
+            isSaving={createTemplate.isPending || updateTemplate.isPending}
+            disabledReason={templateBlockedReason}
+            onLoad={(template) => {
+              if (template.config == null) return;
+              report.loadConfig(template.config);
+              setActiveTemplateId(template.id);
+              toast.success(`Template "${template.name}" carregado`);
+            }}
+            onCreate={(name) => {
+              createTemplate.mutate(
+                {
+                  organizationId: ORGANIZATION_ID,
+                  companyId: config.scope.companyId,
+                  name,
+                  config,
+                },
+                {
+                  onSuccess: (created) => {
+                    setActiveTemplateId(created.id);
+                    toast.success(`Template "${created.name}" salvo`);
+                  },
+                  onError: (err) =>
+                    toast.error("Não foi possível salvar", { description: err.message }),
+                },
+              );
+            }}
+            onOverwrite={(id) => {
+              updateTemplate.mutate(
+                { id, config },
+                {
+                  onSuccess: (saved) => toast.success(`Template "${saved.name}" atualizado`),
+                  onError: (err) =>
+                    toast.error("Não foi possível atualizar", { description: err.message }),
+                },
+              );
+            }}
+            onDelete={(id) => {
+              deleteTemplate.mutate(id, {
+                onSuccess: () => {
+                  if (activeTemplateId === id) setActiveTemplateId(null);
+                  toast.success("Template excluído");
+                },
+                onError: (err) =>
+                  toast.error("Não foi possível excluir", { description: err.message }),
+              });
+            }}
           />
+
+          <div className="border-t border-border pt-4">
+            <ReportSettings
+              config={config}
+              onPeriodChange={(preset) =>
+                report.setPeriod(
+                  preset === "custom"
+                    ? {
+                        preset,
+                        from: config.period.from ?? isoToday(),
+                        to: config.period.to ?? isoToday(),
+                      }
+                    : { preset },
+                )
+              }
+              onCustomRangeChange={(from, to) => report.setPeriod({ preset: "custom", from, to })}
+              onComparisonChange={report.setComparison}
+              onDocumentChange={report.updateDocument}
+              onApplyPreset={(preset) => {
+                report.applyPreset(preset);
+                setActiveTemplateId(null);
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
 
