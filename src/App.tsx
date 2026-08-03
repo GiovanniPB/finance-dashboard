@@ -24,6 +24,7 @@ const BillsPage = lazy(() => import("@/routes/bills"));
 const ReconciliationPage = lazy(() => import("@/routes/reconciliation"));
 const ForecastPage = lazy(() => import("@/routes/forecast"));
 const ReportsPage = lazy(() => import("@/routes/reports"));
+const ReportBuilderPage = lazy(() => import("@/routes/report-builder"));
 const TaxesPage = lazy(() => import("@/routes/taxes"));
 const NfsePage = lazy(() => import("@/routes/nfse"));
 const CashflowPage = lazy(() => import("@/routes/cashflow"));
@@ -82,6 +83,7 @@ export default function App() {
                     <Route path="reconciliation" element={<ReconciliationPage />} />
                     <Route path="forecast" element={<ForecastPage />} />
                     <Route path="reports" element={<ReportsPage />} />
+                    <Route path="reports/builder" element={<ReportBuilderPage />} />
                     <Route path="taxes" element={<TaxesPage />} />
                     <Route path="nfse" element={<NfsePage />} />
                     <Route path="cashflow" element={<CashflowPage />} />

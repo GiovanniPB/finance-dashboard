@@ -60,6 +60,8 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dinero.js": "2.0.0-alpha.14",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "jszip": "^3.10.1",
     "lucide-react": "^0.469.0",
     "nuqs": "^2.3.2",

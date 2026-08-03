@@ -2,7 +2,8 @@
 
 > Página dedicada para **montar e exportar relatórios gerenciais em PDF**: escolher período,
 > quais gráficos e tabelas entram, comparativos, DRE e fluxo de caixa.
-> Status: **Fase 0 concluída** (schema, período, catálogo e tema de impressão). Ver §8.
+> Status: **Fases 0 e 1 concluídas** — pipeline de geração funcionando ponta a ponta
+> (capa + DRE multipágina em PDF). Ver §8 e §11.
 
 ---
 
@@ -120,22 +121,26 @@ possível** entre preview e arquivo final, e cada bloco é escrito uma única ve
 src/features/report-builder/
 ├── schema.ts              # ReportConfig (Zod) + versionamento
 ├── period.ts              # resolução de período e comparativo (puro)
+├── generate.ts            # fronteira de import dinâmico (jspdf entra só aqui)
 ├── blocks/
-│   ├── catalog.ts         # catálogo: id, label, escopo, fonte de dados, altura estimada
-│   └── <bloco>.ts         # por bloco: fetch (hook) + draw (no driver)
+│   └── catalog.ts         # catálogo: rótulo, grupo, escopo, altura estimada
 ├── data/
-│   └── useReportData.ts   # orquestra os hooks existentes conforme os blocos escolhidos
+│   ├── types.ts           # ReportData (snapshot)
+│   └── fetchReportData.ts # busca só o que os blocos escolhidos precisam
 ├── layout/
-│   ├── paginate.ts        # puro: blocos + alturas → páginas
-│   └── paginate.test.ts
+│   ├── cursor.ts          # puro: onde desenhar e quando quebrar a página
+│   └── cursor.test.ts
 ├── pdf/
-│   ├── driver.ts          # interface PdfDriver
-│   ├── jsPdfDriver.ts     # jsPDF + autoTable + svg2pdf (import dinâmico)
+│   ├── driver.ts          # contrato de bloco + contexto de render
+│   ├── jsPdfDriver.ts     # orquestrador: doc -> blocos -> cabeçalho/rodapé -> Blob
+│   ├── primitives.ts      # texto, régua, retângulo, conversão pt<->mm
+│   ├── chrome.ts          # cabeçalho corrido e rodapé com "Página X de Y"
 │   ├── reportTheme.ts     # paleta de impressão em hex + tipografia + métricas A4
-│   └── chartCapture.ts    # harness de render offscreen → SVG serializado
-├── components/            # UI do builder (catálogo, composição, preview, templates)
-├── api.ts                 # CRUD de report_templates
-└── hooks.ts               # TanStack Query
+│   ├── chartCapture.ts    # (fase 2) render offscreen -> SVG serializado
+│   └── blocks/            # um arquivo por bloco + registro em index.ts
+├── components/            # (fase 3) UI do builder
+├── api.ts                 # (fase 4) CRUD de report_templates
+└── hooks.ts               # (fase 4) TanStack Query
 src/routes/report-builder.tsx
 supabase/migrations/<ts>_report_templates.sql
 docs/features/relatorios-pdf-plan.md   # este arquivo
@@ -285,3 +290,33 @@ recuo é uma fase, não o projeto. Gráficos vêm na 2 porque são o maior risco
 4. **RPC de KPI por `from`/`to`**, removendo a ressalva anual de §5.
 5. **Relatório agendado por e-mail** — o único item que **exige** driver server-side e serviço
    externo de render. A fronteira de driver da §4 existe para que isso não seja reescrita.
+
+---
+
+## 11. Desvios do plano durante a implementação
+
+Registrados aqui porque contradizem o que as seções acima descrevem, e o motivo importa.
+
+**11.1. `layout/paginate.ts` virou `layout/cursor.ts` — paginação emergente, não pré-calculada.**
+O plano previa uma função pura `paginate(blocos, alturas) → Page[]`. Ao implementar ficou claro
+que o `autoTable` pagina tabelas longas por conta própria e só informa onde parou **depois** de
+desenhar. Pré-calcular a altura de uma tabela exigiria replicar a lógica de altura de linha dele
+— frágil e duplicada. Então cada bloco pede espaço a um cursor, que decide a quebra, e blocos
+que paginam sozinhos devolvem a posição final via `syncTo`. O cursor continua puro e testável
+(recebe `onNewPage` por injeção, não conhece jsPDF).
+
+**11.2. `data/useReportData.ts` virou `data/fetchReportData.ts` — função assíncrona, não hooks.**
+A lista de blocos é dinâmica e **hooks do React não podem ser chamados condicionalmente**.
+Orquestrar com `useQuery` exigiria montar todos os hooks sempre e desabilitar os não usados.
+Como a geração é uma ação pontual, buscar direto elimina o problema na raiz. As funções chamadas
+são as mesmas dos hooks, então seguem protegidas por RLS.
+
+**11.3. Defaults acrescentados em `document` e `blocks` no schema raiz.**
+Não estava previsto. Garante que um template salvo por uma versão anterior do schema continue
+carregando em vez de derrubar a tela — importa a partir da Fase 4.
+
+**11.4. `html2canvas` entrou no `dist` como dependência do jsPDF.**
+São ~202 kB (47 kB gz) num chunk separado. O jsPDF o importa **dinamicamente**, só para
+`doc.html()`, que não usamos — verificado no bundle (`import("./html2canvas.esm-*.js")`).
+Custo de runtime zero; é peso morto em disco. Fica registrado por ser justamente a biblioteca
+que a §2 descarta.
