@@ -113,39 +113,29 @@ export const FONT_SIZE = {
   tableSummary: 8,
   header: 7.5,
   footer: 7,
+  /** Rótulos de eixo — menores que `small` para não competir com os dados. */
+  axis: 6.5,
+  legend: 7,
 } as const;
 
 export const LINE_HEIGHT = 1.35;
 
-/* ─── Captura de gráficos ─────────────────────────────────────────────── */
+/* ─── Gráficos ────────────────────────────────────────────────────────── */
 
 /**
- * Os gráficos são renderizados fora da tela em px e depois colocados em mm. A
- * proporção precisa bater com a largura de destino para não distorcer, então
- * as alturas em mm abaixo são derivadas — não escolhidas.
+ * Alturas de gráfico em mm, sem contar o título do bloco.
+ *
+ * Os gráficos são desenhados direto em primitivas do jsPDF (ver `pdf/charts/`),
+ * não capturados do DOM — então a altura é escolhida livremente, sem precisar
+ * casar proporção de um bitmap.
  */
-const CAPTURE_WIDTH_PX = 720;
-
-export const CHART_CAPTURE = {
-  full: {
-    widthPx: CAPTURE_WIDTH_PX,
-    heightPx: 280,
-    widthMm: CONTENT.widthMm,
-    heightMm: (280 / CAPTURE_WIDTH_PX) * CONTENT.widthMm,
-  },
-  half: {
-    widthPx: CAPTURE_WIDTH_PX / 2,
-    heightPx: 240,
-    widthMm: CONTENT.widthMm / 2 - 3,
-    heightMm: (240 / (CAPTURE_WIDTH_PX / 2)) * (CONTENT.widthMm / 2 - 3),
-  },
-  /** Rosca é quadrada. */
-  donut: {
-    widthPx: 320,
-    heightPx: 320,
-    widthMm: 62,
-    heightMm: 62,
-  },
+export const CHART_HEIGHT = {
+  /** Gráfico de largura cheia com eixos. */
+  full: 62,
+  /** Versão baixa, para quando acompanha tabela no mesmo bloco. */
+  compact: 46,
+  /** Rosca com legenda em coluna ao lado. */
+  donut: 52,
 } as const;
 
 /** Espaçamentos verticais recorrentes, em mm. */

@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import type { DreComputedRow } from "@/features/dre/types";
 
 import { createBlock } from "../blocks/catalog";
-import type { ReportData } from "../data/types";
+import { emptyReportData, type ReportData } from "../data/types";
 import type { ResolvedPeriod } from "../period";
 import { emptyReportConfig, type ReportBlock, type ReportConfig } from "../schema";
 import { buildFilename, generateReportPdf } from "./jsPdfDriver";
@@ -53,10 +53,10 @@ function configWith(blocks: ReportBlock[]): ReportConfig {
   return { ...base, blocks };
 }
 
-function generate(blocks: ReportBlock[], data: ReportData) {
+function generate(blocks: ReportBlock[], data: Partial<ReportData>) {
   return generateReportPdf({
     config: configWith(blocks),
-    data,
+    data: { ...emptyReportData(), ...data },
     period: PERIOD,
     comparisonPeriod: null,
     scopeLabel: "RCO Tecnologia",
@@ -106,22 +106,29 @@ describe("generateReportPdf", () => {
     expect(report.skippedBlocks).toEqual([]);
   });
 
+  // Tipos sem renderer ainda: kpi-summary, dre-comparison, bank-balances,
+  // counterparties e notes. A lista encurta conforme as fases entram.
   it("reporta blocos sem renderer em vez de falhar", async () => {
     const report = await generate(
-      [createBlock("dre", "d1"), createBlock("cashflow", "cf1"), createBlock("forecast", "f1")],
+      [
+        createBlock("dre", "d1"),
+        createBlock("bank-balances", "bb1"),
+        createBlock("counterparties", "cp1"),
+      ],
       { dre: [dreRow()] },
     );
 
-    expect(report.skippedBlocks).toEqual(["cashflow", "forecast"]);
+    expect(report.skippedBlocks).toEqual(["bank-balances", "counterparties"]);
     expect(report.blob.size).toBeGreaterThan(0);
   });
 
   it("não duplica tipo repetido na lista de ignorados", async () => {
-    const report = await generate([createBlock("cashflow", "a"), createBlock("cashflow", "b")], {
-      dre: null,
-    });
+    const report = await generate(
+      [createBlock("bank-balances", "a"), createBlock("bank-balances", "b")],
+      { dre: null },
+    );
 
-    expect(report.skippedBlocks).toEqual(["cashflow"]);
+    expect(report.skippedBlocks).toEqual(["bank-balances"]);
   });
 
   it("ignora quebra de página no topo da página", async () => {
@@ -153,7 +160,7 @@ describe("generateReportPdf", () => {
       config: configWith([
         { instanceId: "d1", type: "dre", options: { includeCashColumn: false } },
       ]),
-      data: { dre: [dreRow()] },
+      data: { ...emptyReportData(), dre: [dreRow()] },
       period: PERIOD,
       comparisonPeriod: null,
       scopeLabel: "RCO Tecnologia",

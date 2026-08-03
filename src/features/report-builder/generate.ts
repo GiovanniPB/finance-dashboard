@@ -28,7 +28,13 @@ export async function generateReport(input: GenerateReportInput): Promise<Genera
   const period = resolvePeriod(input.config.period, now);
   const comparisonPeriod = resolveComparison(period, input.config.comparison);
 
-  const data = await fetchReportData({ config: input.config, period, comparisonPeriod });
+  const issuedAt = toIsoDate(now);
+  const data = await fetchReportData({
+    config: input.config,
+    period,
+    comparisonPeriod,
+    issuedAt,
+  });
 
   const { generateReportPdf } = await import("./pdf/jsPdfDriver");
   return generateReportPdf({
@@ -37,7 +43,7 @@ export async function generateReport(input: GenerateReportInput): Promise<Genera
     period,
     comparisonPeriod,
     scopeLabel: input.scopeLabel,
-    issuedAt: toIsoDate(now),
+    issuedAt,
   });
 }
 

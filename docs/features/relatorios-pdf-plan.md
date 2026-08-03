@@ -2,8 +2,8 @@
 
 > Página dedicada para **montar e exportar relatórios gerenciais em PDF**: escolher período,
 > quais gráficos e tabelas entram, comparativos, DRE e fluxo de caixa.
-> Status: **Fases 0 e 1 concluídas** — pipeline de geração funcionando ponta a ponta
-> (capa + DRE multipágina em PDF). Ver §8 e §11.
+> Status: **Fases 0, 1 e 2 concluídas** — geração ponta a ponta com capa, DRE
+> multipágina e 8 blocos de gráfico/tabela. Ver §8 e §11.
 
 ---
 
@@ -136,7 +136,7 @@ src/features/report-builder/
 │   ├── primitives.ts      # texto, régua, retângulo, conversão pt<->mm
 │   ├── chrome.ts          # cabeçalho corrido e rodapé com "Página X de Y"
 │   ├── reportTheme.ts     # paleta de impressão em hex + tipografia + métricas A4
-│   ├── chartCapture.ts    # (fase 2) render offscreen -> SVG serializado
+│   ├── charts/            # scale, frame, bar, line, donut, legend, geometry
 │   └── blocks/            # um arquivo por bloco + registro em index.ts
 ├── components/            # (fase 3) UI do builder
 ├── api.ts                 # (fase 4) CRUD de report_templates
@@ -320,3 +320,51 @@ São ~202 kB (47 kB gz) num chunk separado. O jsPDF o importa **dinamicamente**,
 `doc.html()`, que não usamos — verificado no bundle (`import("./html2canvas.esm-*.js")`).
 Custo de runtime zero; é peso morto em disco. Fica registrado por ser justamente a biblioteca
 que a §2 descarta.
+
+**11.5. Os gráficos são desenhados direto em jsPDF — sem `svg2pdf`, sem reusar o Recharts.**
+Contradiz a §2 (que lista `svg2pdf.js` entre as dependências) e as §§3.1–3.3 (que descreviam
+parametrizar os componentes de gráfico e capturá-los fora da tela).
+
+O caminho planejado era: montar o Recharts numa árvore React fora da tela, desligar animação,
+injetar a paleta de impressão por prop, serializar o `<svg>` e converter com `svg2pdf`. Ao
+implementar, as peças que **não** vinham no reaproveitamento superaram as que vinham:
+
+- `Tooltip` e `Legend` do Recharts são HTML, não SVG (§3.3) — a legenda teria de ser desenhada
+  por nós de todo jeito.
+- Cor e animação exigiriam alterar os 5 componentes do dashboard, com risco de regressão numa
+  tela que já funciona.
+- Sobrava do Recharts a geometria de eixos e escalas — que, para os 3 arquétipos de que o
+  relatório precisa (barras agrupadas, linha/área, rosca), são ~80 linhas de matemática pura.
+
+Então o relatório tem seu próprio motor de gráficos em `pdf/charts/`: `scale.ts` (domínio
+arredondado, escala de faixas), `frame.ts` (calhas, grade, rótulos), e `bar`/`line`/`donut`.
+Resultado: nenhuma dependência nova, nada de montar React fora da tela, nada de conversão de
+cor em runtime, saída vetorial, e a matemática coberta por testes — 21 casos só em `scale`.
+
+**Uma premissa da escolha da §2 enfraquece com isso:** "reusar os gráficos existentes" era um
+dos argumentos a favor do jsPDF contra o `@react-pdf/renderer`. A conclusão não muda — o jsPDF
+segue à frente pelo `autoTable` (6 dos blocos são tabelas) e pelo bundle 3× menor —, mas o
+argumento do reúso deixou de valer. Os gráficos do PDF e os da tela são implementações
+separadas, e mudança de identidade visual precisa ser aplicada nos dois lugares.
+
+**11.6. Duas falhas de alinhamento do autoTable, da mesma família.**
+Além do cabeçalho (Fase 1), o `columnStyles.halign` também **não alcança o rodapé** — a linha de
+total ficava desalinhada da coluna que soma. Ambas tratadas num só lugar, em `blocks/table.ts`.
+
+**11.7. `null` é diferente de `0` nas séries de gráfico.**
+No comparativo anual, mês sem dado no ano corrente vinha como zero. No gráfico de barras isso é
+inofensivo (barra de altura zero não aparece), mas no **acumulado** a linha seguia horizontal até
+dezembro — lendo como "receita estagnada" em vez de "ainda não há dado". As séries passaram a
+aceitar `null`, e o acumulado termina no último mês conhecido.
+
+---
+
+## 12. Polimento pendente (Fase 5)
+
+Itens vistos na inspeção visual que não são defeito, mas merecem ajuste:
+
+- **Eixo negativo consome um passo inteiro.** Com valores de −45 mil contra máximo de 1,4 M, o
+  eixo desce até −500 mil e desperdiça ~1/4 da altura do gráfico. Precisa de meio-passo no lado
+  negativo sem perder o arredondamento dos ticks.
+- **Espaço morto no fim da página** quando o bloco seguinte não cabe. É a paginação por bloco
+  funcionando, mas dá para melhorar reordenando blocos baixos.
