@@ -2,9 +2,9 @@
 
 > Página dedicada para **montar e exportar relatórios gerenciais em PDF**: escolher período,
 > quais gráficos e tabelas entram, comparativos, DRE e fluxo de caixa.
-> Status: **Fases 0 a 3 concluídas** — builder de três painéis funcionando, os 16
-> blocos do catálogo implementados, prévia é o próprio PDF. Falta a Fase 4
-> (templates no banco) e a Fase 5 (acabamento). Ver §8, §11 e §12.
+> Status: **Fases 0 a 4 concluídas** — builder funcionando, os 16 blocos do
+> catálogo implementados, prévia é o próprio PDF e templates salvos no banco com
+> RLS. Falta a Fase 5 (acabamento). Ver §8, §11 e §12.
 
 ---
 
@@ -143,8 +143,8 @@ src/features/report-builder/
 ├── useReportConfig.ts     # estado na URL (nuqs) + poda por escopo
 ├── presets.ts             # 3 composições de fábrica
 ├── components/            # catálogo, composição, opções, prévia, ajustes
-├── api.ts                 # (fase 4) CRUD de report_templates
-└── hooks.ts               # (fase 4) TanStack Query
+├── api.ts                 # CRUD de report_templates
+└── hooks.ts               # TanStack Query
 src/routes/report-builder.tsx
 supabase/migrations/<ts>_report_templates.sql
 docs/features/relatorios-pdf-plan.md   # este arquivo
@@ -413,3 +413,44 @@ A §7 previa catálogo | composição | prévia lado a lado. Na tela real isso f
 
 Verificado no navegador em 1600×1000, 1440×800 (prévia fixa em `top: 24px`, card de 636px cabendo
 na viewport) e 1024×820 (empilha em coluna única, sem overflow horizontal).
+
+**11.12. A migration não concede privilégios de tabela — e isso é de propósito.**
+Ao validar RLS localmente, nada funcionava: `permission denied` para `authenticated`. A causa não
+era a migration. Os _default privileges_ do schema `public` divergem entre ambientes:
+
+|                             | `authenticated` em tabelas novas        |
+| --------------------------- | --------------------------------------- |
+| Remoto                      | `arwdDxtm` (DML completo)               |
+| Local (`supabase db reset`) | `Dxtm` (só TRUNCATE/REFERENCES/TRIGGER) |
+
+Vale para **todas as 31 tabelas**, não só a nova — `select` em `transactions` também dá 42501 no
+local. Como o remoto concede por default privilege, `report_templates` herda em produção. Um
+`grant` na migration divergiria de todas as outras tabelas do projeto e mascararia o problema
+real, que é do ambiente local. Fica registrado como pendência separada (§13).
+
+**11.13. Escrita em template consolidado é restrita a super admin.**
+Não estava no plano. Template com `company_id is null` vale para o grupo inteiro, então
+`has_company_write_access` não tem empresa para checar. Deixar qualquer editor gravar ali daria a
+um editor de uma empresa poder sobre um artefato do grupo. A UI explica o bloqueio antes da
+tentativa falhar.
+
+**11.14. `CHECK` não aceita subquery — a integridade empresa↔organização é FK composta.**
+Para garantir que a empresa do template pertence à organização do template, o caminho declarativo
+é `foreign key (company_id, organization_id) references companies(id, organization_id)`, o que
+exigiu um `unique (id, organization_id)` em `companies`. Com `company_id` nulo a FK não é
+verificada (MATCH SIMPLE), que é exatamente o que o escopo consolidado precisa.
+
+---
+
+## 13. Pendência de ambiente (fora do escopo desta feature)
+
+`bun run db:reset` produz um banco local onde **nenhuma tabela** é legível pelo papel
+`authenticated` — os default privileges locais concedem `Dxtm` onde o remoto concede `arwdDxtm`.
+Consequências:
+
+- RLS não pode ser exercitado localmente sem um `grant` manual (o script de validação desta fase
+  faz isso).
+- O app rodando contra o banco local com a anon key recebe 403 em tudo.
+
+O conserto certo é uma migration que fixe os default privileges do schema `public`, alinhando
+local e remoto — mas isso afeta o projeto inteiro e merece PR próprio, não carona numa feature.

@@ -1764,6 +1764,67 @@ export type Database = {
           },
         ]
       }
+      report_templates: {
+        Row: {
+          company_id: string | null
+          config: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          metadata: Json
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_templates_company_org_fk"
+            columns: ["company_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "report_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_events: {
         Row: {
           event_id: string
@@ -3295,6 +3356,10 @@ export type Database = {
       has_company_access: { Args: { p_company_id: string }; Returns: boolean }
       has_company_write_access: {
         Args: { p_company_id: string }
+        Returns: boolean
+      }
+      has_organization_access: {
+        Args: { p_organization_id: string }
         Returns: boolean
       }
       ignore_statement_line: {
