@@ -6,11 +6,15 @@
  * caminho legítimo quando o bloco não existe no escopo consolidado: o bloco
  * desenha seu estado vazio em vez de a geração falhar.
  */
-import type { CashflowGranularity, CashflowPeriod } from "@/features/cashflow/types";
+import type {
+  BankAccountBalance,
+  CashflowGranularity,
+  CashflowPeriod,
+} from "@/features/cashflow/types";
 import type { DreComputedRow } from "@/features/dre/types";
 import type { ForecastDay } from "@/features/forecast/api";
 import type { ExpenseBreakdownRow, KpiAggregate } from "@/features/kpis/api";
-import type { CostCenterRow } from "@/features/reports/api";
+import type { CostCenterRow, CounterpartyRow, DreComparisonRow } from "@/features/reports/api";
 
 export interface ReportKpis {
   current: KpiAggregate;
@@ -33,6 +37,11 @@ export interface ReportData {
   cashflow: ReportCashflow | null;
   costCenters: CostCenterRow[] | null;
   forecast: ForecastDay[] | null;
+  /** DRE do período contra o comparativo, com variação. */
+  dreComparison: DreComparisonRow[] | null;
+  /** Saldo por conta ao fim do período. */
+  bankBalances: BankAccountBalance[] | null;
+  counterparties: CounterpartyRow[] | null;
 }
 
 export function emptyReportData(): ReportData {
@@ -43,5 +52,8 @@ export function emptyReportData(): ReportData {
     cashflow: null,
     costCenters: null,
     forecast: null,
+    dreComparison: null,
+    bankBalances: null,
+    counterparties: null,
   };
 }

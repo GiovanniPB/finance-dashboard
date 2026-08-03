@@ -2,8 +2,9 @@
 
 > Página dedicada para **montar e exportar relatórios gerenciais em PDF**: escolher período,
 > quais gráficos e tabelas entram, comparativos, DRE e fluxo de caixa.
-> Status: **Fases 0, 1 e 2 concluídas** — geração ponta a ponta com capa, DRE
-> multipágina e 8 blocos de gráfico/tabela. Ver §8 e §11.
+> Status: **Fases 0 a 3 concluídas** — builder de três painéis funcionando, os 16
+> blocos do catálogo implementados, prévia é o próprio PDF. Falta a Fase 4
+> (templates no banco) e a Fase 5 (acabamento). Ver §8, §11 e §12.
 
 ---
 
@@ -138,7 +139,10 @@ src/features/report-builder/
 │   ├── reportTheme.ts     # paleta de impressão em hex + tipografia + métricas A4
 │   ├── charts/            # scale, frame, bar, line, donut, legend, geometry
 │   └── blocks/            # um arquivo por bloco + registro em index.ts
-├── components/            # (fase 3) UI do builder
+├── configReducers.ts      # redutores puros da composição
+├── useReportConfig.ts     # estado na URL (nuqs) + poda por escopo
+├── presets.ts             # 3 composições de fábrica
+├── components/            # catálogo, composição, opções, prévia, ajustes
 ├── api.ts                 # (fase 4) CRUD de report_templates
 └── hooks.ts               # (fase 4) TanStack Query
 src/routes/report-builder.tsx
@@ -368,3 +372,26 @@ Itens vistos na inspeção visual que não são defeito, mas merecem ajuste:
   negativo sem perder o arredondamento dos ticks.
 - **Espaço morto no fim da página** quando o bloco seguinte não cabe. É a paginação por bloco
   funcionando, mas dá para melhorar reordenando blocos baixos.
+- **Cabeçalho de coluna longo quebra em duas linhas** no DRE comparativo, quando o rótulo do
+  período é extenso ("2026 (até 31/07/2026)"). Legível, mas desalinha a altura do cabeçalho.
+- **A tela do builder não foi verificada visualmente** — `/reports/builder` exige sessão
+  autenticada. A lógica está coberta por testes de componente (gate de escopo, reordenação,
+  opções por tipo de bloco) e o PDF foi inspecionado página a página, mas o layout dos três
+  painéis precisa de uma passada de olho humana.
+
+**11.8. A poda de blocos ao trocar de escopo virou parte do estado, não da UI.**
+O plano dizia apenas "a UI desabilita blocos incompatíveis". Faltava o caso inverso: o usuário
+monta um relatório por empresa e **depois** troca o seletor para consolidado. Sem tratamento, a
+composição fica com 6 blocos que aquele escopo não gera e o PDF sai cheio de "sem dados".
+`pruneIncompatibleBlocks` remove e **reporta** o que removeu, e a tela avisa por toast — sumir
+com o bloco em silêncio seria pior do que deixá-lo quebrado.
+
+**11.9. Reordenação por botões, não só por arrastar.**
+A §7 do plano dizia "reordenação por arrastar". Arrastar sozinho torna a ferramenta inoperável
+por teclado, então os botões de subir/descer são o caminho principal e o arrastar é complemento.
+
+**11.10. Zero não é despesa.**
+Colunas de saída formatavam com `-Math.abs(valor)`, e `-Math.abs(0)` é `-0` — que o
+`Intl.NumberFormat` imprime como "-R$ 0,00", em vermelho. Numa tabela de contrapartes onde metade
+das linhas só tem entrada, isso enchia a coluna de saídas negativas falsas. Centralizado em
+`formatOutflow` / `isNegativeValue`, usado pelos 4 blocos com coluna de saída.

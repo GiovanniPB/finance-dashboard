@@ -1,4 +1,6 @@
 /** Helpers compartilhados pelos blocos. */
+import { formatBRL } from "@/lib/format";
+
 import type { BlockRenderer } from "../driver";
 import { drawEyebrow, drawText, lineHeightMm } from "../primitives";
 import { CONTENT, FONT_SIZE, SPACING } from "../reportTheme";
@@ -29,4 +31,20 @@ export function drawBlockHeading(
     style: "bold",
   });
   return BLOCK_HEADING_HEIGHT_MM;
+}
+
+/**
+ * Saída (despesa) formatada com sinal negativo.
+ *
+ * `-Math.abs(0)` é `-0`, que o `Intl.NumberFormat` imprime como "-R$ 0,00" —
+ * sem sentido numa coluna de valores. Zero sai sem sinal.
+ */
+export function formatOutflow(value: number): string {
+  if (value === 0 || !Number.isFinite(value)) return formatBRL(0);
+  return formatBRL(-Math.abs(value));
+}
+
+/** Vermelho de despesa apenas quando há valor: zero não é gasto. */
+export function isNegativeValue(value: number | null | undefined): boolean {
+  return value != null && Number.isFinite(value) && value < 0;
 }

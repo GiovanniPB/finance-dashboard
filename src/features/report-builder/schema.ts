@@ -43,6 +43,8 @@ export const COUNTERPARTY_KINDS = [
   "other",
 ] as const;
 
+export type CounterpartyKind = (typeof COUNTERPARTY_KINDS)[number];
+
 /**
  * Opções de bloco num objeto plano em vez de união discriminada: quase todo
  * bloco tem zero ou uma opção, e o catálogo (`blocks/catalog.ts`) declara quais

@@ -8,7 +8,11 @@
  * evita o problema de raiz. As funções chamadas aqui são as mesmas dos hooks,
  * então continuam protegidas por RLS.
  */
-import { fetchCashflowDaily, fetchCashflowMonthly } from "@/features/cashflow/api";
+import {
+  fetchBankBalances,
+  fetchCashflowDaily,
+  fetchCashflowMonthly,
+} from "@/features/cashflow/api";
 import { fetchDreByCompany, fetchDreConsolidated } from "@/features/dre/api";
 import { computeDreTotals } from "@/features/dre/compute";
 import { fetchForecast } from "@/features/forecast/api";
@@ -17,7 +21,12 @@ import {
   fetchKpiDashboard,
   fetchKpiDashboardConsolidated,
 } from "@/features/kpis/api";
-import { fetchCostCenterAnalysis } from "@/features/reports/api";
+import {
+  fetchCostCenterAnalysis,
+  fetchCounterpartyAnalysis,
+  fetchDreComparison,
+  type CounterpartyKindFilter,
+} from "@/features/reports/api";
 
 import type { ResolvedPeriod } from "../period";
 import type { ReportBlock, ReportBlockType, ReportConfig } from "../schema";
@@ -109,6 +118,38 @@ export async function fetchReportData(input: FetchReportDataInput): Promise<Repo
       fetchForecast(companyId, input.issuedAt, to).then((rows) => {
         data.forecast = rows;
       }),
+    );
+  }
+
+  if (types.has("bank-balances") && companyId != null) {
+    tasks.push(
+      fetchBankBalances(companyId, period.to).then((rows) => {
+        data.bankBalances = rows;
+      }),
+    );
+  }
+
+  if (types.has("counterparties") && companyId != null) {
+    const limit = optionOf(blocks, "counterparties", (o) => o.topN) ?? 15;
+    const kind: CounterpartyKindFilter =
+      optionOf(blocks, "counterparties", (o) => o.counterpartyKind) ?? "all";
+    tasks.push(
+      fetchCounterpartyAnalysis(companyId, period.from, period.to, kind, limit).then((rows) => {
+        data.counterparties = rows;
+      }),
+    );
+  }
+
+  // O comparativo de DRE precisa dos dois períodos; sem eixo de comparação o
+  // bloco não é oferecido pela UI, mas a busca também não deve ser tentada.
+  if (types.has("dre-comparison") && companyId != null && input.comparisonPeriod != null) {
+    const comparison = input.comparisonPeriod;
+    tasks.push(
+      fetchDreComparison(companyId, period.from, period.to, comparison.from, comparison.to).then(
+        (rows) => {
+          data.dreComparison = rows;
+        },
+      ),
     );
   }
 

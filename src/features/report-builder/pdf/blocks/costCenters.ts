@@ -10,6 +10,7 @@ import { drawBarChart } from "../charts/bar";
 import type { BlockRenderer } from "../driver";
 import { CHART_HEIGHT, COLORS, CONTENT } from "../reportTheme";
 import { renderChartBlock, renderEmptyBlock } from "./chartBlock";
+import { formatOutflow, isNegativeValue } from "./shared";
 import {
   drawDataTable,
   MIN_TABLE_PRESENCE_MM,
@@ -43,7 +44,7 @@ export const renderCostCenters: BlockRenderer = (ctx, block) => {
       row.code,
       row.name,
       formatBRL(row.revenue),
-      formatBRL(-Math.abs(row.expense)),
+      formatOutflow(row.expense),
       formatBRL(row.net),
       row.marginPct == null ? "—" : formatPercent(row.marginPct, { fromHundred: true }),
     ]),
@@ -58,8 +59,8 @@ export const renderCostCenters: BlockRenderer = (ctx, block) => {
     cellTextColor: (rowIndex, columnIndex) => {
       const row = rows[rowIndex];
       if (row == null) return undefined;
-      if (columnIndex === 3) return COLORS.expense;
-      if (columnIndex === 4 && row.net < 0) return COLORS.expense;
+      if (columnIndex === 3) return row.expense === 0 ? undefined : COLORS.expense;
+      if (columnIndex === 4 && isNegativeValue(row.net)) return COLORS.expense;
       return undefined;
     },
   };

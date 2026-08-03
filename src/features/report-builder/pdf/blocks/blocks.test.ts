@@ -7,11 +7,11 @@
  */
 import { describe, expect, it } from "vitest";
 
-import type { CashflowPeriod } from "@/features/cashflow/types";
+import type { BankAccountBalance, CashflowPeriod } from "@/features/cashflow/types";
 import type { DreComputedRow } from "@/features/dre/types";
 import type { ForecastDay } from "@/features/forecast/api";
 import type { ExpenseBreakdownRow, KpiAggregate, MonthlyKpi } from "@/features/kpis/api";
-import type { CostCenterRow } from "@/features/reports/api";
+import type { CostCenterRow, CounterpartyRow, DreComparisonRow } from "@/features/reports/api";
 
 import { createBlock } from "../../blocks/catalog";
 import { emptyReportData, type ReportData, type ReportKpis } from "../../data/types";
@@ -165,6 +165,61 @@ function forecastFixture(): ForecastDay[] {
   }));
 }
 
+function dreComparisonFixture(): DreComparisonRow[] {
+  return Array.from({ length: 10 }, (_, i) => ({
+    accountId: `a${i}`,
+    code: i % 3 === 0 ? `${i}` : `${i}.01`,
+    name: `Conta comparada ${i}`,
+    dreSection: null,
+    isSummary: i % 3 === 0,
+    sortOrder: i,
+    totalA: 120_000 - i * 8_000,
+    totalB: 100_000 - i * 6_000,
+    varianceAbs: 20_000 - i * 2_000,
+    // Base zero não tem taxa definida — o bloco precisa mostrar "—".
+    variancePct: i === 4 ? null : 12.5 - i,
+  }));
+}
+
+function bankBalancesFixture(): BankAccountBalance[] {
+  return [
+    {
+      bank_account_id: "b1",
+      bank_name: "Itaú",
+      nickname: "Conta movimento",
+      account_type: "checking",
+      initial_balance: 120_000,
+      inflow: 480_000,
+      outflow: 410_000,
+      closing_balance: 190_000,
+    },
+    {
+      bank_account_id: "b2",
+      bank_name: "Nubank",
+      nickname: "Nubank",
+      account_type: "checking",
+      initial_balance: 30_000,
+      inflow: 90_000,
+      outflow: 145_000,
+      closing_balance: -25_000,
+    },
+  ];
+}
+
+function counterpartiesFixture(): CounterpartyRow[] {
+  return Array.from({ length: 8 }, (_, i) => ({
+    counterpartyId: `cp${i}`,
+    name: `Contraparte ${i}`,
+    kind: i % 2 === 0 ? "customer" : "supplier",
+    totalInflow: i % 2 === 0 ? 180_000 - i * 12_000 : 0,
+    totalOutflow: i % 2 === 0 ? 0 : 90_000 - i * 5_000,
+    net: i % 2 === 0 ? 180_000 - i * 12_000 : -(90_000 - i * 5_000),
+    transactionCount: 12 + i,
+    avgTicket: 5_000,
+    lastMovement: "2026-07-20",
+  }));
+}
+
 function fullData(): ReportData {
   return {
     dre: dreFixture(),
@@ -173,6 +228,9 @@ function fullData(): ReportData {
     cashflow: { granularity: "monthly", rows: cashflowFixture() },
     costCenters: costCentersFixture(),
     forecast: forecastFixture(),
+    dreComparison: dreComparisonFixture(),
+    bankBalances: bankBalancesFixture(),
+    counterparties: counterpartiesFixture(),
   };
 }
 
@@ -198,21 +256,32 @@ function render(
   });
 }
 
-/** Blocos com renderer nesta fase. */
+/** Todo o catálogo tem renderer — a lista precisa acompanhar `BLOCK_TYPES`. */
 const IMPLEMENTED: ReportBlockType[] = [
   "cover",
+  "page-break",
+  "notes",
+  "kpi-summary",
   "dre",
+  "dre-comparison",
   "revenue-result-chart",
   "revenue-yoy-chart",
   "revenue-accumulated-yoy-chart",
   "profit-yoy-chart",
   "expense-breakdown",
   "cashflow",
+  "bank-balances",
   "cost-centers",
+  "counterparties",
   "forecast",
 ];
 
+/** Blocos com estado vazio próprio quando o dado não vem. */
 const CHART_BLOCKS: ReportBlockType[] = [
+  "kpi-summary",
+  "dre-comparison",
+  "bank-balances",
+  "counterparties",
   "revenue-result-chart",
   "revenue-yoy-chart",
   "revenue-accumulated-yoy-chart",
@@ -274,6 +343,45 @@ describe("renderers de bloco", () => {
           inflowRecurring: 0,
           outflowRecurring: 0,
           runningBalance: 0,
+        },
+      ],
+      dreComparison: [
+        {
+          accountId: "a",
+          code: "1",
+          name: "Zerada",
+          dreSection: null,
+          isSummary: false,
+          sortOrder: 0,
+          totalA: 0,
+          totalB: 0,
+          varianceAbs: 0,
+          variancePct: null,
+        },
+      ],
+      bankBalances: [
+        {
+          bank_account_id: "b",
+          bank_name: "Banco",
+          nickname: "Banco",
+          account_type: "checking",
+          initial_balance: 0,
+          inflow: 0,
+          outflow: 0,
+          closing_balance: 0,
+        },
+      ],
+      counterparties: [
+        {
+          counterpartyId: "c",
+          name: "Zerada",
+          kind: "customer",
+          totalInflow: 0,
+          totalOutflow: 0,
+          net: 0,
+          transactionCount: 0,
+          avgTicket: 0,
+          lastMovement: "2026-07-01",
         },
       ],
     };

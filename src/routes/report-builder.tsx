@@ -1,89 +1,64 @@
 /**
- * Exportar Relatório — superfície mínima da Fase 1.
+ * Exportar Relatório — o builder.
  *
- * O objetivo desta tela é validar o pipeline de geração ponta a ponta (config →
- * dados → PDF multipágina) com a composição fixa capa + DRE. A Fase 3 do plano
- * substitui isto pelo builder de três painéis com catálogo, reordenação e
- * pré-visualização. Ver `docs/features/relatorios-pdf-plan.md`.
+ * Três painéis: catálogo, composição e prévia. O escopo vem do seletor de empresa
+ * do topo; o resto da configuração vive na URL, então o estado é compartilhável e
+ * é o mesmo objeto que a Fase 4 vai salvar como template.
  */
 import * as React from "react";
-import { Download, FileText, Loader2 } from "lucide-react";
+import { FileText, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
-import { createBlock } from "@/features/report-builder/blocks/catalog";
-import { downloadReport, generateReport } from "@/features/report-builder/generate";
-import { resolveComparison, resolvePeriod } from "@/features/report-builder/period";
-import {
-  COMPARISON_LABELS,
-  COMPARISONS,
-  emptyReportConfig,
-  PERIOD_PRESET_LABELS,
-  PERIOD_PRESETS,
-  type PeriodPreset,
-  type ReportComparison,
-  type ReportConfig,
-} from "@/features/report-builder/schema";
+import { getBlockDefinition } from "@/features/report-builder/blocks/catalog";
+import { BlockCatalog } from "@/features/report-builder/components/BlockCatalog";
+import { BlockComposition } from "@/features/report-builder/components/BlockComposition";
+import { ReportPreview } from "@/features/report-builder/components/ReportPreview";
+import { ReportSettings } from "@/features/report-builder/components/ReportSettings";
+import type { ReportScope } from "@/features/report-builder/schema";
+import { useReportConfig } from "@/features/report-builder/useReportConfig";
 
-// Mesma constante usada em dashboard.tsx e dre.tsx — poderá sair do
-// CompanyContext quando `organization_id` for exposto por lá.
+// Mesma constante de dashboard.tsx e dre.tsx — sai daqui quando o
+// CompanyContext expor `organization_id`.
 const ORGANIZATION_ID = "00000000-0000-0000-0000-000000000001";
 
 export default function ReportBuilderPage() {
   const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
-  const [preset, setPreset] = React.useState<PeriodPreset>("last_month");
-  const [comparison, setComparison] = React.useState<ReportComparison>("yoy");
-  const [isGenerating, setIsGenerating] = React.useState(false);
+
+  const scope = React.useMemo<ReportScope>(
+    () => ({
+      mode: isConsolidated ? "consolidated" : "company",
+      companyId: isConsolidated ? null : selectedCompanyId,
+      organizationId: ORGANIZATION_ID,
+    }),
+    [isConsolidated, selectedCompanyId],
+  );
+
+  const report = useReportConfig(scope);
+  const { config } = report;
 
   const scopeLabel = isConsolidated
     ? "Consolidado · OTM Group"
     : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—");
 
-  const config = React.useMemo<ReportConfig>(() => {
-    const base = emptyReportConfig({
-      organizationId: ORGANIZATION_ID,
-      companyId: selectedCompanyId,
-      mode: isConsolidated ? "consolidated" : "company",
+  const disabledReason =
+    !isConsolidated && selectedCompanyId == null
+      ? "Selecione uma empresa no seletor superior para gerar o relatório."
+      : undefined;
+
+  // Avisa o que a troca de escopo ou de comparativo removeu, em vez de o bloco
+  // desaparecer da composição em silêncio.
+  React.useEffect(() => {
+    if (report.lastRemoved.length === 0) return;
+    const labels = report.lastRemoved.map((type) => getBlockDefinition(type).label).join(", ");
+    toast.info("Blocos removidos da composição", {
+      description: `${labels} — não existe${report.lastRemoved.length > 1 ? "m" : ""} nesta configuração.`,
     });
-    return {
-      ...base,
-      period: { preset },
-      comparison,
-      document: { ...base.document, subtitle: scopeLabel },
-      blocks: [createBlock("cover", "cover-1"), createBlock("dre", "dre-1")],
-    };
-  }, [comparison, isConsolidated, preset, scopeLabel, selectedCompanyId]);
-
-  const period = resolvePeriod(config.period);
-  const comparisonPeriod = resolveComparison(period, config.comparison);
-
-  const canGenerate = isConsolidated || selectedCompanyId != null;
-
-  async function handleGenerate() {
-    setIsGenerating(true);
-    try {
-      const report = await generateReport({ config, scopeLabel });
-      downloadReport(report);
-      toast.success(`Relatório gerado · ${report.pageCount} página(s)`, {
-        description: report.filename,
-      });
-    } catch (err) {
-      toast.error("Falha ao gerar o relatório", { description: (err as Error).message });
-    } finally {
-      setIsGenerating(false);
-    }
-  }
+    report.clearLastRemoved();
+  }, [report]);
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
@@ -95,70 +70,83 @@ export default function ReportBuilderPage() {
           </div>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">{scopeLabel}</h1>
           <p className="mt-1 text-sm text-text-muted">
-            Monte um relatório gerencial em PDF com capa, indicadores, gráficos e demonstrativos.
+            Monte o relatório escolhendo os blocos, o período e o comparativo. A prévia é o próprio
+            PDF.
           </p>
         </div>
-        <Badge tone="info">Prévia · capa + DRE</Badge>
+        <div className="flex items-center gap-2">
+          <Badge tone="info">{config.blocks.length} bloco(s)</Badge>
+          <Button variant="outline" size="sm" onClick={report.reset}>
+            <RotateCcw className="size-3.5" /> Recomeçar
+          </Button>
+        </div>
       </div>
 
       <Card>
-        <CardContent className="space-y-5 p-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="period">Período</Label>
-              <Select value={preset} onValueChange={(v) => setPreset(v as PeriodPreset)}>
-                <SelectTrigger id="period">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERIOD_PRESETS.filter((p) => p !== "custom").map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {PERIOD_PRESET_LABELS[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-2xs text-text-subtle">{period.label}</span>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="comparison">Comparativo</Label>
-              <Select
-                value={comparison}
-                onValueChange={(v) => setComparison(v as ReportComparison)}
-              >
-                <SelectTrigger id="comparison">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPARISONS.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {COMPARISON_LABELS[c]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-2xs text-text-subtle">
-                {comparisonPeriod?.label ?? "Nenhum"}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
-            <p className="text-2xs text-text-subtle">
-              Composição desta prévia: capa e DRE (competência + caixa).
-            </p>
-            <Button onClick={() => void handleGenerate()} disabled={!canGenerate || isGenerating}>
-              {isGenerating ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Download className="size-3.5" />
-              )}
-              {isGenerating ? "Gerando…" : "Gerar PDF"}
-            </Button>
-          </div>
+        <CardContent className="p-5">
+          <ReportSettings
+            config={config}
+            onPeriodChange={(preset) =>
+              report.setPeriod(
+                preset === "custom"
+                  ? {
+                      preset,
+                      from: config.period.from ?? isoToday(),
+                      to: config.period.to ?? isoToday(),
+                    }
+                  : { preset },
+              )
+            }
+            onCustomRangeChange={(from, to) => report.setPeriod({ preset: "custom", from, to })}
+            onComparisonChange={report.setComparison}
+            onDocumentChange={report.updateDocument}
+            onApplyPreset={report.applyPreset}
+          />
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_minmax(340px,42%)]">
+        <Card className="h-fit">
+          <CardContent className="p-4">
+            <h2 className="mb-3 text-sm font-semibold">Catálogo</h2>
+            <BlockCatalog
+              mode={config.scope.mode}
+              comparison={config.comparison}
+              onAdd={report.addBlock}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit">
+          <CardContent className="p-4">
+            <h2 className="mb-3 text-sm font-semibold">Composição</h2>
+            <BlockComposition
+              blocks={config.blocks}
+              onRemove={report.removeBlock}
+              onMove={report.moveBlock}
+              onReorder={report.reorderBlocks}
+              onOptionsChange={report.updateBlockOptions}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="h-fit xl:sticky xl:top-6">
+          <CardContent className="p-4">
+            <h2 className="mb-3 text-sm font-semibold">Prévia</h2>
+            <ReportPreview
+              config={config}
+              scopeLabel={scopeLabel}
+              disabledReason={disabledReason}
+            />
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
+}
+
+function isoToday(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }

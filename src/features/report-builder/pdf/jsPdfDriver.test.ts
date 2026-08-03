@@ -13,6 +13,7 @@ import { createBlock } from "../blocks/catalog";
 import { emptyReportData, type ReportData } from "../data/types";
 import type { ResolvedPeriod } from "../period";
 import { emptyReportConfig, type ReportBlock, type ReportConfig } from "../schema";
+import { BLOCK_RENDERERS } from "./blocks";
 import { buildFilename, generateReportPdf } from "./jsPdfDriver";
 
 const ORG = "00000000-0000-0000-0000-000000000001";
@@ -106,27 +107,38 @@ describe("generateReportPdf", () => {
     expect(report.skippedBlocks).toEqual([]);
   });
 
-  // Tipos sem renderer ainda: kpi-summary, dre-comparison, bank-balances,
-  // counterparties e notes. A lista encurta conforme as fases entram.
+  // Todo o catálogo tem renderer, então a ausência é simulada com um registro
+  // parcial — que é também o mecanismo real caso um bloco novo entre no catálogo
+  // antes do seu renderer.
   it("reporta blocos sem renderer em vez de falhar", async () => {
-    const report = await generate(
-      [
+    const report = await generateReportPdf({
+      config: configWith([
         createBlock("dre", "d1"),
         createBlock("bank-balances", "bb1"),
         createBlock("counterparties", "cp1"),
-      ],
-      { dre: [dreRow()] },
-    );
+      ]),
+      data: { ...emptyReportData(), dre: [dreRow()] },
+      period: PERIOD,
+      comparisonPeriod: null,
+      scopeLabel: "RCO Tecnologia",
+      issuedAt: "2026-08-03",
+      renderers: { dre: BLOCK_RENDERERS.dre },
+    });
 
     expect(report.skippedBlocks).toEqual(["bank-balances", "counterparties"]);
     expect(report.blob.size).toBeGreaterThan(0);
   });
 
   it("não duplica tipo repetido na lista de ignorados", async () => {
-    const report = await generate(
-      [createBlock("bank-balances", "a"), createBlock("bank-balances", "b")],
-      { dre: null },
-    );
+    const report = await generateReportPdf({
+      config: configWith([createBlock("bank-balances", "a"), createBlock("bank-balances", "b")]),
+      data: emptyReportData(),
+      period: PERIOD,
+      comparisonPeriod: null,
+      scopeLabel: "RCO Tecnologia",
+      issuedAt: "2026-08-03",
+      renderers: {},
+    });
 
     expect(report.skippedBlocks).toEqual(["bank-balances"]);
   });

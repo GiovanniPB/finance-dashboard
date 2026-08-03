@@ -12,6 +12,7 @@ import { dayCategory, monthCategory } from "../charts/format";
 import type { BlockRenderer } from "../driver";
 import { CHART_HEIGHT, COLORS, CONTENT } from "../reportTheme";
 import { renderChartBlock } from "./chartBlock";
+import { formatOutflow, isNegativeValue } from "./shared";
 import { drawDataTable, MIN_TABLE_PRESENCE_MM } from "./table";
 
 export const renderCashflow: BlockRenderer = (ctx, block) => {
@@ -53,7 +54,7 @@ export const renderCashflow: BlockRenderer = (ctx, block) => {
     body: withBalance.map((row) => [
       label(row.bucket),
       formatBRL(row.inflow),
-      formatBRL(-Math.abs(row.outflow)),
+      formatOutflow(row.outflow),
       formatBRL(row.net),
       formatBRL(row.cumulative),
     ]),
@@ -67,9 +68,9 @@ export const renderCashflow: BlockRenderer = (ctx, block) => {
     cellTextColor: (rowIndex, columnIndex) => {
       const row = withBalance[rowIndex];
       if (row == null) return undefined;
-      if (columnIndex === 2) return COLORS.expense;
-      if (columnIndex === 3 && row.net < 0) return COLORS.expense;
-      if (columnIndex === 4 && row.cumulative < 0) return COLORS.expense;
+      if (columnIndex === 2) return row.outflow === 0 ? undefined : COLORS.expense;
+      if (columnIndex === 3 && isNegativeValue(row.net)) return COLORS.expense;
+      if (columnIndex === 4 && isNegativeValue(row.cumulative)) return COLORS.expense;
       return undefined;
     },
   });
