@@ -7,6 +7,7 @@
  */
 import { formatBRL } from "@/lib/format";
 
+import { compactLabelForRange } from "../../period";
 import type { BlockRenderer } from "../driver";
 import { COLORS, CONTENT } from "../reportTheme";
 import { renderEmptyBlock } from "./chartBlock";
@@ -44,7 +45,18 @@ export const renderDreComparison: BlockRenderer = (ctx, block) => {
   renderTableBlock(ctx, {
     heading,
     eyebrow: `${ctx.period.label} vs ${comparison?.label ?? "—"}`,
-    head: [["Código", "Conta", ctx.period.label, comparison?.label ?? "—", "Variação", "%"]],
+    // Rótulo compacto no cabeçalho: o label cheio ("2026 (até 31/07/2026)")
+    // quebra em duas linhas numa coluna de 28mm. O período completo fica no eyebrow.
+    head: [
+      [
+        "Código",
+        "Conta",
+        compactLabelForRange(ctx.period.from, ctx.period.to),
+        comparison == null ? "—" : compactLabelForRange(comparison.from, comparison.to),
+        "Variação",
+        "%",
+      ],
+    ],
     body: rows.map((row) => [
       row.code,
       row.name,

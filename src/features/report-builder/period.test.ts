@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { labelForRange, resolveComparison, resolvePeriod } from "./period";
+import { compactLabelForRange, labelForRange, resolveComparison, resolvePeriod } from "./period";
 
 /** 15 de julho de 2026 — referência fixa para os testes serem determinísticos. */
 const REF = new Date(2026, 6, 15);
@@ -139,5 +139,35 @@ describe("labelForRange", () => {
 
   it("usa intervalo de meses em vários meses inteiros", () => {
     expect(labelForRange("2026-04-01", "2026-06-30")).toContain("→");
+  });
+});
+
+describe("compactLabelForRange", () => {
+  it("abrevia mês inteiro", () => {
+    expect(compactLabelForRange("2026-07-01", "2026-07-31")).toBe("jul/26");
+  });
+
+  it("usa só o ano no ano civil completo", () => {
+    expect(compactLabelForRange("2026-01-01", "2026-12-31")).toBe("2026");
+  });
+
+  it("encurta o acumulado do ano", () => {
+    expect(compactLabelForRange("2026-01-01", "2026-07-31")).toBe("2026 até 31/07");
+  });
+
+  it("usa intervalo curto no resto", () => {
+    expect(compactLabelForRange("2026-03-10", "2026-05-20")).toBe("10/03–20/05");
+  });
+
+  it("fica sempre mais curto que o rótulo cheio", () => {
+    for (const [from, to] of [
+      ["2026-01-01", "2026-07-31"],
+      ["2026-07-01", "2026-07-31"],
+      ["2026-04-01", "2026-06-30"],
+    ] as const) {
+      expect(compactLabelForRange(from, to).length).toBeLessThanOrEqual(
+        labelForRange(from, to).length,
+      );
+    }
   });
 });

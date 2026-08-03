@@ -51,18 +51,33 @@ export function niceScale(
   }
 
   const step = niceStep((max - min) / tickCount);
-  const niceMin = Math.floor(min / step) * step;
   const niceMax = Math.ceil(max / step) * step;
+
+  // Quando os dados entram pouco no negativo (um resultado de -45 mil contra um
+  // máximo de 1,4 M), arredondar o piso para o múltiplo abaixo gastaria um passo
+  // inteiro — ~1/4 da altura do gráfico em branco. Nesse caso o piso desce só até
+  // o dado, com uma folga, e os ticks seguem regulares a partir do zero.
+  const flooredMin = Math.floor(min / step) * step;
+  const usesSmallNegative = min < 0 && min > -step * SHALLOW_NEGATIVE_RATIO;
+  const niceMin = usesSmallNegative ? min * (1 + SHALLOW_NEGATIVE_PADDING) : flooredMin;
 
   const ticks: number[] = [];
   const decimals = decimalsFor(step);
+  // Ticks só em múltiplos do passo dentro do domínio: com piso "solto" o primeiro
+  // tick é o zero, e o piso fica sem marca — que é o comportamento desejado.
+  const firstTick = Math.ceil(niceMin / step - 1e-9) * step;
   // Tolerância no limite: acumular passos fracionários erra o último tick.
-  for (let value = niceMin; value <= niceMax + step * 1e-9; value += step) {
+  for (let value = firstTick; value <= niceMax + step * 1e-9; value += step) {
     ticks.push(roundTo(value, decimals));
   }
 
   return { min: niceMin, max: niceMax, step, ticks };
 }
+
+/** Abaixo desta fração de um passo, o lado negativo não ganha um passo inteiro. */
+const SHALLOW_NEGATIVE_RATIO = 0.5;
+/** Folga sob o menor valor, para a barra não encostar na borda do gráfico. */
+const SHALLOW_NEGATIVE_PADDING = 0.15;
 
 function niceStep(rough: number): number {
   if (!(rough > 0)) return 1;
@@ -79,7 +94,10 @@ function decimalsFor(step: number): number {
 
 function roundTo(value: number, decimals: number): number {
   const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
+  const rounded = Math.round(value * factor) / factor;
+  // `-0` vira `0`: o rótulo sairia certo, mas menos-zero em dado é armadilha para
+  // comparação por identidade e para qualquer consumidor futuro dos ticks.
+  return rounded === 0 ? 0 : rounded;
 }
 
 /**

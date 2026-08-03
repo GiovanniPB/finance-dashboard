@@ -2,9 +2,9 @@
 
 > Página dedicada para **montar e exportar relatórios gerenciais em PDF**: escolher período,
 > quais gráficos e tabelas entram, comparativos, DRE e fluxo de caixa.
-> Status: **Fases 0 a 3 concluídas** — builder de três painéis funcionando, os 16
-> blocos do catálogo implementados, prévia é o próprio PDF. Falta a Fase 4
-> (templates no banco) e a Fase 5 (acabamento). Ver §8, §11 e §12.
+> Status: **todas as fases concluídas** (0 a 5). Builder funcionando, 16 blocos,
+> prévia é o próprio PDF, templates salvos no banco com RLS. Ver §11 (desvios),
+> §12 (o que ficou aberto) e §13 (pendência de ambiente).
 
 ---
 
@@ -143,8 +143,8 @@ src/features/report-builder/
 ├── useReportConfig.ts     # estado na URL (nuqs) + poda por escopo
 ├── presets.ts             # 3 composições de fábrica
 ├── components/            # catálogo, composição, opções, prévia, ajustes
-├── api.ts                 # (fase 4) CRUD de report_templates
-└── hooks.ts               # (fase 4) TanStack Query
+├── api.ts                 # CRUD de report_templates
+└── hooks.ts               # TanStack Query
 src/routes/report-builder.tsx
 supabase/migrations/<ts>_report_templates.sql
 docs/features/relatorios-pdf-plan.md   # este arquivo
@@ -364,52 +364,39 @@ aceitar `null`, e o acumulado termina no último mês conhecido.
 
 ---
 
-## 12. Polimento pendente (Fase 5)
+## 12. O que ficou aberto
 
-Itens vistos na inspeção visual que não são defeito, mas merecem ajuste:
+Resolvido na Fase 5:
 
-- **Eixo negativo consome um passo inteiro.** Com valores de −45 mil contra máximo de 1,4 M, o
-  eixo desce até −500 mil e desperdiça ~1/4 da altura do gráfico. Precisa de meio-passo no lado
-  negativo sem perder o arredondamento dos ticks.
+- ~~Eixo negativo consome um passo inteiro.~~ O piso agora desce só até o dado
+  (com folga) quando o negativo usa menos de meio passo; os ticks seguem regulares a partir do
+  zero, e o gráfico deixou de perder ~1/4 da altura.
+- ~~Cabeçalho de coluna longo quebra em duas linhas.~~ `compactLabelForRange` encurta o rótulo
+  para o cabeçalho ("2026 até 31/07"); o período completo continua no eyebrow.
+
+Ainda aberto:
+
 - **Espaço morto no fim da página** quando o bloco seguinte não cabe. É a paginação por bloco
-  funcionando, mas dá para melhorar reordenando blocos baixos.
-- **Cabeçalho de coluna longo quebra em duas linhas** no DRE comparativo, quando o rótulo do
-  período é extenso ("2026 (até 31/07/2026)"). Legível, mas desalinha a altura do cabeçalho.
-- **A prévia real da tela não foi vista** — o layout foi verificado com um harness sem
-  autenticação (removido depois), com a prévia em estado de placeholder. O PDF em si foi
-  inspecionado página a página, mas a combinação "iframe com PDF de verdade dentro do painel"
-  depende de sessão e não foi conferida.
+  funcionando; melhorar exigiria reordenar blocos automaticamente, o que conflita com "a ordem
+  aqui é a ordem no PDF".
+- **A prévia real dentro do painel não foi vista** — o layout foi verificado com um harness sem
+  autenticação (removido), com a prévia em placeholder. O PDF foi inspecionado página a página em
+  todas as fases, mas a combinação "iframe com PDF de verdade no painel" depende de sessão.
+- **A UI de templates não foi exercitada contra o banco** — salvar/carregar/excluir depende de
+  sessão autenticada. A RLS foi validada por matriz em SQL e a serialização da config por testes
+  de round-trip, mas o fluxo de clique não.
 
-**11.8. A poda de blocos ao trocar de escopo virou parte do estado, não da UI.**
-O plano dizia apenas "a UI desabilita blocos incompatíveis". Faltava o caso inverso: o usuário
-monta um relatório por empresa e **depois** troca o seletor para consolidado. Sem tratamento, a
-composição fica com 6 blocos que aquele escopo não gera e o PDF sai cheio de "sem dados".
-`pruneIncompatibleBlocks` remove e **reporta** o que removeu, e a tela avisa por toast — sumir
-com o bloco em silêncio seria pior do que deixá-lo quebrado.
+---
 
-**11.9. Reordenação por botões, não só por arrastar.**
-A §7 do plano dizia "reordenação por arrastar". Arrastar sozinho torna a ferramenta inoperável
-por teclado, então os botões de subir/descer são o caminho principal e o arrastar é complemento.
+## 13. Pendência de ambiente (fora do escopo desta feature)
 
-**11.10. Zero não é despesa.**
-Colunas de saída formatavam com `-Math.abs(valor)`, e `-Math.abs(0)` é `-0` — que o
-`Intl.NumberFormat` imprime como "-R$ 0,00", em vermelho. Numa tabela de contrapartes onde metade
-das linhas só tem entrada, isso enchia a coluna de saídas negativas falsas. Centralizado em
-`formatOutflow` / `isNegativeValue`, usado pelos 4 blocos com coluna de saída.
+`bun run db:reset` produz um banco local onde **nenhuma tabela** é legível pelo papel
+`authenticated` — os default privileges locais concedem `Dxtm` onde o remoto concede `arwdDxtm`.
+Consequências:
 
-**11.11. O layout de três colunas foi refeito para duas.**
-A §7 previa catálogo | composição | prévia lado a lado. Na tela real isso falhou em dois pontos:
+- RLS não pode ser exercitado localmente sem um `grant` manual (o script de validação desta fase
+  faz isso).
+- O app rodando contra o banco local com a anon key recebe 403 em tudo.
 
-- **A prévia colapsou.** O card tinha altura automática e o `iframe` dependia de `h-full` +
-  `flex-1` — num ancestral sem altura definida, `h-full` resolve para `auto` e o PDF virou uma
-  faixa de ~180px com barra horizontal. Passou a ter altura explícita
-  (`h-[calc(100vh-15rem)]`, mínimo 540px) e `#view=FitH` para o visualizador ajustar a página à
-  largura.
-- **O catálogo tinha ~1400px de altura** — 16 blocos numa coluna de 260px com descrição de três
-  linhas cada, empurrando a composição para fora da tela. Virou faixa de chips com título de
-  grupo em linha (~200px), com a descrição no `title` e rótulos curtos (`shortLabel`) para caber
-  numa linha. Tentei grade e colunas CSS antes: as duas deixavam vazio sob os grupos pequenos,
-  porque os grupos vão de 1 a 5 blocos.
-
-Verificado no navegador em 1600×1000, 1440×800 (prévia fixa em `top: 24px`, card de 636px cabendo
-na viewport) e 1024×820 (empilha em coluna única, sem overflow horizontal).
+O conserto certo é uma migration que fixe os default privileges do schema `public`, alinhando
+local e remoto — mas isso afeta o projeto inteiro e merece PR próprio, não carona numa feature.
