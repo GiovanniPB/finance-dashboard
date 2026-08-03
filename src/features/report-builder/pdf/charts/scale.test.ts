@@ -148,3 +148,57 @@ describe("extentOf", () => {
     expect(extentOf([[]])).toEqual({ min: 0, max: 0 });
   });
 });
+
+describe("niceScale — lado negativo raso", () => {
+  it("não gasta um passo inteiro quando os dados entram pouco no negativo", () => {
+    // -45 mil contra 1,4 M: antes o piso ia a -500 mil e desperdiçava ~1/4 da
+    // altura do gráfico.
+    const scale = niceScale(-45_000, 1_405_000);
+
+    expect(scale.min).toBeGreaterThan(-100_000);
+    expect(scale.min).toBeLessThanOrEqual(-45_000);
+    expect(scale.max).toBe(1_500_000);
+  });
+
+  it("mantém os ticks em múltiplos do passo, começando no zero", () => {
+    const scale = niceScale(-45_000, 1_405_000);
+
+    expect(scale.ticks).toEqual([0, 500_000, 1_000_000, 1_500_000]);
+    for (const tick of scale.ticks) {
+      expect(tick % scale.step).toBe(0);
+    }
+  });
+
+  it("ainda arredonda o piso quando o negativo é relevante", () => {
+    // -400 mil passa de meio passo (250 mil), então o piso vira -500 mil.
+    const scale = niceScale(-400_000, 1_405_000);
+
+    expect(scale.min).toBe(-500_000);
+    expect(scale.ticks).toContain(-500_000);
+    expect(scale.ticks).toContain(0);
+  });
+
+  it("nunca devolve menos-zero nos ticks", () => {
+    for (const [min, max] of [
+      [-45_000, 1_405_000],
+      [-1, 100],
+      [-0.004, 9],
+    ] as const) {
+      for (const tick of niceScale(min, max).ticks) {
+        expect(Object.is(tick, -0)).toBe(false);
+      }
+    }
+  });
+
+  it("cobre o dado mesmo com piso solto", () => {
+    for (const [min, max] of [
+      [-45_000, 1_405_000],
+      [-9, 900],
+      [-0.3, 50],
+    ] as const) {
+      const scale = niceScale(min, max);
+      expect(scale.min).toBeLessThanOrEqual(min);
+      expect(scale.max).toBeGreaterThanOrEqual(max);
+    }
+  });
+});

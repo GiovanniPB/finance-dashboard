@@ -97,6 +97,30 @@ export function labelForRange(from: string, to: string): string {
   return `${formatDate(from)} → ${formatDate(to)}`;
 }
 
+/**
+ * Rótulo curto, para caber em cabeçalho de coluna de tabela.
+ *
+ * `labelForRange` produz coisas como "2026 (até 31/07/2026)", que quebram em duas
+ * linhas numa coluna de 28mm e desalinham a altura do cabeçalho.
+ * Mês inteiro → "jul/26"; ano civil → "2026"; resto → "01/01–31/07".
+ */
+export function compactLabelForRange(from: string, to: string): string {
+  const a = parseIso(from);
+  const b = parseIso(to);
+
+  if (isMonthAligned(from, to)) {
+    const span = monthSpan(from, to);
+    if (span === 1) return formatDate(from, "MMM/yy").replace(".", "");
+    if (span === 12 && a.getMonth() === 0 && a.getFullYear() === b.getFullYear()) {
+      return String(a.getFullYear());
+    }
+  }
+  if (a.getFullYear() === b.getFullYear() && isFirstDayOfMonth(from) && a.getMonth() === 0) {
+    return `${a.getFullYear()} até ${formatDate(to, "dd/MM")}`;
+  }
+  return `${formatDate(from, "dd/MM")}–${formatDate(to, "dd/MM")}`;
+}
+
 /* ─── Resolução ───────────────────────────────────────────────────────── */
 
 const QUARTER_MONTHS = 3;
