@@ -20,45 +20,52 @@ describe("BlockCatalog", () => {
   it("libera fluxo de caixa no escopo de empresa", () => {
     render(<BlockCatalog mode="company" comparison="none" onAdd={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: /Fluxo de caixa/u })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Fluxo de caixa" })).toBeEnabled();
   });
 
   it("desabilita fluxo de caixa no consolidado e explica o motivo", () => {
     render(<BlockCatalog mode="consolidated" comparison="none" onAdd={vi.fn()} />);
 
-    const button = screen.getByRole("button", { name: /Fluxo de caixa/u });
+    const button = screen.getByRole("button", { name: "Fluxo de caixa" });
     expect(button).toBeDisabled();
-    expect(button).toHaveTextContent(/consolidada/iu);
+    // O motivo vive no `title`; o chip mostra só o rótulo.
+    expect(button).toHaveAttribute("title", expect.stringMatching(/consolidada/iu));
+  });
+
+  it("resume os blocos indisponíveis fora do hover", () => {
+    render(<BlockCatalog mode="consolidated" comparison="none" onAdd={vi.fn()} />);
+
+    // Depender só de `title` esconderia a informação de quem não usa mouse.
+    expect(screen.getByText(/bloco\(s\) indisponível\(is\) aqui/u)).toBeInTheDocument();
+    expect(screen.getByText(/Selecione uma empresa específica/u)).toBeInTheDocument();
   });
 
   it("mantém DRE disponível nos dois escopos", () => {
-    // O nome acessível inclui a descrição, então "DRE" sozinho também casaria
-    // com "DRE comparativo".
-    const dre = /^DRE Demonstrativo/u;
+    // Nome exato: "DRE" não pode casar com "DRE comparativo".
     const { unmount } = render(<BlockCatalog mode="company" comparison="none" onAdd={vi.fn()} />);
-    expect(screen.getByRole("button", { name: dre })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "DRE" })).toBeEnabled();
     unmount();
 
     render(<BlockCatalog mode="consolidated" comparison="none" onAdd={vi.fn()} />);
-    expect(screen.getByRole("button", { name: dre })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "DRE" })).toBeEnabled();
   });
 
   it("exige eixo de comparação para o DRE comparativo", () => {
     const { unmount } = render(<BlockCatalog mode="company" comparison="none" onAdd={vi.fn()} />);
-    const disabled = screen.getByRole("button", { name: /DRE comparativo/u });
+    const disabled = screen.getByRole("button", { name: "DRE comparativo" });
     expect(disabled).toBeDisabled();
-    expect(disabled).toHaveTextContent(/compara/iu);
+    expect(disabled).toHaveAttribute("title", expect.stringMatching(/compara/iu));
     unmount();
 
     render(<BlockCatalog mode="company" comparison="yoy" onAdd={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /DRE comparativo/u })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "DRE comparativo" })).toBeEnabled();
   });
 
   it("avisa o tipo escolhido ao clicar", async () => {
     const onAdd = vi.fn();
     render(<BlockCatalog mode="company" comparison="none" onAdd={onAdd} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /Saldos bancários/u }));
+    await userEvent.click(screen.getByRole("button", { name: "Saldos bancários" }));
 
     expect(onAdd).toHaveBeenCalledExactlyOnceWith("bank-balances");
   });
@@ -67,7 +74,7 @@ describe("BlockCatalog", () => {
     const onAdd = vi.fn();
     render(<BlockCatalog mode="consolidated" comparison="none" onAdd={onAdd} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /Projeção|Forecast/u }));
+    await userEvent.click(screen.getByRole("button", { name: "Forecast 90 dias" }));
 
     expect(onAdd).not.toHaveBeenCalled();
   });

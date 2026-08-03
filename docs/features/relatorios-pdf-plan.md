@@ -226,29 +226,30 @@ create table public.report_templates (
 
 ## 7. UI do builder
 
-Três painéis, com o preview sempre visível:
+Duas colunas: à esquerda o trabalho, à direita o resultado.
 
 ```
-┌ Catálogo ─────┬ Composição ────────────────┬ Preview (iframe, PDF real) ─┐
-│ [+] KPIs      │ 1. Capa                ⋮ ✕ │  ┌───────────────────┐      │
-│ [+] Gráficos  │ 2. Sumário executivo   ⋮ ✕ │  │  página 1 de 12   │      │
-│ [+] DRE       │ 3. Receita & Result.   ⋮ ✕ │  │                   │      │
-│ [+] Fluxo     │ 4. DRE                 ⋮ ✕ │  └───────────────────┘      │
-│ [+] Notas     │    ↳ opções do bloco       │  [◀ ▶]   [Gerar PDF]        │
-└───────────────┴────────────────────────────┴─────────────────────────────┘
-    Escopo: [Consolidado ▾]  Período: [01/01 → 31/07]  Comparar: [YoY ▾]
-    Template: [Mensal Diretoria ▾] [Salvar] [Salvar como…]
+┌ Ajustes: modelos prontos · período · comparativo · título · documento ────────┐
+├───────────────────────────────────────────┬──────────────────────────────────┤
+│ Adicionar blocos (chips agrupados)        │ Prévia — o PDF de verdade        │
+│  ESTRUTURA +Capa +Notas +Quebra           │  ┌────────────────────────┐      │
+│  GRÁFICOS +Receita bruta (YoY) …          │  │  página 1 de 6         │      │
+├───────────────────────────────────────────┤  │                        │      │
+│ Composição                                │  │  (fixa ao rolar)       │      │
+│  1. Capa                       ⌃ ⌄ ⚙ ✕   │  └────────────────────────┘      │
+│  2. Sumário executivo          ⌃ ⌄ ⚙ ✕   │  [Atualizar] [Baixar PDF]        │
+└───────────────────────────────────────────┴──────────────────────────────────┘
 ```
 
 - **Escopo/período/comparativo** são globais; cada bloco pode sobrescrever pontualmente (ex.:
   top N de contrapartes).
-- Blocos incompatíveis com o escopo aparecem **desabilitados com o motivo** (§3.5).
-- Reordenação por arrastar; toda a composição vive na **URL via nuqs** → link compartilhável,
-  e o mesmo objeto serializado é o que se salva como template.
-- Preview **debounced** — regenerar o PDF a cada tecla é desperdício. Botão explícito de
-  atualizar quando a config muda muito.
-
----
+- Blocos incompatíveis com o escopo aparecem **desabilitados** (§3.5), com o motivo no `title` e
+  resumidos num rodapé — depender só de hover esconderia a informação.
+- Reordenação por **botões** (único caminho por teclado) e por arrastar.
+- Toda a composição vive na **URL via nuqs** → link compartilhável, e o mesmo objeto serializado
+  é o que se salva como template.
+- Prévia **debounced** e só em mudança estrutural (blocos, período, comparativo, escopo). Digitar
+  título não dispara consulta ao banco; para isso existe o botão de atualizar.
 
 ## 8. Fases de implementação
 
@@ -374,10 +375,10 @@ Itens vistos na inspeção visual que não são defeito, mas merecem ajuste:
   funcionando, mas dá para melhorar reordenando blocos baixos.
 - **Cabeçalho de coluna longo quebra em duas linhas** no DRE comparativo, quando o rótulo do
   período é extenso ("2026 (até 31/07/2026)"). Legível, mas desalinha a altura do cabeçalho.
-- **A tela do builder não foi verificada visualmente** — `/reports/builder` exige sessão
-  autenticada. A lógica está coberta por testes de componente (gate de escopo, reordenação,
-  opções por tipo de bloco) e o PDF foi inspecionado página a página, mas o layout dos três
-  painéis precisa de uma passada de olho humana.
+- **A prévia real da tela não foi vista** — o layout foi verificado com um harness sem
+  autenticação (removido depois), com a prévia em estado de placeholder. O PDF em si foi
+  inspecionado página a página, mas a combinação "iframe com PDF de verdade dentro do painel"
+  depende de sessão e não foi conferida.
 
 **11.8. A poda de blocos ao trocar de escopo virou parte do estado, não da UI.**
 O plano dizia apenas "a UI desabilita blocos incompatíveis". Faltava o caso inverso: o usuário
@@ -395,3 +396,20 @@ Colunas de saída formatavam com `-Math.abs(valor)`, e `-Math.abs(0)` é `-0` �
 `Intl.NumberFormat` imprime como "-R$ 0,00", em vermelho. Numa tabela de contrapartes onde metade
 das linhas só tem entrada, isso enchia a coluna de saídas negativas falsas. Centralizado em
 `formatOutflow` / `isNegativeValue`, usado pelos 4 blocos com coluna de saída.
+
+**11.11. O layout de três colunas foi refeito para duas.**
+A §7 previa catálogo | composição | prévia lado a lado. Na tela real isso falhou em dois pontos:
+
+- **A prévia colapsou.** O card tinha altura automática e o `iframe` dependia de `h-full` +
+  `flex-1` — num ancestral sem altura definida, `h-full` resolve para `auto` e o PDF virou uma
+  faixa de ~180px com barra horizontal. Passou a ter altura explícita
+  (`h-[calc(100vh-15rem)]`, mínimo 540px) e `#view=FitH` para o visualizador ajustar a página à
+  largura.
+- **O catálogo tinha ~1400px de altura** — 16 blocos numa coluna de 260px com descrição de três
+  linhas cada, empurrando a composição para fora da tela. Virou faixa de chips com título de
+  grupo em linha (~200px), com a descrição no `title` e rótulos curtos (`shortLabel`) para caber
+  numa linha. Tentei grade e colunas CSS antes: as duas deixavam vazio sob os grupos pequenos,
+  porque os grupos vão de 1 a 5 blocos.
+
+Verificado no navegador em 1600×1000, 1440×800 (prévia fixa em `top: 24px`, card de 636px cabendo
+na viewport) e 1024×820 (empilha em coluna única, sem overflow horizontal).

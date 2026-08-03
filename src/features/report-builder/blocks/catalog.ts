@@ -40,6 +40,12 @@ export const BLOCK_GROUP_LABELS: Record<BlockGroup, string> = {
 export interface ReportBlockDefinition {
   type: ReportBlockType;
   label: string;
+  /**
+   * Rótulo curto para o chip do catálogo. O `label` completo continua na
+   * composição e no PDF; aqui o que importa é caber numa linha sem transbordar a
+   * coluna.
+   */
+  shortLabel?: string;
   description: string;
   group: BlockGroup;
   /** Escopos em que o bloco pode ser gerado. */
@@ -78,6 +84,7 @@ export const BLOCK_CATALOG: Record<ReportBlockType, ReportBlockDefinition> = {
   "page-break": {
     type: "page-break",
     label: "Quebra de página",
+    shortLabel: "Quebra",
     description: "Força o próximo bloco a começar numa página nova.",
     group: "estrutura",
     scopes: BOTH,
@@ -86,6 +93,7 @@ export const BLOCK_CATALOG: Record<ReportBlockType, ReportBlockDefinition> = {
   notes: {
     type: "notes",
     label: "Notas e comentários",
+    shortLabel: "Notas",
     description: "Texto livre para análise qualitativa.",
     group: "estrutura",
     scopes: BOTH,
@@ -108,6 +116,7 @@ export const BLOCK_CATALOG: Record<ReportBlockType, ReportBlockDefinition> = {
   "revenue-result-chart": {
     type: "revenue-result-chart",
     label: "Receita e resultado mensal",
+    shortLabel: "Receita e resultado",
     description: "Barras de receita bruta, líquida e resultado por mês.",
     group: "graficos",
     scopes: BOTH,
@@ -117,6 +126,7 @@ export const BLOCK_CATALOG: Record<ReportBlockType, ReportBlockDefinition> = {
   "revenue-yoy-chart": {
     type: "revenue-yoy-chart",
     label: "Receita bruta — ano vs. ano",
+    shortLabel: "Receita bruta (YoY)",
     description: "Barras comparando cada mês com o mesmo mês do ano anterior.",
     group: "graficos",
     scopes: BOTH,
@@ -126,6 +136,7 @@ export const BLOCK_CATALOG: Record<ReportBlockType, ReportBlockDefinition> = {
   "revenue-accumulated-yoy-chart": {
     type: "revenue-accumulated-yoy-chart",
     label: "Receita acumulada — ano vs. ano",
+    shortLabel: "Receita acumulada (YoY)",
     description: "Área do acumulado do ano contra o ano anterior.",
     group: "graficos",
     scopes: BOTH,
@@ -135,6 +146,7 @@ export const BLOCK_CATALOG: Record<ReportBlockType, ReportBlockDefinition> = {
   "profit-yoy-chart": {
     type: "profit-yoy-chart",
     label: "Lucro líquido — ano vs. ano",
+    shortLabel: "Lucro líquido (YoY)",
     description: "Barras do resultado mensal contra o ano anterior.",
     group: "graficos",
     scopes: BOTH,
@@ -211,6 +223,7 @@ export const BLOCK_CATALOG: Record<ReportBlockType, ReportBlockDefinition> = {
   counterparties: {
     type: "counterparties",
     label: "Principais contrapartes",
+    shortLabel: "Contrapartes",
     description: "Ranking de clientes e fornecedores por volume movimentado.",
     group: "analises",
     scopes: COMPANY_ONLY,
@@ -232,6 +245,11 @@ export const BLOCK_CATALOG: Record<ReportBlockType, ReportBlockDefinition> = {
 
 export function getBlockDefinition(type: ReportBlockType): ReportBlockDefinition {
   return BLOCK_CATALOG[type];
+}
+
+/** Rótulo a usar no chip do catálogo. */
+export function blockChipLabel(definition: ReportBlockDefinition): string {
+  return definition.shortLabel ?? definition.label;
 }
 
 /** Todas as definições na ordem do catálogo (estável para a UI). */

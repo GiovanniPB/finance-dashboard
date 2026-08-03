@@ -1,9 +1,10 @@
 /**
  * Exportar Relatório — o builder.
  *
- * Três painéis: catálogo, composição e prévia. O escopo vem do seletor de empresa
- * do topo; o resto da configuração vive na URL, então o estado é compartilhável e
- * é o mesmo objeto que a Fase 4 vai salvar como template.
+ * Duas colunas: à esquerda o trabalho (catálogo + composição), à direita a prévia,
+ * que é o resultado e fica fixa ao rolar. O escopo vem do seletor de empresa do
+ * topo; o resto da configuração vive na URL, então o estado é compartilhável e é o
+ * mesmo objeto que a Fase 4 vai salvar como template.
  */
 import * as React from "react";
 import { FileText, RotateCcw } from "lucide-react";
@@ -105,34 +106,48 @@ export default function ReportBuilderPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_minmax(340px,42%)]">
-        <Card className="h-fit">
-          <CardContent className="p-4">
-            <h2 className="mb-3 text-sm font-semibold">Catálogo</h2>
-            <BlockCatalog
-              mode={config.scope.mode}
-              comparison={config.comparison}
-              onAdd={report.addBlock}
-            />
-          </CardContent>
-        </Card>
+      {/*
+        Duas colunas, não três: o catálogo virou faixa compacta acima da
+        composição, e a prévia — que é o resultado do trabalho — ganha metade da
+        largura e altura própria em vez de disputar espaço com uma coluna alta.
+      */}
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,46%)]">
+        <div className="min-w-0 space-y-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="mb-3 flex items-baseline justify-between gap-2">
+                <h2 className="text-sm font-semibold">Adicionar blocos</h2>
+                <span className="text-2xs text-text-subtle">
+                  clique para incluir no fim da composição
+                </span>
+              </div>
+              <BlockCatalog
+                mode={config.scope.mode}
+                comparison={config.comparison}
+                onAdd={report.addBlock}
+              />
+            </CardContent>
+          </Card>
 
-        <Card className="h-fit">
-          <CardContent className="p-4">
-            <h2 className="mb-3 text-sm font-semibold">Composição</h2>
-            <BlockComposition
-              blocks={config.blocks}
-              onRemove={report.removeBlock}
-              onMove={report.moveBlock}
-              onReorder={report.reorderBlocks}
-              onOptionsChange={report.updateBlockOptions}
-            />
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="mb-3 flex items-baseline justify-between gap-2">
+                <h2 className="text-sm font-semibold">Composição</h2>
+                <span className="text-2xs text-text-subtle">a ordem aqui é a ordem no PDF</span>
+              </div>
+              <BlockComposition
+                blocks={config.blocks}
+                onRemove={report.removeBlock}
+                onMove={report.moveBlock}
+                onReorder={report.reorderBlocks}
+                onOptionsChange={report.updateBlockOptions}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="h-fit xl:sticky xl:top-6">
+        <Card className="min-w-0 xl:sticky xl:top-6">
           <CardContent className="p-4">
-            <h2 className="mb-3 text-sm font-semibold">Prévia</h2>
             <ReportPreview
               config={config}
               scopeLabel={scopeLabel}

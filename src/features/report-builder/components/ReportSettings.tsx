@@ -156,26 +156,32 @@ export function ReportSettings({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        <ToggleField
-          id="rb-page-numbers"
-          label="Numerar páginas"
-          checked={config.document.showPageNumbers}
-          onChange={(checked) => onDocumentChange({ showPageNumbers: checked })}
-        />
-        <ToggleField
-          id="rb-running-header"
-          label="Cabeçalho em todas as páginas"
-          checked={config.document.showRunningHeader}
-          onChange={(checked) => onDocumentChange({ showRunningHeader: checked })}
-        />
-        <div className="flex min-w-[220px] flex-1 flex-col gap-1.5">
+      {/*
+        `items-end` alinha as caixas de seleção com a base do campo ao lado — sem
+        isso elas ficam centralizadas na altura do rótulo + input e desalinham.
+      */}
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor="rb-confidentiality">Nota de confidencialidade</Label>
           <Input
             id="rb-confidentiality"
             value={config.document.confidentialityNote ?? ""}
             placeholder="Ex.: Documento interno · uso restrito"
             onChange={(e) => onDocumentChange({ confidentialityNote: e.target.value })}
+          />
+        </div>
+        <div className="flex h-9 flex-wrap items-center gap-x-5 gap-y-2">
+          <ToggleField
+            id="rb-page-numbers"
+            label="Numerar páginas"
+            checked={config.document.showPageNumbers}
+            onChange={(checked) => onDocumentChange({ showPageNumbers: checked })}
+          />
+          <ToggleField
+            id="rb-running-header"
+            label="Cabeçalho em todas as páginas"
+            checked={config.document.showRunningHeader}
+            onChange={(checked) => onDocumentChange({ showRunningHeader: checked })}
           />
         </div>
       </div>
