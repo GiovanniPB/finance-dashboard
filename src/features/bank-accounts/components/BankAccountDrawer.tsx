@@ -134,7 +134,7 @@ export function BankAccountDrawer({ open, onOpenChange, account, companyId }: Pr
           <SheetTitle>{isEditing ? "Editar conta bancária" : "Nova conta bancária"}</SheetTitle>
           <SheetDescription>
             {isEditing
-              ? "Atualize os dados da conta. Saldo inicial só vale para contas novas."
+              ? "Atualize os dados da conta, inclusive o saldo inicial e a data do saldo."
               : "Cadastre uma conta para vincular a lançamentos."}
           </SheetDescription>
         </SheetHeader>
@@ -235,43 +235,53 @@ export function BankAccountDrawer({ open, onOpenChange, account, companyId }: Pr
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="initialBalance">Saldo inicial</Label>
-                <Controller
-                  name="initialBalance"
-                  control={control}
-                  render={({ field }) => (
-                    <CurrencyInput
-                      id="initialBalance"
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={isEditing}
-                    />
-                  )}
-                />
-                {isEditing && (
-                  <p className="text-2xs text-text-subtle">Saldo inicial é fixo após a criação.</p>
-                )}
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="initialBalance">Saldo inicial</Label>
+                  <Controller
+                    name="initialBalance"
+                    control={control}
+                    render={({ field }) => (
+                      <CurrencyInput
+                        id="initialBalance"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        aria-invalid={Boolean(errors.initialBalance)}
+                      />
+                    )}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="initialBalanceDate">Data do saldo</Label>
+                  <Controller
+                    name="initialBalanceDate"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        id="initialBalanceDate"
+                        type="date"
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          field.onChange(e.target.value === "" ? null : e.target.value);
+                        }}
+                        aria-invalid={Boolean(errors.initialBalanceDate)}
+                      />
+                    )}
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="initialBalanceDate">Data do saldo</Label>
-                <Controller
-                  name="initialBalanceDate"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      id="initialBalanceDate"
-                      type="date"
-                      disabled={isEditing}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        field.onChange(e.target.value === "" ? null : e.target.value);
-                      }}
-                    />
-                  )}
-                />
-              </div>
+              {errors.initialBalance && (
+                <p className="text-2xs text-expense">{errors.initialBalance.message}</p>
+              )}
+              {errors.initialBalanceDate && (
+                <p className="text-2xs text-expense">{errors.initialBalanceDate.message}</p>
+              )}
+              <p className="text-2xs text-text-subtle">
+                {isEditing
+                  ? "Alterar recalcula o saldo e o extrato desta conta. Só entram lançamentos com data de caixa a partir da data do saldo."
+                  : "Só entram lançamentos com data de caixa a partir da data do saldo."}
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
