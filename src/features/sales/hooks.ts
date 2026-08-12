@@ -13,7 +13,12 @@ import {
   fetchSalesOverview,
   fetchSalesRecurrence,
   fetchSalesTimeseries,
+  fetchSyncRuns,
+  projectLedger,
   reconcilePayout,
+  setProjectionEnabled,
+  setupGatewayAccount,
+  startBackfill,
   type SalesDimension,
   type SalesGrain,
 } from "./api";
@@ -143,6 +148,72 @@ export function useReconcileMonth(companyId: string | null, month: string) {
     queryKey: ledgerKeys.reconcileMonth(companyId, month),
     queryFn: () => fetchReconcileMonth(companyId ?? "", month),
     enabled: Boolean(companyId),
+  });
+}
+
+export function useSyncRuns() {
+  return useQuery({
+    queryKey: ["sales", "syncRuns"] as const,
+    queryFn: fetchSyncRuns,
+    // enquanto um lote drena, o progresso vem do cron (a cada 2 min): acompanhar
+    // de perto não custa nada e é o único feedback da carga histórica
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((r) => r.status === "running") ? 15_000 : false,
+  });
+}
+
+export function useStartBackfill() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { accountId: string; windowStart: string; windowEnd: string }) =>
+      startBackfill(input.accountId, input.windowStart, input.windowEnd),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["sales", "syncRuns"] });
+    },
+  });
+}
+
+export function useSetupGateway() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: setupGatewayAccount,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
+      // adotar uma conta muda o tipo dela (para `payment_gateway`)
+      void queryClient.invalidateQueries({ queryKey: ["bank-accounts"] });
+    },
+  });
+}
+
+export function useSetProjectionEnabled() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { settingsId: string; enabled: boolean }) =>
+      setProjectionEnabled(input.settingsId, input.enabled),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
+    },
+  });
+}
+
+export function useProjectLedger() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      companyId: string;
+      from: string;
+      to: string;
+      accountId?: string | null;
+    }) => projectLedger(input.companyId, input.from, input.to, input.accountId ?? null),
+    onSuccess: () => {
+      // a projeção cria/atualiza lançamentos: tudo que soma transações muda
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      void queryClient.invalidateQueries({ queryKey: ["bills"] });
+      void queryClient.invalidateQueries({ queryKey: ["forecast"] });
+      void queryClient.invalidateQueries({ queryKey: ["cashflow"] });
+      void queryClient.invalidateQueries({ queryKey: ["dre"] });
+    },
   });
 }
 

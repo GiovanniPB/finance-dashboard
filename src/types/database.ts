@@ -4304,7 +4304,12 @@ export type Database = {
         }[]
       }
       pagarme_project_ledger: {
-        Args: { p_company_id: string; p_from: string; p_to: string }
+        Args: {
+          p_company_id: string
+          p_from: string
+          p_pagarme_account_id?: string
+          p_to: string
+        }
         Returns: {
           kind: string
           lancamentos: number
@@ -4355,6 +4360,7 @@ export type Database = {
           p_account_id: string
           p_company_id: string
           p_cutover_date?: string
+          p_gateway_bank_account_id?: string
           p_payout_bank_account_id?: string
         }
         Returns: string

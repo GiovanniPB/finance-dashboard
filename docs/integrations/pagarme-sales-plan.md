@@ -563,3 +563,84 @@ filtros na URL via nuqs, Recharts. Módulo de permissão `sales`; empresa via
 **Nota de sequenciamento:** o dashboard (PR 5) vem **antes** do write-back
 contábil (PR 6) de propósito — ele só lê, não tem risco de corromper a DRE, e
 entrega valor enquanto as decisões D1–D5 amadurecem com dados reais na mão.
+
+---
+
+## 7. Go-live: ordem de ativação
+
+O schema no remoto não liga nada por si. A esteira nasce inerte de propósito
+(cron sem segredo = no-op, projeção `enabled = false`), então a ativação é uma
+sequência com pontos de conferência. **A ordem importa:** carregar histórico
+antes de configurar a carteira é seguro; ligar a projeção antes de conferir o
+histórico não é.
+
+### Passo 1 — segredo do sync (só isto exige terminal)
+
+Sem ele a Edge Function recusa toda chamada (401) e os quatro crons são no-op.
+São dois lugares porque são dois mundos: o env da function e o Vault que o cron lê.
+
+```sh
+SECRET=$(openssl rand -hex 32) && supabase secrets set PAGARME_SYNC_SECRET="$SECRET" && echo "$SECRET"
+```
+
+Com o valor impresso, no SQL editor do projeto:
+
+```sql
+select vault.create_secret(
+  'https://<project-ref>.supabase.co/functions/v1/pagarme-sync', 'pagarme_sync_url');
+select vault.create_secret('<valor impresso acima>', 'pagarme_sync_secret');
+```
+
+Confere: `select public.pagarme_cron_invoke('settlements');` e depois
+`select status_code from net._http_response order by created desc limit 1;`
+(200 = ativa). **Nunca** consultar `net.http_request_queue` — é lá que o header
+com o segredo aparece.
+
+### Passo 2 — carga histórica (Vendas → Operação da esteira)
+
+Uma conexão por vez, janela por período. O cron drena em blocos de duas páginas
+a cada 2 min e o progresso aparece na própria tela; lote parado em zero por mais
+de 10 min significa que o passo 1 não está completo.
+
+Ao final: dashboard de vendas populado e `pagarme_receivables` com o cronograma
+das parcelas — incluindo as que vencem no futuro, que é o lastro do "A Receber".
+
+### Passo 3 — assinar os eventos novos no painel do pagar.me
+
+O webhook já roteia por tipo, mas só recebe o que estiver assinado. Além de
+`charge.paid` (já ativo pela esteira fiscal): `charge.refunded`,
+`charge.payment_failed`, `customer.created`, `customer.updated`,
+`subscription.created`, `subscription.canceled`.
+
+### Passo 4 — carteira do gateway (Vendas → Operação da esteira)
+
+Uma linha por (empresa × conexão). **Aponte para a conta "Pagar-me …" que já
+existe** em vez de criar nova: ela carrega o histórico manual, e a data de corte
+é exatamente a fronteira entre esse histórico e a projeção. A RCO tem duas, uma
+por conexão.
+
+### Passo 5 — conferir, e só então ligar a projeção
+
+A projeção nasce desligada. Antes de ligar, com o histórico já carregado:
+
+- `v_pagarme_ledger_health` deve estar vazia (recebedor sem empresa mapeada e
+  recebível sem competência aparecem aqui);
+- `pagarme_reconcile_month` do último mês fechado: `divergencia_*` em zero;
+- o cronograma em Vendas deve bater com o saldo a receber que hoje é lançado à mão.
+
+Ligue, rode a projeção da janela (corte → +3 anos) e verifique em "A Receber" que
+os títulos pagar.me apareceram **sem** duplicar os manuais.
+
+### Passo 6 — encerrar o processo manual
+
+A partir do corte, a TED do pagar.me deixa de ser lançamento de receita e passa a
+ser registrada em Conciliação → "Registrar saque", que a transforma em
+transferência gateway → banco. É esse passo que mata o spike.
+
+### O que fica pendente de decisão
+
+`dre_by_company` só soma `settled`/`reconciled`. Como a projeção lança as parcelas
+futuras como `pending`, a receita de uma venda em 12x entra na competência
+conforme cada parcela liquida — o que **contradiz D2** (competência integral na
+venda). Corrigir é uma linha, mas muda todo número histórico de DRE, então é
+decisão do dono do dado, não do código.

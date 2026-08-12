@@ -356,6 +356,132 @@ export async function fetchGatewayAccounts(companyId: string): Promise<GatewayAc
   }));
 }
 
+export interface SetupGatewayInput {
+  accountId: string;
+  companyId: string;
+  /**
+   * Carteira já existente a adotar. O grupo já opera contas "Pagar-me …" com o
+   * histórico manual dentro; adotar preserva saldo e extrato — criar uma nova
+   * deixaria esse histórico órfão. Null = a RPC cria `pagar.me — <slug>`.
+   */
+  gatewayBankAccountId: string | null;
+  payoutBankAccountId: string | null;
+  cutoverDate: string;
+}
+
+export async function setupGatewayAccount(input: SetupGatewayInput): Promise<string> {
+  const { data, error } = await supabase.rpc("pagarme_setup_gateway_account", {
+    p_account_id: input.accountId,
+    p_company_id: input.companyId,
+    p_gateway_bank_account_id: input.gatewayBankAccountId ?? undefined,
+    p_payout_bank_account_id: input.payoutBankAccountId ?? undefined,
+    p_cutover_date: input.cutoverDate,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/** Kill-switch da projeção. Desligar não apaga nada — só para de recalcular. */
+export async function setProjectionEnabled(settingsId: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("pagarme_ledger_settings")
+    .update({ enabled })
+    .eq("id", settingsId);
+  if (error) throw error;
+}
+
+export interface ProjectionResultRow {
+  kind: string;
+  entries: number;
+  amount: number;
+}
+
+/**
+ * Recalcula os lançamentos da janela a partir dos recebíveis vigentes.
+ *
+ * Idempotente: rodar de novo reconcilia em vez de duplicar. É o passo que faz o
+ * recebível aparecer em "A Receber" e no forecast.
+ */
+export async function projectLedger(
+  companyId: string,
+  from: string,
+  to: string,
+  accountId: string | null = null,
+): Promise<ProjectionResultRow[]> {
+  const { data, error } = await supabase.rpc("pagarme_project_ledger", {
+    p_company_id: companyId,
+    p_from: from,
+    p_to: to,
+    p_pagarme_account_id: accountId ?? undefined,
+  });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    kind: r.kind ?? "",
+    entries: r.lancamentos ?? 0,
+    amount: r.valor ?? 0,
+  }));
+}
+
+/**
+ * Dispara a carga histórica de uma conexão.
+ *
+ * Só enfileira: o cron `pagarme-backfill` drena o lote em blocos, de forma
+ * retomável. Lote já em andamento para a mesma conexão devolve o mesmo id.
+ */
+export async function startBackfill(
+  accountId: string,
+  windowStart: string,
+  windowEnd: string,
+): Promise<string> {
+  const { data, error } = await supabase.rpc("pagarme_start_backfill", {
+    p_account_id: accountId,
+    p_window_start: windowStart,
+    p_window_end: windowEnd,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export interface SyncRun {
+  id: string;
+  pagarmeAccountId: string;
+  status: string;
+  windowStart: string;
+  windowEnd: string;
+  pageCursor: number;
+  itemsSeen: number;
+  itemsWritten: number;
+  attempts: number;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchSyncRuns(): Promise<SyncRun[]> {
+  const { data, error } = await supabase
+    .from("pagarme_sync_runs")
+    .select(
+      "id, pagarme_account_id, status, window_start, window_end, page_cursor, items_seen, items_written, attempts, last_error, created_at, updated_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(8);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    pagarmeAccountId: r.pagarme_account_id,
+    status: r.status,
+    windowStart: r.window_start,
+    windowEnd: r.window_end,
+    pageCursor: r.page_cursor,
+    itemsSeen: r.items_seen,
+    itemsWritten: r.items_written,
+    attempts: r.attempts,
+    lastError: r.last_error,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
+}
+
 export interface ReconcileMonthRow {
   metric: string;
   value: number;

@@ -144,8 +144,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const ledger: Record<string, unknown> = {};
 
   if (action.upsertCharge || action.upsertCustomer || action.upsertSubscription) {
-    const ledgerCtx = await loadLedgerContext(supabase, { accountId: account.id });
-    if (!ledgerCtx) {
+    // sandbox não entra no ledger (ver `loadLedgerContext`) — distinguido aqui
+    // para não reportar como falha o que é decisão de projeto
+    const ledgerCtx =
+      account.ambiente === "producao"
+        ? await loadLedgerContext(supabase, { accountId: account.id })
+        : null;
+
+    if (account.ambiente !== "producao") {
+      ledger.skipped = "sandbox";
+    } else if (!ledgerCtx) {
       ledger.error = "ledger_context_unavailable";
     } else {
       try {

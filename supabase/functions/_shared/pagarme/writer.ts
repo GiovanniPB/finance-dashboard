@@ -31,7 +31,14 @@ export interface LedgerContext {
   recipientToCompany: Map<string, string>;
 }
 
-/** Carrega a conta (por slug OU id) e o mapa de recebedores ativos. */
+/**
+ * Carrega a conta (por slug OU id) e o mapa de recebedores ativos.
+ *
+ * Só conta de **produção**: o ledger de vendas alimenta receita, DRE e "A
+ * Receber", e as conexões de homologação existem para exercitar a emissão de
+ * nota. Sem este filtro, uma venda de teste do sandbox viraria recebível real.
+ * O gate fica aqui — chokepoint único de escrita, comum ao webhook e ao sync.
+ */
 export async function loadLedgerContext(
   supabase: SupabaseClient,
   by: { slug?: string; accountId?: string },
@@ -39,7 +46,8 @@ export async function loadLedgerContext(
   let query = supabase
     .from("pagarme_accounts")
     .select("id, organization_id, owner_company_id")
-    .eq("active", true);
+    .eq("active", true)
+    .eq("ambiente", "producao");
 
   if (by.accountId) query = query.eq("id", by.accountId);
   else if (by.slug) query = query.eq("slug", by.slug);

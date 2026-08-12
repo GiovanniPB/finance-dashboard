@@ -1,4 +1,4 @@
-import { Calendar, Plug } from "lucide-react";
+import { Calendar, Plug, Settings2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { usePermissions } from "@/features/auth/usePermissions";
+import { useBankAccounts } from "@/features/bank-accounts/hooks";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import type { SalesGrain } from "@/features/sales/api";
+import { BackfillCard } from "@/features/sales/components/BackfillCard";
 import { LedgerHealthCard } from "@/features/sales/components/LedgerHealthCard";
+import { ProjectionSetupCard } from "@/features/sales/components/ProjectionSetupCard";
 import { ReceivablesScheduleChart } from "@/features/sales/components/ReceivablesScheduleChart";
 import { RecurrenceCard } from "@/features/sales/components/RecurrenceCard";
 import { SalesBreakdownCard } from "@/features/sales/components/SalesBreakdownCard";
@@ -59,6 +63,8 @@ const MONTH_LABELS = [
  */
 export default function VendasPage() {
   const { selectedCompanyId, selectedCompany, isConsolidated } = useCompanyScope();
+  const { canEdit } = usePermissions();
+  const { data: bankAccounts } = useBankAccounts(selectedCompanyId);
   const [filters, setFilters] = useSalesFilters();
   const { year, month, grain, dimension, account } = filters;
 
@@ -227,6 +233,38 @@ export default function VendasPage() {
           onDimensionChange={(d) => void setFilters({ dimension: d })}
         />
         <RecurrenceCard data={recurrence.data} loading={recurrence.isLoading} />
+      </div>
+
+      {/*
+        Operação da esteira. Fica no fim porque é uso pontual — carga histórica e
+        configuração da carteira acontecem no go-live e depois raramente. Exige
+        empresa selecionada: carteira e projeção são por empresa, e no consolidado
+        não há para onde lançar.
+      */}
+      <div className="space-y-5 border-t border-border pt-5">
+        <div className="flex items-center gap-2 text-text-muted">
+          <Settings2 className="size-4" />
+          <span className="text-xs font-medium tracking-wide uppercase">Operação da esteira</span>
+        </div>
+
+        <BackfillCard accounts={accounts.data ?? []} canEdit={canEdit} />
+
+        {selectedCompanyId ? (
+          <ProjectionSetupCard
+            companyId={selectedCompanyId}
+            accounts={accounts.data ?? []}
+            bankAccounts={(bankAccounts ?? []).map((b) => ({
+              id: b.id,
+              nickname: b.nickname,
+              accountType: b.account_type,
+            }))}
+            canEdit={canEdit}
+          />
+        ) : (
+          <p className="text-sm text-text-muted">
+            Selecione uma empresa para configurar a carteira do gateway e a projeção.
+          </p>
+        )}
       </div>
     </div>
   );
