@@ -168,7 +168,8 @@ export const BLOCK_CATALOG: Record<ReportBlockType, ReportBlockDefinition> = {
   dre: {
     type: "dre",
     label: "DRE",
-    description: "Demonstrativo de resultado por competência, com coluna de caixa opcional.",
+    description:
+      "Demonstrativo de resultado até o resultado líquido, por competência, com coluna de caixa opcional.",
     group: "demonstrativos",
     scopes: BOTH,
     estimatedHeightMm: 40,

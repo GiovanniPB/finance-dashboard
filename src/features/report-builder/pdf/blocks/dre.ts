@@ -4,6 +4,10 @@
  * A hierarquia de contas é indentada por **padding da célula**, não por espaços:
  * espaço em branco à esquerda é aparado pelo `overflow: "linebreak"`, e NBSP
  * dependeria da largura do glifo na fonte.
+ *
+ * O demonstrativo exportado vai **até o Resultado Líquido** (conta 8). O grupo 9
+ * — dividendos, bônus, reembolsos e saldos — é movimentação de capital abaixo da
+ * linha, não compõe o resultado, e fica fora do relatório.
  */
 import type { DreComputedRow } from "@/features/dre/types";
 import { formatBRL } from "@/lib/format";
@@ -19,7 +23,7 @@ const VALUE_WIDTH_MM = 30;
 const INDENT_PER_DEPTH_MM = 3;
 
 export const renderDre: BlockRenderer = (ctx, block) => {
-  const rows = ctx.data.dre;
+  const rows = ctx.data.dre == null ? null : rowsUpToNetResult(ctx.data.dre);
   const includeCash = block.options.includeCashColumn ?? true;
   const heading = block.options.heading ?? "Demonstrativo de resultado";
 
@@ -46,6 +50,16 @@ export const renderDre: BlockRenderer = (ctx, block) => {
     },
   });
 };
+
+/**
+ * Corta o demonstrativo no Resultado Líquido, removendo as contas abaixo da
+ * linha (grupo 9). Usa a flag `below_the_line` do plano de contas em vez do
+ * prefixo do código: é a mesma marca que a DRE da tela e o cálculo do saldo
+ * corrido já respeitam, e sobrevive a uma renumeração do plano.
+ */
+export function rowsUpToNetResult(rows: DreComputedRow[]): DreComputedRow[] {
+  return rows.filter((row) => !row.below_the_line);
+}
 
 /** Índices das colunas monetárias no corpo montado. */
 const ACCRUAL_COLUMN = 2;
