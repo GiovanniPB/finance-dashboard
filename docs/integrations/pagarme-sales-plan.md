@@ -1,11 +1,18 @@
 # pagar.me — Integração Profunda (Financeiro + Dashboard de Vendas)
 
+> **Este é o PLANO** — diagnóstico do processo manual, decisões contábeis e fases.
+> Para o sistema **como ele ficou** (arquitetura, banco, a projeção, estado do remoto),
+> leia [`pagarme-system.md`](pagarme-system.md) primeiro. O checklist de ativação está
+> na §7 deste documento.
+>
+> **Estado:** fases 0–6 implementadas na branch `feat/pagarme-vendas-recebiveis`.
+
 > **Propósito:** plano de execução para transformar o pagar.me de "fonte de eventos
 > fiscais" em **fonte de verdade das vendas e dos recebíveis** do grupo — integrada
 > aos lançamentos, ao DRE, ao fluxo de caixa e ao "a receber" — mais um dashboard
 > de vendas completo (evolução, receita, churn, MRR, split por empresa).
 >
-> **Data:** 12/08/2026 · **Status:** Fase 0 concluída; Fases 1–6 pendentes
+> **Data:** 12/08/2026
 > **Pré-leitura:** [`pagarme-api-contract.md`](pagarme-api-contract.md) (contrato
 > validado na Fase 0 — **leia antes de modelar**) · [`nfse-system.md`](nfse-system.md)
 > (esteira atual) · [`../../pagarme.md`](../../pagarme.md) (API v5)
@@ -548,21 +555,24 @@ filtros na URL via nuqs, Recharts. Módulo de permissão `sales`; empresa via
 
 ## 6. Ordem de execução e ganho por etapa
 
-| PR  | Fase   | Entrega                                                   | Ganho ao final                                                             |
-| --- | ------ | --------------------------------------------------------- | -------------------------------------------------------------------------- |
-| 1   | 0      | contrato da API + parsing completo de payables + fixtures | ✅ **feito** — premissa validada, 3 achados incorporados                   |
-| 2   | 1      | schema do ledger + RLS + tipos                            | base pronta                                                                |
-| 3   | 2a     | webhook roteador + upsert de charges/clientes             | vendas em tempo real no banco                                              |
-| 4   | 2b/c   | `pagarme-sync` + cron + backfill histórico                | **8 meses de histórico de vendas**                                         |
-| 5   | 5      | dashboard de vendas (lê o ledger)                         | **visibilidade de vendas — valor visível antes de tocar na contabilidade** |
-| 6   | 3a/b/c | conta gateway + contas do plano + projeção                | recebíveis no "a receber" e no forecast; **fim do spike**                  |
-| 7   | 3d/e   | conciliação de saque + corte                              | processo manual mensal encerrado                                           |
-| 8   | 4      | UI de recebíveis/conciliação/forecast                     | operação completa                                                          |
-| 9   | 6      | alertas + docs                                            | sustentável                                                                |
+Tudo abaixo foi entregue em **um** PR (branch `feat/pagarme-vendas-recebiveis`), na
+ordem dos commits — ver §14 do [`pagarme-system.md`](pagarme-system.md).
 
-**Nota de sequenciamento:** o dashboard (PR 5) vem **antes** do write-back
-contábil (PR 6) de propósito — ele só lê, não tem risco de corromper a DRE, e
-entrega valor enquanto as decisões D1–D5 amadurecem com dados reais na mão.
+| Fase   | Entrega                                                   | Estado                                                       |
+| ------ | --------------------------------------------------------- | ------------------------------------------------------------ |
+| 0      | contrato da API + parsing completo de payables + fixtures | ✅ premissa validada, 3 achados incorporados                 |
+| 1      | schema do ledger + RLS + tipos                            | ✅                                                           |
+| 2a     | webhook roteador + upsert de charges/clientes             | ✅ vendas em tempo real no banco                             |
+| 2b/c   | `pagarme-sync` + cron + backfill histórico                | ✅ carga retomável por cursor                                |
+| 5      | dashboard de vendas (lê o ledger)                         | ✅ **valor visível antes de tocar na contabilidade**         |
+| 3a/b/c | conta gateway + contas do plano + projeção                | ✅ recebíveis no "a receber" e no forecast; **fim do spike** |
+| 3d/e   | conciliação de saque + corte                              | ✅ processo manual mensal encerrado                          |
+| 4      | UI de recebíveis/conciliação/forecast                     | ✅                                                           |
+| 6      | operação, reorganização da UI e docs                      | ✅ Integrações/Webhooks + `pagarme-system.md`                |
+
+**Nota de sequenciamento:** o dashboard veio **antes** do write-back contábil de
+propósito — ele só lê, não tem risco de corromper a DRE, e entrega valor enquanto as
+decisões D1–D5 amadurecem com dados reais na mão.
 
 ---
 

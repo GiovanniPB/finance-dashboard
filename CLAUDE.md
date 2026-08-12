@@ -159,4 +159,29 @@ fila por status na `invoice_jobs` + pg_cron + Vault + Storage); gestão pela UI 
 
 **Estado:** sistema de notas funcional ponta a ponta (ingest → emite via cron → retorno
 por webhook **ou** reconcile → XML/DANFSe no Storage), gerido pela UI. Remoto sincronizado.
-Pendências (não bloqueiam): UI de revisão de endereço, write-back financeiro, go-live de produção.
+Pendências (não bloqueiam): UI de revisão de endereço, go-live de produção.
+
+## Integração pagar.me — vendas e recebíveis no financeiro
+
+A **mesma conexão pagar.me** alimenta dois consumidores: a emissão de nota (acima) e o
+dashboard de vendas + a automação da receita nos lançamentos. Substitui o processo em que
+um mês inteiro de vendas entrava como um lançamento único no dia da TED (pico de caixa,
+receita líquida disfarçada de bruta, R$ 2,5M de recebíveis invisíveis).
+
+> 📘 **Referência técnica completa (leia primeiro):**
+> [`docs/integrations/pagarme-system.md`](docs/integrations/pagarme-system.md) — arquitetura,
+> banco, a projeção, Edge Functions, decisões D1–D5, estado do remoto e como continuar.
+> Plano e checklist de go-live: [`pagarme-sales-plan.md`](docs/integrations/pagarme-sales-plan.md).
+> Contrato real da API: [`pagarme-api-contract.md`](docs/integrations/pagarme-api-contract.md).
+
+**Invariantes que não podem ser violadas:**
+
+- **Só `charge.paid` emite nota fiscal** (`explodeFiscal`) — tem teste dedicado.
+- **Ingerir venda nunca escreve em `transactions`.** A única ponte é
+  `pagarme_project_ledger`, explícita e desligável (`pagarme_ledger_settings.enabled`).
+- **Sandbox não entra no ledger financeiro** (gate em `loadLedgerContext`).
+- A projeção **nunca** toca lançamento humano (`pagarme_projection_key is null`) nem
+  conciliado.
+
+**Onde fica o quê na UI:** configuração em `/integracoes`, dado da empresa em
+`/companies`, operação em `/nfse`, análise em `/vendas`.
