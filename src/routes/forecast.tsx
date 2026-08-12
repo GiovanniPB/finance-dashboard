@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, Globe2, TrendingUp } from "lucide-react";
+import { AlertTriangle, CreditCard, Globe2, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { applyScenario, type ForecastDay, type Scenario } from "@/features/forecast/api";
 import { ForecastChart } from "@/features/forecast/components/ForecastChart";
 import { useForecast } from "@/features/forecast/hooks";
+import { usePagarmeForecast } from "@/features/sales/hooks";
 import { cn } from "@/lib/cn";
 import { formatDate, isoDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
@@ -48,6 +49,15 @@ export default function ForecastPage() {
   }, [horizon]);
 
   const { data: baseline = [], isLoading } = useForecast(selectedCompanyId, from, to);
+
+  // Série do pagar.me em separado: o forecast já soma esses títulos nas entradas,
+  // mas sem destacá-los não se enxerga quanto do caixa futuro é venda contratada.
+  const { data: pagarmeDays = [] } = usePagarmeForecast(selectedCompanyId, from, to);
+  const pagarmeInflowByDay = React.useMemo(
+    () => new Map(pagarmeDays.map((d) => [d.day, d.inflowPagarme])),
+    [pagarmeDays],
+  );
+  const pagarmeTotal = pagarmeDays.reduce((acc, d) => acc + d.inflowPagarme, 0);
   const series = React.useMemo(() => applyScenario(baseline, scenario), [baseline, scenario]);
 
   if (isConsolidated || !selectedCompanyId) {
@@ -144,7 +154,18 @@ export default function ForecastPage() {
         </div>
       )}
 
-      <ForecastChart data={series} loading={isLoading} />
+      {pagarmeTotal > 0 ? (
+        <p className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border bg-surface-2 px-3 py-2 text-xs text-text-muted">
+          <CreditCard className="size-3.5 shrink-0 text-info" />
+          <span>
+            <strong className="font-mono">{formatBRL(pagarmeTotal)}</strong> das entradas previstas
+            no período são recebíveis do pagar.me já contratados — vendas parceladas com data de
+            liquidação definida, não estimativa.
+          </span>
+        </p>
+      ) : null}
+
+      <ForecastChart data={series} loading={isLoading} pagarmeInflowByDay={pagarmeInflowByDay} />
 
       <ForecastTable data={series} loading={isLoading} />
     </div>

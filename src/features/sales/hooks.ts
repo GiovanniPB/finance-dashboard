@@ -1,14 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  fetchGatewayAccounts,
   fetchLedgerHealth,
   fetchPagarmeAccounts,
+  fetchPagarmeForecast,
+  fetchReceivablesOfTransaction,
   fetchReceivablesSchedule,
+  fetchReconcileMonth,
   fetchSalesBreakdown,
   fetchSalesCustomers,
   fetchSalesOverview,
   fetchSalesRecurrence,
   fetchSalesTimeseries,
+  reconcilePayout,
   type SalesDimension,
   type SalesGrain,
 } from "./api";
@@ -96,5 +101,61 @@ export function useLedgerHealth() {
     queryKey: salesKeys.health(),
     queryFn: fetchLedgerHealth,
     staleTime: 60 * 1000,
+  });
+}
+
+export const ledgerKeys = {
+  receivablesOf: (transactionId: string) => ["sales", "receivablesOf", transactionId] as const,
+  forecast: (companyId: string | null, from: string, to: string) =>
+    ["sales", "forecast", companyId ?? "none", from, to] as const,
+  gateways: (companyId: string | null) => ["sales", "gateways", companyId ?? "none"] as const,
+  reconcileMonth: (companyId: string | null, month: string) =>
+    ["sales", "reconcileMonth", companyId ?? "none", month] as const,
+};
+
+export function useReceivablesOfTransaction(transactionId: string | null) {
+  return useQuery({
+    queryKey: ledgerKeys.receivablesOf(transactionId ?? ""),
+    queryFn: () => fetchReceivablesOfTransaction(transactionId ?? ""),
+    enabled: Boolean(transactionId),
+  });
+}
+
+export function usePagarmeForecast(companyId: string | null, from: string, to: string) {
+  return useQuery({
+    queryKey: ledgerKeys.forecast(companyId, from, to),
+    queryFn: () => fetchPagarmeForecast(companyId ?? "", from, to),
+    enabled: Boolean(companyId),
+  });
+}
+
+export function useGatewayAccounts(companyId: string | null) {
+  return useQuery({
+    queryKey: ledgerKeys.gateways(companyId),
+    queryFn: () => fetchGatewayAccounts(companyId ?? ""),
+    enabled: Boolean(companyId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useReconcileMonth(companyId: string | null, month: string) {
+  return useQuery({
+    queryKey: ledgerKeys.reconcileMonth(companyId, month),
+    queryFn: () => fetchReconcileMonth(companyId ?? "", month),
+    enabled: Boolean(companyId),
+  });
+}
+
+export function useReconcilePayout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reconcilePayout,
+    onSuccess: () => {
+      // o saque cria transferência e move saldo: invalida o que depende disso
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
+      void queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      void queryClient.invalidateQueries({ queryKey: ["bank-accounts"] });
+      void queryClient.invalidateQueries({ queryKey: ["cashflow"] });
+    },
   });
 }

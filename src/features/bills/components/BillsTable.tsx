@@ -1,5 +1,6 @@
-import { CheckCircle2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { CheckCircle2, ListTree, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,11 +21,13 @@ interface Props {
   loading: boolean;
   canEdit: boolean;
   onEdit: (bill: BillWithRelations) => void;
+  /** Abre o detalhe das parcelas de um título gerado pela projeção do pagar.me. */
+  onInspect: (bill: BillWithRelations) => void;
   onDelete: (bill: BillWithRelations) => void;
   onPay: (bill: BillWithRelations) => void;
 }
 
-export function BillsTable({ rows, loading, canEdit, onEdit, onDelete, onPay }: Props) {
+export function BillsTable({ rows, loading, canEdit, onEdit, onInspect, onDelete, onPay }: Props) {
   if (loading) {
     return (
       <div className="space-y-2 rounded-[var(--radius-md)] border border-border bg-surface p-3">
@@ -61,6 +64,10 @@ export function BillsTable({ rows, loading, canEdit, onEdit, onDelete, onPay }: 
           {rows.map((bill) => {
             const status = (bill.effective_status ?? "open") as BillEffectiveStatus;
             const isPaid = status === "paid" || status === "canceled";
+            // Título gerado pela projeção dos recebíveis: é derivado e regenerado
+            // a cada sincronização, então editar ou excluir não tem efeito
+            // duradouro — só oferecemos o detalhe das parcelas.
+            const fromPagarme = bill.pagarme_projection_key !== null;
             return (
               <tr key={bill.id} className={cn("hover:bg-surface-2/60", isPaid && "opacity-60")}>
                 <td className="px-3 py-2.5">
@@ -74,7 +81,10 @@ export function BillsTable({ rows, loading, canEdit, onEdit, onDelete, onPay }: 
                   ) : null}
                 </td>
                 <td className="max-w-[360px] px-3 py-2.5">
-                  <div className="truncate">{bill.description}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="truncate">{bill.description}</span>
+                    {fromPagarme ? <Badge tone="accent">pagar.me</Badge> : null}
+                  </div>
                   {bill.counterparty && (
                     <div className="text-2xs truncate text-text-subtle">
                       {bill.counterparty.name}
@@ -103,30 +113,41 @@ export function BillsTable({ rows, loading, canEdit, onEdit, onDelete, onPay }: 
                   {formatBRL(bill.open_amount ?? 0)}
                 </td>
                 <td className="px-3 py-2.5 text-right">
-                  {canEdit && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label="Ações">
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        {!isPaid && (
-                          <DropdownMenuItem onClick={() => onPay(bill)}>
-                            <CheckCircle2 className="size-3.5" /> Dar baixa
+                  {fromPagarme ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onInspect(bill)}
+                      aria-label="Ver parcelas"
+                    >
+                      <ListTree className="size-3.5" /> Parcelas
+                    </Button>
+                  ) : (
+                    canEdit && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" aria-label="Ações">
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          {!isPaid && (
+                            <DropdownMenuItem onClick={() => onPay(bill)}>
+                              <CheckCircle2 className="size-3.5" /> Dar baixa
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => onEdit(bill)}>
+                            <Pencil className="size-3.5" /> Editar
                           </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => onEdit(bill)}>
-                          <Pencil className="size-3.5" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onDelete(bill)}
-                          className="text-expense focus:text-expense"
-                        >
-                          <Trash2 className="size-3.5" /> Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          <DropdownMenuItem
+                            onClick={() => onDelete(bill)}
+                            className="text-expense focus:text-expense"
+                          >
+                            <Trash2 className="size-3.5" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )
                   )}
                 </td>
               </tr>

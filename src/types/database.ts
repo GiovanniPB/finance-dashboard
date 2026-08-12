@@ -3001,6 +3001,7 @@ export type Database = {
           interest_amount: number | null
           notes: string | null
           open_amount: number | null
+          pagarme_projection_key: string | null
           paid_amount: number | null
           parent_id: string | null
           status: Database["public"]["Enums"]["transaction_status"] | null
@@ -3033,6 +3034,7 @@ export type Database = {
           interest_amount?: number | null
           notes?: string | null
           open_amount?: never
+          pagarme_projection_key?: string | null
           paid_amount?: number | null
           parent_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
@@ -3065,6 +3067,7 @@ export type Database = {
           interest_amount?: number | null
           notes?: string | null
           open_amount?: never
+          pagarme_projection_key?: string | null
           paid_amount?: number | null
           parent_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
@@ -4066,6 +4069,14 @@ export type Database = {
           running_balance: number
         }[]
       }
+      forecast_pagarme_inflow: {
+        Args: { p_company_id: string; p_from: string; p_to: string }
+        Returns: {
+          day: string
+          fees_pagarme: number
+          inflow_pagarme: number
+        }[]
+      }
       generate_recurring_transactions: {
         Args: { p_through_date?: string }
         Returns: {
@@ -4278,12 +4289,45 @@ export type Database = {
         }[]
       }
       pagarme_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
+      pagarme_gateway_accounts: {
+        Args: { p_company_id: string }
+        Returns: {
+          account_label: string
+          cutover_date: string
+          enabled: boolean
+          gateway_bank_account_id: string
+          gateway_nickname: string
+          pagarme_account_id: string
+          payout_bank_account_id: string
+          payout_nickname: string
+          settings_id: string
+        }[]
+      }
       pagarme_project_ledger: {
         Args: { p_company_id: string; p_from: string; p_to: string }
         Returns: {
           kind: string
           lancamentos: number
           valor: number
+        }[]
+      }
+      pagarme_receivables_of_transaction: {
+        Args: { p_transaction_id: string }
+        Returns: {
+          amount: number
+          anticipated: boolean
+          card_brand: string
+          customer_name: string
+          expected_payment_date: string
+          fee_total: number
+          installment: number
+          installments_total: number
+          net_amount: number
+          pagarme_charge_id: string
+          payment_method: string
+          receivable_id: string
+          sale_paid_at: string
+          status: string
         }[]
       }
       pagarme_reconcile_month: {

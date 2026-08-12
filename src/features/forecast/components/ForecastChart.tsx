@@ -20,9 +20,15 @@ import type { ForecastDay } from "../api";
 interface Props {
   data: ForecastDay[];
   loading: boolean;
+  /**
+   * Entrada diária já projetada dos recebíveis do pagar.me, indexada por dia.
+   * Serve para separar visualmente o caixa que vem das vendas do resto — antes
+   * dessa integração o pagar.me entrava como um pico único no dia do saque.
+   */
+  pagarmeInflowByDay?: Map<string, number>;
 }
 
-export function ForecastChart({ data, loading }: Props) {
+export function ForecastChart({ data, loading, pagarmeInflowByDay }: Props) {
   if (loading) return <Skeleton className="h-[340px] w-full" />;
 
   if (data.length === 0) {
@@ -33,13 +39,22 @@ export function ForecastChart({ data, loading }: Props) {
     );
   }
 
-  const chartData = data.map((d) => ({
-    label: formatDate(d.day, "dd/MM"),
-    day: d.day,
-    inflow: d.inflowExpected + d.inflowRecurring,
-    outflow: -(d.outflowExpected + d.outflowRecurring),
-    balance: d.runningBalance,
-  }));
+  const chartData = data.map((d) => {
+    const inflow = d.inflowExpected + d.inflowRecurring;
+    const pagarme = pagarmeInflowByDay?.get(d.day) ?? 0;
+    return {
+      label: formatDate(d.day, "dd/MM"),
+      day: d.day,
+      inflow,
+      // A série do pagar.me é um SUBCONJUNTO das entradas (os títulos projetados
+      // já estão em inflowExpected), então é desenhada por cima, não somada.
+      pagarme,
+      outflow: -(d.outflowExpected + d.outflowRecurring),
+      balance: d.runningBalance,
+    };
+  });
+
+  const hasPagarme = chartData.some((d) => d.pagarme > 0);
 
   return (
     <div className="h-[340px] rounded-[var(--radius-lg)] border border-border bg-surface p-4">
@@ -113,6 +128,18 @@ export function ForecastChart({ data, loading }: Props) {
             strokeWidth={1.5}
             dot={false}
           />
+          {hasPagarme ? (
+            <Line
+              yAxisId="flow"
+              type="monotone"
+              dataKey="pagarme"
+              name="Recebíveis pagar.me"
+              stroke="var(--color-info)"
+              strokeWidth={1.5}
+              strokeDasharray="5 3"
+              dot={false}
+            />
+          ) : null}
           <Line
             yAxisId="flow"
             type="monotone"

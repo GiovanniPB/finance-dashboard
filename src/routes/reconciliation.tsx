@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePermissions } from "@/features/auth/usePermissions";
+import { useBankAccounts } from "@/features/bank-accounts/hooks";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import type {
   StatementLineStatus,
@@ -21,6 +23,7 @@ import type {
 import { MatchPanel } from "@/features/reconciliation/components/MatchPanel";
 import { OfxUploadCard } from "@/features/reconciliation/components/OfxUploadCard";
 import { useDeleteLine, useStatementLines, useUnmatchLine } from "@/features/reconciliation/hooks";
+import { PagarmeReconcileCard } from "@/features/sales/components/PagarmeReconcileCard";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
@@ -39,6 +42,7 @@ const STATUS_META: Record<
 
 export default function ReconciliationPage() {
   const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
+  const { canEdit } = usePermissions();
   const [filter, setFilter] = React.useState<Filter>("unmatched");
   const [activeLineId, setActiveLineId] = React.useState<string | null>(null);
 
@@ -50,6 +54,17 @@ export default function ReconciliationPage() {
 
   const { data: lines = [], isLoading } = useStatementLines(
     selectedCompanyId ? { companyId: selectedCompanyId, status: statusFilter } : null,
+  );
+
+  // Contas reais da empresa: destino possível do saque do pagar.me. A carteira do
+  // gateway é excluída — transferir dela para ela mesma não faz sentido.
+  const { data: bankAccounts = [] } = useBankAccounts(selectedCompanyId);
+  const payoutTargets = React.useMemo(
+    () =>
+      bankAccounts
+        .filter((a) => a.account_type !== "payment_gateway")
+        .map((a) => ({ id: a.id, nickname: a.nickname })),
+    [bankAccounts],
   );
 
   const unmatchMutation = useUnmatchLine();
@@ -75,6 +90,12 @@ export default function ReconciliationPage() {
       <Header companyName={selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—"} />
 
       <OfxUploadCard companyId={selectedCompanyId} />
+
+      <PagarmeReconcileCard
+        companyId={selectedCompanyId}
+        bankAccounts={payoutTargets}
+        canEdit={canEdit}
+      />
 
       <div className="flex items-center gap-3">
         <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>

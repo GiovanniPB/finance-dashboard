@@ -252,3 +252,159 @@ export async function fetchLedgerHealth(): Promise<LedgerHealthIssue[]> {
     detail: r.detail ?? "",
   }));
 }
+
+export interface ReceivableDetail {
+  receivableId: string;
+  chargeId: string | null;
+  installment: number | null;
+  installmentsTotal: number | null;
+  amount: number;
+  feeTotal: number;
+  netAmount: number;
+  status: string;
+  expectedPaymentDate: string | null;
+  /** Data mudou desde a 1ª sincronização = recebível antecipado. */
+  anticipated: boolean;
+  salePaidAt: string | null;
+  /** Null quando o usuário não tem acesso à base comercial da conta (por design). */
+  customerName: string | null;
+  paymentMethod: string | null;
+  cardBrand: string | null;
+}
+
+/**
+ * Parcelas que compõem um lançamento agregado da projeção — o lastro do valor
+ * que aparece em "A Receber". Sem isto o título seria um número sem rastro.
+ */
+export async function fetchReceivablesOfTransaction(
+  transactionId: string,
+): Promise<ReceivableDetail[]> {
+  const { data, error } = await supabase.rpc("pagarme_receivables_of_transaction", {
+    p_transaction_id: transactionId,
+  });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    receivableId: r.receivable_id,
+    chargeId: r.pagarme_charge_id,
+    installment: r.installment,
+    installmentsTotal: r.installments_total,
+    amount: r.amount ?? 0,
+    feeTotal: r.fee_total ?? 0,
+    netAmount: r.net_amount ?? 0,
+    status: r.status,
+    expectedPaymentDate: r.expected_payment_date,
+    anticipated: r.anticipated,
+    salePaidAt: r.sale_paid_at,
+    customerName: r.customer_name,
+    paymentMethod: r.payment_method,
+    cardBrand: r.card_brand,
+  }));
+}
+
+export interface PagarmeForecastDay {
+  day: string;
+  inflowPagarme: number;
+  feesPagarme: number;
+}
+
+/** Série diária das entradas do pagar.me já projetadas, para destacar no forecast. */
+export async function fetchPagarmeForecast(
+  companyId: string,
+  from: string,
+  to: string,
+): Promise<PagarmeForecastDay[]> {
+  const { data, error } = await supabase.rpc("forecast_pagarme_inflow", {
+    p_company_id: companyId,
+    p_from: from,
+    p_to: to,
+  });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    day: r.day,
+    inflowPagarme: r.inflow_pagarme ?? 0,
+    feesPagarme: r.fees_pagarme ?? 0,
+  }));
+}
+
+export interface GatewayAccount {
+  settingsId: string;
+  pagarmeAccountId: string;
+  accountLabel: string;
+  gatewayBankAccountId: string | null;
+  gatewayNickname: string | null;
+  payoutBankAccountId: string | null;
+  payoutNickname: string | null;
+  cutoverDate: string;
+  enabled: boolean;
+}
+
+export async function fetchGatewayAccounts(companyId: string): Promise<GatewayAccount[]> {
+  const { data, error } = await supabase.rpc("pagarme_gateway_accounts", {
+    p_company_id: companyId,
+  });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    settingsId: r.settings_id,
+    pagarmeAccountId: r.pagarme_account_id,
+    accountLabel: r.account_label,
+    gatewayBankAccountId: r.gateway_bank_account_id,
+    gatewayNickname: r.gateway_nickname,
+    payoutBankAccountId: r.payout_bank_account_id,
+    payoutNickname: r.payout_nickname,
+    cutoverDate: r.cutover_date,
+    enabled: r.enabled,
+  }));
+}
+
+export interface ReconcileMonthRow {
+  metric: string;
+  value: number;
+  detail: string;
+}
+
+/** Conciliação do mês: liquidado x projetado x saques. `divergencia_*` deve ser zero. */
+export async function fetchReconcileMonth(
+  companyId: string,
+  month: string,
+): Promise<ReconcileMonthRow[]> {
+  const { data, error } = await supabase.rpc("pagarme_reconcile_month", {
+    p_company_id: companyId,
+    p_month: month,
+  });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    metric: r.metric,
+    value: r.value ?? 0,
+    detail: r.detail,
+  }));
+}
+
+export interface ReconcilePayoutInput {
+  companyId: string;
+  amount: number;
+  fundedOn: string;
+  /** Chave de idempotência: reenviar a mesma referência devolve o saque já criado. */
+  externalRef: string;
+  bankAccountId: string | null;
+  notes: string | null;
+}
+
+/**
+ * Registra o saque do pagar.me como TRANSFERÊNCIA gateway → banco.
+ *
+ * É a operação que substitui o processo manual: em vez de lançar a TED como
+ * receita (o que produzia o spike), ela vira as duas pernas de uma transferência,
+ * que a `v_transactions` mantém fora da DRE e do fluxo.
+ */
+export async function reconcilePayout(input: ReconcilePayoutInput): Promise<string> {
+  const { data, error } = await supabase.rpc("pagarme_reconcile_payout", {
+    p_company_id: input.companyId,
+    p_amount: input.amount,
+    p_funded_on: input.fundedOn,
+    p_external_ref: input.externalRef,
+    p_bank_account_id: input.bankAccountId ?? undefined,
+    p_notes: input.notes ?? undefined,
+  });
+  if (error) throw error;
+  return data;
+}
