@@ -4343,6 +4343,19 @@ export type Database = {
           has_mapping: boolean
         }[]
       }
+      receivables_schedule: {
+        Args: { p_company_id?: string; p_from: string; p_to: string }
+        Returns: {
+          fees: number
+          gross: number
+          installments_count: number
+          month_start: string
+          net: number
+          pending_gross: number
+          pending_installments: number
+          settled_gross: number
+        }[]
+      }
       recurring_horizon_date: { Args: never; Returns: string }
       recurring_horizon_months: { Args: never; Returns: number }
       reemit_authorized_to_producao: {
@@ -4410,6 +4423,74 @@ export type Database = {
       rotate_account_webhook_secret: {
         Args: { p_account_id: string }
         Returns: string
+      }
+      sales_breakdown: {
+        Args: {
+          p_account_id?: string
+          p_dimension?: string
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          amount: number
+          label: string
+          sales_count: number
+        }[]
+      }
+      sales_customers: {
+        Args: { p_account_id?: string; p_from: string; p_to: string }
+        Returns: {
+          ledger_since: string
+          new_customers: number
+          new_revenue: number
+          repeat_rate: number
+          returning_customers: number
+          returning_revenue: number
+        }[]
+      }
+      sales_overview: {
+        Args: { p_account_id?: string; p_from: string; p_to: string }
+        Returns: {
+          approval_rate: number
+          attempts_count: number
+          avg_ticket: number
+          customers_count: number
+          failed_count: number
+          gmv: number
+          installments_avg: number
+          net_sales: number
+          refunded: number
+          sales_count: number
+        }[]
+      }
+      sales_recurrence: {
+        Args: { p_account_id?: string; p_from: string; p_to: string }
+        Returns: {
+          churn_rate_logo: number
+          contracted_installments: number
+          contracted_receivables: number
+          has_subscriptions: boolean
+          involuntary_failed: number
+          mrr_active: number
+          subs_active: number
+          subs_canceled: number
+          subs_new: number
+        }[]
+      }
+      sales_timeseries: {
+        Args: {
+          p_account_id?: string
+          p_from: string
+          p_grain?: string
+          p_to: string
+        }
+        Returns: {
+          avg_ticket: number
+          bucket: string
+          failed_count: number
+          gmv: number
+          sales_count: number
+        }[]
       }
       seed_company_chart_of_accounts: {
         Args: { p_company_id: string }

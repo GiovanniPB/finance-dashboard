@@ -27,6 +27,7 @@ const ReportsPage = lazy(() => import("@/routes/reports"));
 const ReportBuilderPage = lazy(() => import("@/routes/report-builder"));
 const TaxesPage = lazy(() => import("@/routes/taxes"));
 const NfsePage = lazy(() => import("@/routes/nfse"));
+const VendasPage = lazy(() => import("@/routes/vendas"));
 const CashflowPage = lazy(() => import("@/routes/cashflow"));
 const AccountsPage = lazy(() => import("@/routes/accounts"));
 const AccountDetailPage = lazy(() => import("@/routes/accounts.detail"));
@@ -86,6 +87,7 @@ export default function App() {
                     <Route path="reports/builder" element={<ReportBuilderPage />} />
                     <Route path="taxes" element={<TaxesPage />} />
                     <Route path="nfse" element={<NfsePage />} />
+                    <Route path="vendas" element={<VendasPage />} />
                     <Route path="cashflow" element={<CashflowPage />} />
                     <Route path="contas" element={<AccountsPage />} />
                     <Route path="contas/:id" element={<AccountDetailPage />} />
