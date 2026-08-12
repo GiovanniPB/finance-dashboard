@@ -11,14 +11,17 @@ import {
   History,
   Landmark,
   LayoutDashboard,
+  Plug,
   Receipt,
   Repeat,
   Settings,
   ShieldCheck,
+  ShoppingCart,
   TrendingUp,
   Upload,
   Users,
   Wallet,
+  Webhook,
 } from "lucide-react";
 
 import type { DataModule } from "@/features/auth/modules";
@@ -51,6 +54,7 @@ const navItems: NavItem[] = [
     icon: FileDown,
     module: "financials",
   },
+  { to: "/vendas", label: "Vendas", icon: ShoppingCart, module: "sales" },
   { to: "/taxes", label: "Impostos", icon: Landmark, module: "taxes" },
   { to: "/nfse", label: "NFS-e", icon: FileText, module: "nfse" },
   { to: "/payroll", label: "Folha", icon: Users, module: "payroll" },
@@ -61,6 +65,9 @@ const navItems: NavItem[] = [
 const adminItems: NavItem[] = [
   { to: "/audit", label: "Auditoria", icon: History, module: "audit" },
   { to: "/companies", label: "Empresas", icon: Building2 },
+  // `end` para o item não ficar ativo junto de /integracoes/:slug
+  { to: "/integracoes", label: "Integrações", icon: Plug, end: true },
+  { to: "/webhooks", label: "Webhooks", icon: Webhook },
   { to: "/settings", label: "Configurações", icon: Settings, module: "financials" },
 ];
 

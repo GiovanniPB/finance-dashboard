@@ -393,6 +393,11 @@ verify_jwt = false
 [functions.nfse-backfill]
 verify_jwt = false
 
+# Sync do ledger de vendas — acionada por pg_cron (sem JWT). Origem verificada
+# pelo segredo compartilhado PAGARME_SYNC_SECRET no header x-sync-secret.
+[functions.pagarme-sync]
+verify_jwt = false
+
 [functions.focus-webhook]
 verify_jwt = false
 

@@ -33,6 +33,13 @@ export async function fetchBills(filters: BillFilters): Promise<BillsListResult>
     .eq("direction", filters.direction);
 
   if (filters.companyId) query = query.eq("company_id", filters.companyId);
+  // Origem: a chave da projeção é o discriminador. Não-nula = veio dos recebíveis
+  // do pagar.me; nula = lançamento humano.
+  if (filters.origin === "pagarme") {
+    query = query.not("pagarme_projection_key", "is", null);
+  } else if (filters.origin === "manual") {
+    query = query.is("pagarme_projection_key", null);
+  }
   if (filters.from) query = query.gte("due_date", filters.from);
   if (filters.to) query = query.lte("due_date", filters.to);
   if (filters.counterpartyId) query = query.eq("counterparty_id", filters.counterpartyId);

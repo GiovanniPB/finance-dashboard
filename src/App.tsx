@@ -27,6 +27,10 @@ const ReportsPage = lazy(() => import("@/routes/reports"));
 const ReportBuilderPage = lazy(() => import("@/routes/report-builder"));
 const TaxesPage = lazy(() => import("@/routes/taxes"));
 const NfsePage = lazy(() => import("@/routes/nfse"));
+const VendasPage = lazy(() => import("@/routes/vendas"));
+const IntegracoesPage = lazy(() => import("@/routes/integracoes"));
+const IntegracaoDetailPage = lazy(() => import("@/routes/integracoes.detail"));
+const WebhooksPage = lazy(() => import("@/routes/webhooks"));
 const CashflowPage = lazy(() => import("@/routes/cashflow"));
 const AccountsPage = lazy(() => import("@/routes/accounts"));
 const AccountDetailPage = lazy(() => import("@/routes/accounts.detail"));
@@ -41,6 +45,7 @@ const SettingsCostCentersPage = lazy(() => import("@/routes/settings.cost-center
 const SettingsCounterpartiesPage = lazy(() => import("@/routes/settings.counterparties"));
 const SettingsPayrollPage = lazy(() => import("@/routes/settings.payroll"));
 const CompaniesPage = lazy(() => import("@/routes/companies"));
+const CompanyFiscalPage = lazy(() => import("@/routes/companies.fiscal"));
 const UsersPage = lazy(() => import("@/routes/users"));
 const ProfilePage = lazy(() => import("@/routes/profile"));
 const ResetPasswordPage = lazy(() => import("@/routes/reset-password"));
@@ -86,6 +91,7 @@ export default function App() {
                     <Route path="reports/builder" element={<ReportBuilderPage />} />
                     <Route path="taxes" element={<TaxesPage />} />
                     <Route path="nfse" element={<NfsePage />} />
+                    <Route path="vendas" element={<VendasPage />} />
                     <Route path="cashflow" element={<CashflowPage />} />
                     <Route path="contas" element={<AccountsPage />} />
                     <Route path="contas/:id" element={<AccountDetailPage />} />
@@ -98,7 +104,11 @@ export default function App() {
                     <Route path="recurring" element={<RecurringPage />} />
                     <Route path="audit" element={<AuditPage />} />
                     <Route path="import" element={<ImportPage />} />
+                    <Route path="integracoes" element={<IntegracoesPage />} />
+                    <Route path="integracoes/:slug" element={<IntegracaoDetailPage />} />
+                    <Route path="webhooks" element={<WebhooksPage />} />
                     <Route path="companies" element={<CompaniesPage />} />
+                    <Route path="companies/:id/fiscal" element={<CompanyFiscalPage />} />
                     <Route path="users" element={<UsersPage />} />
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="settings" element={<SettingsLayout />}>

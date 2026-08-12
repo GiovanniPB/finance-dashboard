@@ -22,9 +22,17 @@ export interface BillWithRelations extends BillRow {
   counterparty: { id: string; name: string } | null;
 }
 
+/**
+ * Origem do título. `pagarme` = gerado pela projeção dos recebíveis (agrega as
+ * parcelas que liquidam no mesmo dia); `manual` = lançado por uma pessoa.
+ */
+export type BillOrigin = "all" | "pagarme" | "manual";
+
 export interface BillFilters {
   companyId?: string | null;
   direction: BillDirection;
+  /** Recorte por origem do título. Ausente = todas. */
+  origin?: BillOrigin;
   /** When set, restricts to bills whose effective_status matches. */
   status?: BillEffectiveStatus[];
   from?: string | null;

@@ -25,11 +25,6 @@ export function WebhooksPanel() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-text-muted">
-        Log dos webhooks recebidos (pagar.me e Focus) para depuração — clique para ver o payload
-        bruto. Atualiza sozinho a cada 15s.
-      </p>
-
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1 rounded-[var(--radius-md)] border border-border bg-surface-2 p-1">
           {PROVIDERS.map((p) => (

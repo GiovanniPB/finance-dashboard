@@ -7,11 +7,17 @@
  * quebrado para paginação; o filtro `?charge_id=` funciona — por isso só usamos
  * este.)
  *
+ * Esta é a visão **fiscal** do payload: só o bruto por recebedor, que é o que
+ * decide de quem é a nota. O parsing completo (parcela, data de liquidação,
+ * taxa, status) vive em `_shared/pagarme/payables.ts` — a camada base do
+ * provedor — e alimenta o ledger de vendas/recebíveis.
+ *
  * Separação puro/IO:
  *  - `parsePayables` é PURO (agrega a resposta) — testado por Vitest;
  *  - `fetchChargeSplit` faz o HTTP (usado pelo webhook, Deno).
  */
 
+import { aggregateGrossByRecipient, parsePayablesDetailed } from "../pagarme/payables.ts";
 import type { PagarmeSplit } from "./types.ts";
 
 const PAGARME_BASE = "https://api.pagar.me/core/v5";
@@ -23,44 +29,12 @@ export interface PayablesSplitResult {
   totalCents: number;
 }
 
-function asArray(value: unknown): unknown[] {
-  if (Array.isArray(value)) return value;
-  if (value && typeof value === "object" && Array.isArray((value as { data?: unknown }).data)) {
-    return (value as { data: unknown[] }).data;
-  }
-  return [];
-}
-
-function recipientOf(p: Record<string, unknown>): string | null {
-  if (typeof p.recipient_id === "string" && p.recipient_id) return p.recipient_id;
-  const rec = p.recipient;
-  if (rec && typeof rec === "object" && typeof (rec as { id?: unknown }).id === "string") {
-    return (rec as { id: string }).id;
-  }
-  return null;
-}
-
 /**
  * Agrega os payables por recebedor: crédito soma, estorno/chargeback subtrai.
  * Devolve apenas fatias líquidas positivas (recebedor totalmente estornado some).
  */
 export function parsePayables(response: unknown): PayablesSplitResult {
-  const byRecipient = new Map<string, number>();
-
-  for (const item of asArray(response)) {
-    if (!item || typeof item !== "object") continue;
-    const p = item as Record<string, unknown>;
-    const recipientId = recipientOf(p);
-    if (!recipientId) continue;
-    const amount = typeof p.amount === "number" ? p.amount : 0;
-    const cur = byRecipient.get(recipientId) ?? 0;
-
-    if (p.type === "credit") {
-      byRecipient.set(recipientId, cur + amount);
-    } else if (p.type === "chargeback" || p.type === "refund") {
-      byRecipient.set(recipientId, cur - Math.abs(amount));
-    }
-  }
+  const byRecipient = aggregateGrossByRecipient(parsePayablesDetailed(response));
 
   const split: PagarmeSplit[] = [];
   for (const [recipientId, amount] of byRecipient) {

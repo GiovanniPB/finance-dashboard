@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,17 @@ import { type Company } from "@/features/companies/api";
 import { CompanyDrawer } from "@/features/companies/components/CompanyDrawer";
 import { useAllCompanies, useCompanyStats } from "@/features/companies/hooks";
 import { TAX_REGIMES } from "@/features/companies/schema";
+import { FiscalSettingsPanel } from "@/features/nfse/components/FiscalSettingsPanel";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
 const ORGANIZATION_ID = "00000000-0000-0000-0000-000000000001";
+
+const TABS = [
+  { value: "cadastro", label: "Cadastro" },
+  { value: "fiscal", label: "Configuração fiscal" },
+] as const;
 
 const TAX_REGIME_LABELS = Object.fromEntries(TAX_REGIMES.map((r) => [r.value, r.label]));
 
@@ -43,6 +50,10 @@ export default function CompaniesPage() {
   const { data: companies = [], isLoading } = useAllCompanies();
   const { data: stats = [] } = useCompanyStats();
   const { canManage } = usePermissions();
+  const [tab, setTab] = useQueryState(
+    "tab",
+    parseAsStringLiteral(TABS.map((t) => t.value)).withDefault("cadastro"),
+  );
 
   const organizationId = companies[0]?.organization_id ?? ORGANIZATION_ID;
 
@@ -70,7 +81,7 @@ export default function CompaniesPage() {
             {activeCount} ativa(s) · {operationalCount} operacional(is)
           </p>
         </div>
-        {canManage && (
+        {canManage && tab === "cadastro" && (
           <Button
             onClick={() => {
               setEditing(null);
@@ -82,7 +93,32 @@ export default function CompaniesPage() {
         )}
       </div>
 
-      {isLoading ? (
+      <div className="flex gap-1 rounded-[var(--radius-md)] border border-border bg-surface-2 p-1">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => void setTab(t.value)}
+            className={cn(
+              "flex-1 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors",
+              tab === t.value
+                ? "bg-surface text-text shadow-sm"
+                : "text-text-muted hover:text-text",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/*
+        A configuração fiscal é dado da EMPRESA (inscrição municipal, item da
+        LC116, alíquota de ISS, regime) — não da integração. Vinha de uma aba da
+        tela de NFS-e, o que fazia parecer configuração do gateway.
+      */}
+      {tab === "fiscal" ? (
+        <FiscalSettingsPanel companies={companies} />
+      ) : isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-56 w-full" />

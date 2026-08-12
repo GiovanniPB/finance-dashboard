@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,15 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import type { Company } from "@/features/companies/api";
 import type { Tables } from "@/lib/supabase";
 
@@ -45,10 +37,10 @@ import { FieldToggle } from "./FieldToggle";
 type FiscalParametros = Tables["fiscal_company_settings"]["Insert"]["parametros"];
 
 interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   company: Company | null;
   settings: FiscalSettings | null;
+  /** Chamado após salvar, para a página decidir se volta à lista. */
+  onSaved?: () => void;
 }
 
 const trimmed = (v: string | undefined): string | null => (v?.trim() ? v.trim() : null);
@@ -69,7 +61,14 @@ function readEmitente(settings: FiscalSettings | null): Record<string, unknown> 
   return (settings?.emitente_endereco as Record<string, unknown> | null) ?? {};
 }
 
-export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: Props) {
+/**
+ * Configuração fiscal de uma empresa (tipo de documento, emitente, classificação).
+ *
+ * Mora no cadastro da empresa, e não na tela de integrações, porque o dado é da
+ * EMPRESA: inscrição municipal, item da LC116, alíquota de ISS e regime tributário
+ * não mudam se o gateway mudar. Da integração vem só o gatilho da emissão.
+ */
+export function FiscalSettingsForm({ company, settings, onSaved }: Props) {
   const upsert = useUpsertFiscalSettings();
   const saveToken = useSetFocusToken();
   const [token, setTokenValue] = React.useState("");
@@ -204,7 +203,7 @@ export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: 
       {
         onSuccess: () => {
           toast.success("Configuração fiscal salva");
-          onOpenChange(false);
+          onSaved?.();
         },
         onError: (err) => toast.error("Erro ao salvar", { description: err.message }),
       },
@@ -229,18 +228,18 @@ export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: 
   const tokenConfigured = Boolean(settings?.focus_token_ref);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="md">
-        <SheetHeader>
-          <SheetTitle>Configuração fiscal — {companyName}</SheetTitle>
-          <SheetDescription>
-            Tipo de documento, emitente e classificação fiscal desta empresa. O token do Focus é
-            guardado com segurança (Vault).
-          </SheetDescription>
-        </SheetHeader>
+    <Card>
+      <CardHeader>
+        <CardTitle>Configuração fiscal — {companyName}</CardTitle>
+        <CardDescription>
+          Tipo de documento, emitente e classificação fiscal desta empresa. O token do Focus é
+          guardado com segurança (Vault).
+        </CardDescription>
+      </CardHeader>
 
-        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <SheetBody className="space-y-4">
+      <CardContent>
+        <form onSubmit={onSubmit}>
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Tipo de documento">
                 <Controller
@@ -359,20 +358,17 @@ export function FiscalSettingsDrawer({ open, onOpenChange, company, settings }: 
                 />
               )}
             />
-          </SheetBody>
 
-          <SheetFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={upsert.isPending}>
-              {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
-              Salvar
-            </Button>
-          </SheetFooter>
+            <div className="border-t border-border pt-4">
+              <Button type="submit" disabled={upsert.isPending}>
+                {upsert.isPending && <Loader2 className="size-4 animate-spin" />}
+                Salvar configuração
+              </Button>
+            </div>
+          </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -583,7 +579,9 @@ function NfeFields({
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3 rounded-[var(--radius-md)] border border-border bg-surface p-3">
+    // `surface-2` porque agora o formulário vive dentro de um Card (`surface`):
+    // sem o contraste as seções desapareceriam no fundo
+    <div className="space-y-3 rounded-[var(--radius-md)] border border-border bg-surface-2 p-3">
       <div className="text-2xs font-semibold tracking-wide text-text-subtle uppercase">{title}</div>
       {children}
     </div>

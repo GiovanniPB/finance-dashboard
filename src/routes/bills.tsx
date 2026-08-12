@@ -31,8 +31,14 @@ import {
 } from "@/features/bills/dueHorizon";
 import { useBills, useBillsAging, useDeleteBill } from "@/features/bills/hooks";
 import { ALL_STATUSES, STATUS_META } from "@/features/bills/schema";
-import type { BillDirection, BillEffectiveStatus, BillWithRelations } from "@/features/bills/types";
+import type {
+  BillDirection,
+  BillEffectiveStatus,
+  BillOrigin,
+  BillWithRelations,
+} from "@/features/bills/types";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { ReceivablesDetailSheet } from "@/features/sales/components/ReceivablesDetailSheet";
 import { cn } from "@/lib/cn";
 import { formatBRL } from "@/lib/format";
 
@@ -47,6 +53,9 @@ export default function BillsPage() {
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"open" | "all" | "paid">("open");
   const [dueHorizon, setDueHorizon] = React.useState<DueHorizon>(DEFAULT_DUE_HORIZON);
+  const [origin, setOrigin] = React.useState<BillOrigin>("all");
+  // título da projeção é somente-leitura: abre o detalhe das parcelas, não o form
+  const [inspecting, setInspecting] = React.useState<BillWithRelations | null>(null);
   // Página e tamanho na URL, como nas demais listas: o link continua apontando
   // para o mesmo trecho quando alguém compartilha ou recarrega.
   const [pagination, setPagination] = useQueryStates({
@@ -70,6 +79,7 @@ export default function BillsPage() {
     status: effectiveStatuses,
     search: search.trim() || null,
     to: dueLimitFor(dueHorizon),
+    origin,
     page: pagination.page,
     pageSize: pagination.pageSize,
   });
@@ -77,7 +87,9 @@ export default function BillsPage() {
   // Mudar qualquer filtro muda o conjunto, e a página antiga deixa de fazer
   // sentido — na melhor hipótese mostra outra coisa, na pior cai fora do fim e
   // fica vazia. O ref preserva a página que veio na URL na primeira renderização.
-  const filterKey = [tab, statusFilter, dueHorizon, search.trim(), selectedCompanyId].join("|");
+  const filterKey = [tab, statusFilter, dueHorizon, origin, search.trim(), selectedCompanyId].join(
+    "|",
+  );
   const lastFilterKey = React.useRef(filterKey);
   React.useEffect(() => {
     if (lastFilterKey.current === filterKey) return;
@@ -167,6 +179,16 @@ export default function BillsPage() {
             <SelectItem value="all">Todos</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={origin} onValueChange={(v) => setOrigin(v as BillOrigin)}>
+          <SelectTrigger className="w-44" aria-label="Origem">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as origens</SelectItem>
+            <SelectItem value="pagarme">Vendas pagar.me</SelectItem>
+            <SelectItem value="manual">Lançados à mão</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={dueHorizon} onValueChange={(v) => setDueHorizon(v as DueHorizon)}>
           <SelectTrigger className="w-48" aria-label="Vencimento até">
             <SelectValue />
@@ -190,8 +212,16 @@ export default function BillsPage() {
           setEditing(bill);
           setDrawerOpen(true);
         }}
+        onInspect={(bill) => setInspecting(bill)}
         onDelete={(bill) => setConfirmDelete(bill)}
         onPay={(bill) => setPaying(bill)}
+      />
+
+      <ReceivablesDetailSheet
+        open={inspecting !== null}
+        onOpenChange={(open) => !open && setInspecting(null)}
+        transactionId={inspecting?.id ?? null}
+        title={inspecting?.description ?? ""}
       />
 
       <BillsPagination

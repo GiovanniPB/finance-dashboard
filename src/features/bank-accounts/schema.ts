@@ -1,28 +1,46 @@
 import { z } from "zod";
 
-export const BANK_ACCOUNT_TYPES = [
-  { value: "checking", label: "Conta corrente" },
-  { value: "savings", label: "Poupança" },
-  { value: "cdb_automatic", label: "CDB Resgate Automático" },
-  { value: "cdb_daily", label: "CDB Liquidação diária" },
-  { value: "cdb_term", label: "CDB a prazo" },
-  { value: "investment_fund", label: "Fundo de investimento" },
-  { value: "cash", label: "Caixa" },
+/**
+ * Fonte única dos tipos de conta — o `z.enum` e a lista de opções derivam daqui,
+ * então acrescentar um valor no enum do banco só precisa de uma edição.
+ * Espelha `bank_account_type` no Postgres.
+ */
+export const BANK_ACCOUNT_TYPE_VALUES = [
+  "checking",
+  "savings",
+  "cdb_automatic",
+  "cdb_daily",
+  "cdb_term",
+  "investment_fund",
+  "cash",
+  "payment_gateway",
 ] as const;
+
+export type BankAccountTypeValue = (typeof BANK_ACCOUNT_TYPE_VALUES)[number];
+
+const BANK_ACCOUNT_TYPE_LABELS: Record<BankAccountTypeValue, string> = {
+  checking: "Conta corrente",
+  savings: "Poupança",
+  cdb_automatic: "CDB Resgate Automático",
+  cdb_daily: "CDB Liquidação diária",
+  cdb_term: "CDB a prazo",
+  investment_fund: "Fundo de investimento",
+  cash: "Caixa",
+  // carteira de gateway (pagar.me): recebe as liquidações, paga as taxas de
+  // adquirência e sai por transferência para o banco real
+  payment_gateway: "Gateway de pagamento",
+};
+
+export const BANK_ACCOUNT_TYPES = BANK_ACCOUNT_TYPE_VALUES.map((value) => ({
+  value,
+  label: BANK_ACCOUNT_TYPE_LABELS[value],
+}));
 
 export const bankAccountFormSchema = z.object({
   companyId: z.string().uuid(),
   bankName: z.string().min(2, "Banco obrigatório").max(120),
   nickname: z.string().min(2, "Apelido obrigatório").max(120),
-  accountType: z.enum([
-    "checking",
-    "savings",
-    "cdb_automatic",
-    "cdb_daily",
-    "cdb_term",
-    "investment_fund",
-    "cash",
-  ]),
+  accountType: z.enum(BANK_ACCOUNT_TYPE_VALUES),
   agency: z.string().max(20).nullable().optional(),
   accountNumber: z.string().max(40).nullable().optional(),
   initialBalance: z.number().min(0, "Saldo inicial não pode ser negativo"),

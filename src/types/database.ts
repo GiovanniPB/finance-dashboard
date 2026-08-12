@@ -1346,6 +1346,535 @@ export type Database = {
           },
         ]
       }
+      pagarme_charges: {
+        Row: {
+          acquirer_name: string | null
+          amount: number
+          card_brand: string | null
+          card_last_four: string | null
+          charge_created_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          installments: number | null
+          last_synced_at: string | null
+          metadata: Json
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_charge_id: string
+          pagarme_customer_id: string | null
+          pagarme_invoice_id: string | null
+          pagarme_order_id: string | null
+          pagarme_plan_id: string | null
+          pagarme_subscription_id: string | null
+          paid_amount: number | null
+          paid_at: string | null
+          payment_method: string | null
+          recurrence_cycle: string | null
+          refunded_amount: number
+          sales_event_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acquirer_name?: string | null
+          amount: number
+          card_brand?: string | null
+          card_last_four?: string | null
+          charge_created_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          installments?: number | null
+          last_synced_at?: string | null
+          metadata?: Json
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_charge_id: string
+          pagarme_customer_id?: string | null
+          pagarme_invoice_id?: string | null
+          pagarme_order_id?: string | null
+          pagarme_plan_id?: string | null
+          pagarme_subscription_id?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_method?: string | null
+          recurrence_cycle?: string | null
+          refunded_amount?: number
+          sales_event_id?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          acquirer_name?: string | null
+          amount?: number
+          card_brand?: string | null
+          card_last_four?: string | null
+          charge_created_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          installments?: number | null
+          last_synced_at?: string | null
+          metadata?: Json
+          organization_id?: string
+          pagarme_account_id?: string
+          pagarme_charge_id?: string
+          pagarme_customer_id?: string | null
+          pagarme_invoice_id?: string | null
+          pagarme_order_id?: string | null
+          pagarme_plan_id?: string | null
+          pagarme_subscription_id?: string | null
+          paid_amount?: number | null
+          paid_at?: string | null
+          payment_method?: string | null
+          recurrence_cycle?: string | null
+          refunded_amount?: number
+          sales_event_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_charges_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_charges_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_charges_sales_event_id_fkey"
+            columns: ["sales_event_id"]
+            isOneToOne: false
+            referencedRelation: "sales_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagarme_customers: {
+        Row: {
+          created_at: string
+          document: string | null
+          document_type: string | null
+          email: string | null
+          first_purchase_at: string | null
+          id: string
+          last_synced_at: string | null
+          metadata: Json
+          name: string | null
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_customer_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document?: string | null
+          document_type?: string | null
+          email?: string | null
+          first_purchase_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          metadata?: Json
+          name?: string | null
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_customer_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document?: string | null
+          document_type?: string | null
+          email?: string | null
+          first_purchase_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          metadata?: Json
+          name?: string | null
+          organization_id?: string
+          pagarme_account_id?: string
+          pagarme_customer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_customers_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagarme_ledger_settings: {
+        Row: {
+          anticipation_account_id: string | null
+          company_id: string
+          created_at: string
+          cutover_date: string
+          enabled: boolean
+          fee_account_id: string | null
+          gateway_bank_account_id: string | null
+          id: string
+          metadata: Json
+          organization_id: string
+          pagarme_account_id: string
+          payout_bank_account_id: string | null
+          refund_account_id: string | null
+          revenue_account_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          anticipation_account_id?: string | null
+          company_id: string
+          created_at?: string
+          cutover_date?: string
+          enabled?: boolean
+          fee_account_id?: string | null
+          gateway_bank_account_id?: string | null
+          id?: string
+          metadata?: Json
+          organization_id: string
+          pagarme_account_id: string
+          payout_bank_account_id?: string | null
+          refund_account_id?: string | null
+          revenue_account_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          anticipation_account_id?: string | null
+          company_id?: string
+          created_at?: string
+          cutover_date?: string
+          enabled?: boolean
+          fee_account_id?: string | null
+          gateway_bank_account_id?: string | null
+          id?: string
+          metadata?: Json
+          organization_id?: string
+          pagarme_account_id?: string
+          payout_bank_account_id?: string | null
+          refund_account_id?: string | null
+          revenue_account_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_ledger_settings_anticipation_account_id_fkey"
+            columns: ["anticipation_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_fee_account_id_fkey"
+            columns: ["fee_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_gateway_bank_account_id_fkey"
+            columns: ["gateway_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_payout_bank_account_id_fkey"
+            columns: ["payout_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_refund_account_id_fkey"
+            columns: ["refund_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_revenue_account_id_fkey"
+            columns: ["revenue_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagarme_payouts: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          external_ref: string
+          funded_on: string
+          id: string
+          metadata: Json
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_recipient_id: string | null
+          statement_line_id: string | null
+          status: string
+          transfer_group_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          external_ref: string
+          funded_on: string
+          id?: string
+          metadata?: Json
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_recipient_id?: string | null
+          statement_line_id?: string | null
+          status?: string
+          transfer_group_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          external_ref?: string
+          funded_on?: string
+          id?: string
+          metadata?: Json
+          organization_id?: string
+          pagarme_account_id?: string
+          pagarme_recipient_id?: string | null
+          statement_line_id?: string | null
+          status?: string
+          transfer_group_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_payouts_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_payouts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_payouts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_payouts_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_payouts_statement_line_id_fkey"
+            columns: ["statement_line_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statement_lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagarme_receivables: {
+        Row: {
+          amount: number
+          anticipation_fee: number
+          company_id: string
+          created_at: string
+          expected_payment_date: string | null
+          fee: number
+          first_seen_payment_date: string | null
+          fraud_coverage_fee: number
+          gateway_id: string | null
+          id: string
+          installment: number | null
+          last_synced_at: string | null
+          liquidation_arrangement_id: string | null
+          metadata: Json
+          net_amount: number | null
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_charge_id: string | null
+          pagarme_payable_id: string
+          pagarme_recipient_id: string | null
+          payment_method: string | null
+          sale_accrual_at: string | null
+          settled_on: string | null
+          split_id: string | null
+          status: string
+          transaction_id: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          anticipation_fee?: number
+          company_id: string
+          created_at?: string
+          expected_payment_date?: string | null
+          fee?: number
+          first_seen_payment_date?: string | null
+          fraud_coverage_fee?: number
+          gateway_id?: string | null
+          id?: string
+          installment?: number | null
+          last_synced_at?: string | null
+          liquidation_arrangement_id?: string | null
+          metadata?: Json
+          net_amount?: number | null
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_charge_id?: string | null
+          pagarme_payable_id: string
+          pagarme_recipient_id?: string | null
+          payment_method?: string | null
+          sale_accrual_at?: string | null
+          settled_on?: string | null
+          split_id?: string | null
+          status: string
+          transaction_id?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          anticipation_fee?: number
+          company_id?: string
+          created_at?: string
+          expected_payment_date?: string | null
+          fee?: number
+          first_seen_payment_date?: string | null
+          fraud_coverage_fee?: number
+          gateway_id?: string | null
+          id?: string
+          installment?: number | null
+          last_synced_at?: string | null
+          liquidation_arrangement_id?: string | null
+          metadata?: Json
+          net_amount?: number | null
+          organization_id?: string
+          pagarme_account_id?: string
+          pagarme_charge_id?: string | null
+          pagarme_payable_id?: string
+          pagarme_recipient_id?: string | null
+          payment_method?: string | null
+          sale_accrual_at?: string | null
+          settled_on?: string | null
+          split_id?: string | null
+          status?: string
+          transaction_id?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_receivables_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_receivables_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_receivables_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_receivables_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_receivables_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_receivables_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_receivables_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_signed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pagarme_recipient_map: {
         Row: {
           active: boolean
@@ -1393,6 +1922,180 @@ export type Database = {
           },
           {
             foreignKeyName: "pagarme_recipient_map_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagarme_subscriptions: {
+        Row: {
+          billing_type: string | null
+          canceled_at: string | null
+          created_at: string
+          current_cycle_end: string | null
+          current_cycle_start: string | null
+          id: string
+          interval: string | null
+          interval_count: number | null
+          last_synced_at: string | null
+          metadata: Json
+          mrr: number | null
+          next_billing_at: string | null
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_customer_id: string | null
+          pagarme_plan_id: string | null
+          pagarme_subscription_id: string
+          payment_method: string | null
+          plan_name: string | null
+          start_at: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_type?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          current_cycle_end?: string | null
+          current_cycle_start?: string | null
+          id?: string
+          interval?: string | null
+          interval_count?: number | null
+          last_synced_at?: string | null
+          metadata?: Json
+          mrr?: number | null
+          next_billing_at?: string | null
+          organization_id: string
+          pagarme_account_id: string
+          pagarme_customer_id?: string | null
+          pagarme_plan_id?: string | null
+          pagarme_subscription_id: string
+          payment_method?: string | null
+          plan_name?: string | null
+          start_at?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_type?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          current_cycle_end?: string | null
+          current_cycle_start?: string | null
+          id?: string
+          interval?: string | null
+          interval_count?: number | null
+          last_synced_at?: string | null
+          metadata?: Json
+          mrr?: number | null
+          next_billing_at?: string | null
+          organization_id?: string
+          pagarme_account_id?: string
+          pagarme_customer_id?: string | null
+          pagarme_plan_id?: string | null
+          pagarme_subscription_id?: string
+          payment_method?: string | null
+          plan_name?: string | null
+          start_at?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_subscriptions_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagarme_sync_runs: {
+        Row: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          dry_run: boolean
+          id: string
+          items_seen: number
+          items_skipped: number
+          items_written: number
+          last_error: string | null
+          metadata: Json
+          organization_id: string
+          pagarme_account_id: string
+          page_cursor: number
+          page_size: number
+          preview: Json | null
+          resource: Database["public"]["Enums"]["pagarme_sync_resource"]
+          status: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at: string
+          window_end: string
+          window_start: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          dry_run?: boolean
+          id?: string
+          items_seen?: number
+          items_skipped?: number
+          items_written?: number
+          last_error?: string | null
+          metadata?: Json
+          organization_id: string
+          pagarme_account_id: string
+          page_cursor?: number
+          page_size?: number
+          preview?: Json | null
+          resource: Database["public"]["Enums"]["pagarme_sync_resource"]
+          status?: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at?: string
+          window_end: string
+          window_start: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          dry_run?: boolean
+          id?: string
+          items_seen?: number
+          items_skipped?: number
+          items_written?: number
+          last_error?: string | null
+          metadata?: Json
+          organization_id?: string
+          pagarme_account_id?: string
+          page_cursor?: number
+          page_size?: number
+          preview?: Json | null
+          resource?: Database["public"]["Enums"]["pagarme_sync_resource"]
+          status?: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at?: string
+          window_end?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_sync_runs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_sync_runs_pagarme_account_id_fkey"
             columns: ["pagarme_account_id"]
             isOneToOne: false
             referencedRelation: "pagarme_accounts"
@@ -2099,6 +2802,7 @@ export type Database = {
           interest_amount: number
           metadata: Json
           notes: string | null
+          pagarme_projection_key: string | null
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
@@ -2135,6 +2839,7 @@ export type Database = {
           interest_amount?: number
           metadata?: Json
           notes?: string | null
+          pagarme_projection_key?: string | null
           paid_amount?: number
           parent_id?: string | null
           payroll_item_id?: string | null
@@ -2171,6 +2876,7 @@ export type Database = {
           interest_amount?: number
           metadata?: Json
           notes?: string | null
+          pagarme_projection_key?: string | null
           paid_amount?: number
           parent_id?: string | null
           payroll_item_id?: string | null
@@ -2295,6 +3001,7 @@ export type Database = {
           interest_amount: number | null
           notes: string | null
           open_amount: number | null
+          pagarme_projection_key: string | null
           paid_amount: number | null
           parent_id: string | null
           status: Database["public"]["Enums"]["transaction_status"] | null
@@ -2327,6 +3034,7 @@ export type Database = {
           interest_amount?: number | null
           notes?: string | null
           open_amount?: never
+          pagarme_projection_key?: string | null
           paid_amount?: number | null
           parent_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
@@ -2359,6 +3067,7 @@ export type Database = {
           interest_amount?: number | null
           notes?: string | null
           open_amount?: never
+          pagarme_projection_key?: string | null
           paid_amount?: number | null
           parent_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
@@ -2448,6 +3157,16 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_pagarme_ledger_health: {
+        Row: {
+          amount: number | null
+          company_id: string | null
+          detail: string | null
+          issue: string | null
+          occurrences: number | null
+        }
+        Relationships: []
       }
       v_transactions: {
         Row: {
@@ -3045,6 +3764,37 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_pagarme_sync_run: {
+        Args: never
+        Returns: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          dry_run: boolean
+          id: string
+          items_seen: number
+          items_skipped: number
+          items_written: number
+          last_error: string | null
+          metadata: Json
+          organization_id: string
+          pagarme_account_id: string
+          page_cursor: number
+          page_size: number
+          preview: Json | null
+          resource: Database["public"]["Enums"]["pagarme_sync_resource"]
+          status: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at: string
+          window_end: string
+          window_start: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "pagarme_sync_runs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       commit_import_batch: {
         Args: { p_batch_id: string }
         Returns: {
@@ -3140,6 +3890,7 @@ export type Database = {
           interest_amount: number
           metadata: Json
           notes: string | null
+          pagarme_projection_key: string | null
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
@@ -3194,6 +3945,7 @@ export type Database = {
           interest_amount: number
           metadata: Json
           notes: string | null
+          pagarme_projection_key: string | null
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
@@ -3315,6 +4067,14 @@ export type Database = {
           outflow_expected: number
           outflow_recurring: number
           running_balance: number
+        }[]
+      }
+      forecast_pagarme_inflow: {
+        Args: { p_company_id: string; p_from: string; p_to: string }
+        Returns: {
+          day: string
+          fees_pagarme: number
+          inflow_pagarme: number
         }[]
       }
       generate_recurring_transactions: {
@@ -3515,6 +4275,116 @@ export type Database = {
       }
       nfse_backfill_cron_invoke: { Args: never; Returns: undefined }
       nfse_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
+      pagarme_active_sync_accounts: {
+        Args: never
+        Returns: {
+          id: string
+          slug: string
+        }[]
+      }
+      pagarme_charges_needing_maturity_sync: {
+        Args: { p_account_id: string; p_grace_days?: number; p_limit?: number }
+        Returns: {
+          pagarme_charge_id: string
+        }[]
+      }
+      pagarme_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
+      pagarme_cron_status: {
+        Args: never
+        Returns: {
+          active: boolean
+          job_name: string
+          last_run_at: string
+          last_status: string
+          schedule: string
+        }[]
+      }
+      pagarme_gateway_accounts: {
+        Args: { p_company_id: string }
+        Returns: {
+          account_label: string
+          cutover_date: string
+          enabled: boolean
+          gateway_bank_account_id: string
+          gateway_nickname: string
+          pagarme_account_id: string
+          payout_bank_account_id: string
+          payout_nickname: string
+          settings_id: string
+        }[]
+      }
+      pagarme_project_ledger: {
+        Args: {
+          p_company_id: string
+          p_from: string
+          p_pagarme_account_id?: string
+          p_to: string
+        }
+        Returns: {
+          kind: string
+          lancamentos: number
+          valor: number
+        }[]
+      }
+      pagarme_receivables_of_transaction: {
+        Args: { p_transaction_id: string }
+        Returns: {
+          amount: number
+          anticipated: boolean
+          card_brand: string
+          customer_name: string
+          expected_payment_date: string
+          fee_total: number
+          installment: number
+          installments_total: number
+          net_amount: number
+          pagarme_charge_id: string
+          payment_method: string
+          receivable_id: string
+          sale_paid_at: string
+          status: string
+        }[]
+      }
+      pagarme_reconcile_month: {
+        Args: { p_company_id: string; p_month: string }
+        Returns: {
+          detail: string
+          metric: string
+          value: number
+        }[]
+      }
+      pagarme_reconcile_payout: {
+        Args: {
+          p_amount: number
+          p_bank_account_id?: string
+          p_company_id: string
+          p_external_ref: string
+          p_funded_on: string
+          p_notes?: string
+          p_statement_line_id?: string
+        }
+        Returns: string
+      }
+      pagarme_resume_sync_run: { Args: { p_run_id: string }; Returns: string }
+      pagarme_setup_gateway_account: {
+        Args: {
+          p_account_id: string
+          p_company_id: string
+          p_cutover_date?: string
+          p_gateway_bank_account_id?: string
+          p_payout_bank_account_id?: string
+        }
+        Returns: string
+      }
+      pagarme_start_backfill: {
+        Args: {
+          p_account_id: string
+          p_dry_run?: boolean
+          p_window_end: string
+          p_window_start: string
+        }
+        Returns: string
+      }
       post_payroll_run: {
         Args: { p_default_account_id: string; p_run_id: string }
         Returns: {
@@ -3532,6 +4402,19 @@ export type Database = {
           employee_kind: Database["public"]["Enums"]["employee_kind"]
           employee_name: string
           has_mapping: boolean
+        }[]
+      }
+      receivables_schedule: {
+        Args: { p_company_id?: string; p_from: string; p_to: string }
+        Returns: {
+          fees: number
+          gross: number
+          installments_count: number
+          month_start: string
+          net: number
+          pending_gross: number
+          pending_installments: number
+          settled_gross: number
         }[]
       }
       recurring_horizon_date: { Args: never; Returns: string }
@@ -3576,6 +4459,7 @@ export type Database = {
           interest_amount: number
           metadata: Json
           notes: string | null
+          pagarme_projection_key: string | null
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
@@ -3600,6 +4484,74 @@ export type Database = {
       rotate_account_webhook_secret: {
         Args: { p_account_id: string }
         Returns: string
+      }
+      sales_breakdown: {
+        Args: {
+          p_account_id?: string
+          p_dimension?: string
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          amount: number
+          label: string
+          sales_count: number
+        }[]
+      }
+      sales_customers: {
+        Args: { p_account_id?: string; p_from: string; p_to: string }
+        Returns: {
+          ledger_since: string
+          new_customers: number
+          new_revenue: number
+          repeat_rate: number
+          returning_customers: number
+          returning_revenue: number
+        }[]
+      }
+      sales_overview: {
+        Args: { p_account_id?: string; p_from: string; p_to: string }
+        Returns: {
+          approval_rate: number
+          attempts_count: number
+          avg_ticket: number
+          customers_count: number
+          failed_count: number
+          gmv: number
+          installments_avg: number
+          net_sales: number
+          refunded: number
+          sales_count: number
+        }[]
+      }
+      sales_recurrence: {
+        Args: { p_account_id?: string; p_from: string; p_to: string }
+        Returns: {
+          churn_rate_logo: number
+          contracted_installments: number
+          contracted_receivables: number
+          has_subscriptions: boolean
+          involuntary_failed: number
+          mrr_active: number
+          subs_active: number
+          subs_canceled: number
+          subs_new: number
+        }[]
+      }
+      sales_timeseries: {
+        Args: {
+          p_account_id?: string
+          p_from: string
+          p_grain?: string
+          p_to: string
+        }
+        Returns: {
+          avg_ticket: number
+          bucket: string
+          failed_count: number
+          gmv: number
+          sales_count: number
+        }[]
       }
       seed_company_chart_of_accounts: {
         Args: { p_company_id: string }
@@ -3712,8 +4664,15 @@ export type Database = {
         | "cdb_term"
         | "investment_fund"
         | "cash"
+        | "payment_gateway"
       company_tax_regime: "simples" | "lucro_presumido" | "lucro_real" | "mei"
-      data_module: "financials" | "payroll" | "taxes" | "nfse" | "audit"
+      data_module:
+        | "financials"
+        | "payroll"
+        | "taxes"
+        | "nfse"
+        | "audit"
+        | "sales"
       dre_section:
         | "gross_revenue"
         | "revenue_deductions"
@@ -3755,6 +4714,11 @@ export type Database = {
       nfse_ambiente: "homologacao" | "producao"
       nfse_emission_mode: "manual" | "automatic"
       nfse_padrao: "municipal" | "nacional"
+      pagarme_sync_resource:
+        | "charges"
+        | "payables"
+        | "balance_operations"
+        | "subscriptions"
       payroll_component:
         | "salary_fixed"
         | "salary_variable"
@@ -3961,9 +4925,10 @@ export const Constants = {
         "cdb_term",
         "investment_fund",
         "cash",
+        "payment_gateway",
       ],
       company_tax_regime: ["simples", "lucro_presumido", "lucro_real", "mei"],
-      data_module: ["financials", "payroll", "taxes", "nfse", "audit"],
+      data_module: ["financials", "payroll", "taxes", "nfse", "audit", "sales"],
       dre_section: [
         "gross_revenue",
         "revenue_deductions",
@@ -4002,6 +4967,12 @@ export const Constants = {
       nfse_ambiente: ["homologacao", "producao"],
       nfse_emission_mode: ["manual", "automatic"],
       nfse_padrao: ["municipal", "nacional"],
+      pagarme_sync_resource: [
+        "charges",
+        "payables",
+        "balance_operations",
+        "subscriptions",
+      ],
       payroll_component: [
         "salary_fixed",
         "salary_variable",
