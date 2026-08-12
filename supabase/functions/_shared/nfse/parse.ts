@@ -14,7 +14,13 @@
  * porém, vem depois de `/payables` (ver `payables.ts`); este é o de partida.
  */
 
+import { pagarmeTimestamp } from "../pagarme/time.ts";
 import type { ChargePaidEvent, PagarmeAddress, PagarmeSplit } from "./types.ts";
+
+// Reexportado por compatibilidade: a implementação canônica passou a viver na
+// camada base do provedor (`_shared/pagarme/time.ts`), usada também pelo ledger
+// de vendas. Os importadores existentes não mudam.
+export { pagarmeTimestamp };
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -46,23 +52,6 @@ function parseSplit(charge: Record<string, unknown>): PagarmeSplit[] {
     });
   }
   return out;
-}
-
-/** Tem sufixo de fuso ("Z" ou ±hh:mm)? */
-const HAS_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/;
-
-/**
- * Data do pagar.me -> instante ISO UTC. O payload real vem **sem** offset
- * (`"2026-07-31T14:32:54"`) e a API documenta UTC; sem carimbar o fuso, o
- * `new Date` do runtime interpretaria a string como hora local e deslocaria a
- * data em até um dia nas pontas. Retorna null para ausente/inválida.
- */
-export function pagarmeTimestamp(value: unknown): string | null {
-  const raw = asString(value);
-  if (!raw) return null;
-  const iso = HAS_OFFSET.test(raw) ? raw : `${raw}Z`;
-  const ms = Date.parse(iso);
-  return Number.isNaN(ms) ? null : new Date(ms).toISOString();
 }
 
 function parseAddress(customer: Record<string, unknown>): PagarmeAddress | null {

@@ -21,6 +21,7 @@ const TYPE_LABELS: Record<string, string> = {
   cdb_term: "CDB Prazo",
   investment_fund: "Fundo",
   cash: "Caixa",
+  payment_gateway: "Gateway",
 };
 
 interface Props {

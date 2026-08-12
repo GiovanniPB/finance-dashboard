@@ -3,7 +3,7 @@
  * Definem o escopo de visualização configurável por usuário; a imposição real é no
  * banco (RLS via `can_view_module`), isto aqui controla nav/UI (defesa em profundidade).
  */
-export const DATA_MODULES = ["financials", "payroll", "taxes", "nfse", "audit"] as const;
+export const DATA_MODULES = ["financials", "payroll", "taxes", "nfse", "sales", "audit"] as const;
 
 export type DataModule = (typeof DATA_MODULES)[number];
 
@@ -12,6 +12,7 @@ export const MODULE_LABELS: Record<DataModule, string> = {
   payroll: "Folha de pagamento",
   taxes: "Impostos",
   nfse: "NFS-e",
+  sales: "Vendas",
   audit: "Auditoria",
 };
 
@@ -20,6 +21,7 @@ export const MODULE_DESCRIPTIONS: Record<DataModule, string> = {
   payroll: "Funcionários e folha de pagamento (dados sensíveis / PII)",
   taxes: "Obrigações e apuração de impostos",
   nfse: "Emissão e gestão de NFS-e",
+  sales: "Vendas do pagar.me: evolução, receita, recebíveis, assinaturas e churn",
   audit: "Trilha de auditoria",
 };
 

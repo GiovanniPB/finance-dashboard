@@ -21,6 +21,7 @@ const TYPE_LABELS: Record<string, string> = {
   cdb_term: "CDB",
   investment_fund: "Fundo",
   cash: "Caixa",
+  payment_gateway: "Gateway de pagamento",
 };
 
 export default function AccountsPage() {
