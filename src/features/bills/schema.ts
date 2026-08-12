@@ -84,10 +84,29 @@ export const ALL_STATUSES: BillEffectiveStatus[] = [
   "canceled",
 ];
 
-export const AGING_BUCKETS = [
-  { value: "future", label: "A vencer", tone: "info" as const },
-  { value: "b_0_30", label: "0-30 dias", tone: "warning" as const },
-  { value: "b_31_60", label: "31-60 dias", tone: "warning" as const },
-  { value: "b_61_90", label: "61-90 dias", tone: "expense" as const },
-  { value: "b_90_plus", label: "+90 dias", tone: "expense" as const },
+/**
+ * Faixas do aging, na ordem da linha do tempo. Mesma régua dos dois lados do
+ * vencimento; quanto mais velho o atraso e mais perto o vencimento, mais forte
+ * o tom.
+ */
+export const OVERDUE_BUCKETS = [
+  { value: "overdue_90_plus", label: "+90 dias", tone: "expense" as const },
+  { value: "overdue_61_90", label: "61-90 dias", tone: "expense" as const },
+  { value: "overdue_31_60", label: "31-60 dias", tone: "warning" as const },
+  { value: "overdue_0_30", label: "Até 30 dias", tone: "warning" as const },
 ];
+
+export const UPCOMING_BUCKETS = [
+  { value: "due_0_30", label: "Até 30 dias", tone: "info" as const },
+  { value: "due_31_60", label: "31-60 dias", tone: "muted" as const },
+  { value: "due_61_90", label: "61-90 dias", tone: "muted" as const },
+  { value: "due_90_plus", label: "+90 dias", tone: "muted" as const },
+];
+
+export const NO_DUE_DATE_BUCKET = {
+  value: "no_due_date",
+  label: "Sem vencimento",
+  tone: "warning" as const,
+};
+
+export type AgingTone = "expense" | "warning" | "info" | "muted";

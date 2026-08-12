@@ -49,9 +49,8 @@ export async function fetchBills(filters: BillFilters): Promise<BillsListResult>
   const rows = (data ?? []) as unknown as BillWithRelations[];
   const totalCount = count ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
-  const totalOpen = rows.reduce((acc, r) => acc + (r.open_amount ?? 0), 0);
 
-  return { rows, totalCount, pageCount, totalOpen };
+  return { rows, totalCount, pageCount };
 }
 
 export async function fetchAging(
