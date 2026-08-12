@@ -2102,6 +2102,7 @@ export type Database = {
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
+          recurring_manually_edited: boolean
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tags: string[]
@@ -2137,6 +2138,7 @@ export type Database = {
           paid_amount?: number
           parent_id?: string | null
           payroll_item_id?: string | null
+          recurring_manually_edited?: boolean
           recurring_template_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           tags?: string[]
@@ -2172,6 +2174,7 @@ export type Database = {
           paid_amount?: number
           parent_id?: string | null
           payroll_item_id?: string | null
+          recurring_manually_edited?: boolean
           recurring_template_id?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           tags?: string[]
@@ -3140,6 +3143,7 @@ export type Database = {
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
+          recurring_manually_edited: boolean
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tags: string[]
@@ -3193,6 +3197,7 @@ export type Database = {
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
+          recurring_manually_edited: boolean
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tags: string[]
@@ -3529,6 +3534,8 @@ export type Database = {
           has_mapping: boolean
         }[]
       }
+      recurring_horizon_date: { Args: never; Returns: string }
+      recurring_horizon_months: { Args: never; Returns: number }
       reemit_authorized_to_producao: {
         Args: { p_account_id: string }
         Returns: number
@@ -3572,6 +3579,7 @@ export type Database = {
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
+          recurring_manually_edited: boolean
           recurring_template_id: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           tags: string[]
@@ -3584,6 +3592,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      resync_recurring_future: {
+        Args: { p_template_id: string }
+        Returns: number
       }
       rotate_account_webhook_secret: {
         Args: { p_account_id: string }
