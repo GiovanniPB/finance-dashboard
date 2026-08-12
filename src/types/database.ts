@@ -3630,6 +3630,37 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_pagarme_sync_run: {
+        Args: never
+        Returns: {
+          attempts: number
+          created_at: string
+          created_by: string | null
+          dry_run: boolean
+          id: string
+          items_seen: number
+          items_skipped: number
+          items_written: number
+          last_error: string | null
+          metadata: Json
+          organization_id: string
+          pagarme_account_id: string
+          page_cursor: number
+          page_size: number
+          preview: Json | null
+          resource: Database["public"]["Enums"]["pagarme_sync_resource"]
+          status: Database["public"]["Enums"]["invoice_backfill_status"]
+          updated_at: string
+          window_end: string
+          window_start: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "pagarme_sync_runs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       commit_import_batch: {
         Args: { p_batch_id: string }
         Returns: {
@@ -4100,6 +4131,29 @@ export type Database = {
       }
       nfse_backfill_cron_invoke: { Args: never; Returns: undefined }
       nfse_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
+      pagarme_active_sync_accounts: {
+        Args: never
+        Returns: {
+          id: string
+          slug: string
+        }[]
+      }
+      pagarme_charges_needing_maturity_sync: {
+        Args: { p_account_id: string; p_grace_days?: number; p_limit?: number }
+        Returns: {
+          pagarme_charge_id: string
+        }[]
+      }
+      pagarme_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
+      pagarme_start_backfill: {
+        Args: {
+          p_account_id: string
+          p_dry_run?: boolean
+          p_window_end: string
+          p_window_start: string
+        }
+        Returns: string
+      }
       post_payroll_run: {
         Args: { p_default_account_id: string; p_run_id: string }
         Returns: {

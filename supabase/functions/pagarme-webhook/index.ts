@@ -2,18 +2,29 @@
  * Edge Function: pagarme-webhook
  *
  * Recebe webhooks de UMA conta pagar.me (endereçada por `?account=<slug>`),
- * grava o evento bruto (idempotente) em `sales_events` e, para `charge.paid`,
- * explode em `invoice_jobs`:
- *   - COM split -> uma NFS-e por empresa-recebedor mapeado na conta;
- *   - SEM split -> uma NFS-e da empresa dona da conta (owner_company).
- * Wrapper fino: a lógica pura vive em `_shared/nfse` (testada por Vitest).
+ * grava o evento bruto (idempotente) em `sales_events` e **roteia por tipo**:
+ *
+ *  1. LEDGER DE VENDAS (`classifyEvent` em `_shared/pagarme/events.ts`):
+ *     cobrança, comprador, assinatura e o cronograma de recebíveis. Cobre também
+ *     eventos que não são dinheiro (cobrança recusada = taxa de aprovação) e os
+ *     que mudam dinheiro já pago (estorno/chargeback).
+ *  2. FISCAL — inalterado: apenas `charge.paid` explode em `invoice_jobs`
+ *     (COM split -> uma nota por empresa-recebedor; SEM split -> uma da empresa
+ *     dona). Essa invariante tem teste dedicado em `events.test.ts`.
+ *
+ * Wrapper fino: a lógica pura vive em `_shared/pagarme` (base do provedor) e
+ * `_shared/nfse` (fiscal), ambas testadas por Vitest.
  *
  * Origem: cada conta tem segredo de webhook PRÓPRIO no Vault, lido via RPC
  * `get_pagarme_webhook_secret(slug)` (service_role). Sem conta/segredo -> rejeita.
  *
  * Idempotência:
  *   - `sales_events` (provider, event_id) único -> evento repetido é ignorado;
- *   - `invoice_jobs` (charge, recipient) único -> upsert ignoreDuplicates.
+ *   - `invoice_jobs` (charge, recipient) único -> upsert ignoreDuplicates;
+ *   - ledger: upsert por chave natural (conta × id do recurso).
+ *
+ * Falha no ledger NÃO derruba a emissão de nota, e vice-versa: os dois efeitos
+ * são reportados separadamente na resposta.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -28,6 +39,17 @@ import {
 } from "../_shared/nfse/pipeline.ts";
 import { explodeChargePaid } from "../_shared/nfse/split.ts";
 import type { NfseAmbiente, PagarmeAccount } from "../_shared/nfse/types.ts";
+import { parseChargeRecord, parseCustomerRecord } from "../_shared/pagarme/charges.ts";
+import { classifyEvent } from "../_shared/pagarme/events.ts";
+import { parseSubscriptionRecord } from "../_shared/pagarme/subscriptions.ts";
+import {
+  loadLedgerContext,
+  syncChargePayables,
+  writeCharge,
+  writeCustomer,
+  writeCustomerRecord,
+  writeSubscription,
+} from "../_shared/pagarme/writer.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -115,15 +137,72 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ status: "duplicate_ignored", eventId });
   }
 
-  if (eventType !== "charge.paid") {
+  // ---------------------------------------------------------------------------
+  // 2) LEDGER DE VENDAS — roteado por tipo de evento
+  // ---------------------------------------------------------------------------
+  const action = classifyEvent(eventType);
+  const ledger: Record<string, unknown> = {};
+
+  if (action.upsertCharge || action.upsertCustomer || action.upsertSubscription) {
+    const ledgerCtx = await loadLedgerContext(supabase, { accountId: account.id });
+    if (!ledgerCtx) {
+      ledger.error = "ledger_context_unavailable";
+    } else {
+      try {
+        if (action.upsertCharge) {
+          const charge = parseChargeRecord(data);
+          if (charge) {
+            await writeCharge(supabase, ledgerCtx, charge, inserted[0].id);
+            if (action.upsertCustomer) await writeCustomer(supabase, ledgerCtx, charge);
+            ledger.charge = charge.chargeId;
+
+            if (action.syncPayables) {
+              const result = await syncChargePayables(supabase, ledgerCtx, charge.chargeId);
+              ledger.receivables = result.written;
+              ledger.payablesStatus = result.status;
+              // recebedor sem empresa mapeada = dinheiro fora do ledger:
+              // reportado para aparecer no diagnóstico, nunca silenciado
+              if (result.unmappedRecipients.length > 0) {
+                ledger.unmappedRecipients = result.unmappedRecipients;
+              }
+            }
+          }
+        } else if (action.upsertCustomer) {
+          // em `customer.*` o próprio `data` É o comprador
+          const customer = parseCustomerRecord(data);
+          if (customer) {
+            await writeCustomerRecord(supabase, ledgerCtx, customer);
+            ledger.customer = customer.customerId;
+          }
+        }
+
+        if (action.upsertSubscription) {
+          const subscription = parseSubscriptionRecord(data);
+          if (subscription) {
+            await writeSubscription(supabase, ledgerCtx, subscription);
+            ledger.subscription = subscription.subscriptionId;
+          }
+        }
+      } catch (err) {
+        // o ledger é reconstruível pelo sync; não deixamos a falha dele impedir
+        // a emissão da nota, que é irreversível e sensível a atraso
+        ledger.error = err instanceof Error ? err.message : "ledger_write_failed";
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3) FISCAL — só `charge.paid` emite nota (invariante coberta por teste)
+  // ---------------------------------------------------------------------------
+  if (!action.explodeFiscal) {
     await markProcessed(supabase, eventId);
-    return json({ status: "ignored", eventType, eventId });
+    return json({ status: "processed", eventType, eventId, fiscal: "skipped", ledger });
   }
 
   const event = parseChargePaidWebhook(payload);
   if (!event) {
     await markProcessed(supabase, eventId, "not_charge_paid");
-    return json({ status: "not_charge_paid", eventId });
+    return json({ status: "not_charge_paid", eventId, ledger });
   }
 
   // enriquece o endereço do tomador via ViaCEP (bairro/município/UF + IBGE) — o
@@ -165,6 +244,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     created: jobs.length,
     splitSource: splitMeta.splitSource,
     skipped,
+    ledger,
   });
 });
 
