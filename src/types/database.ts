@@ -1521,6 +1521,124 @@ export type Database = {
           },
         ]
       }
+      pagarme_ledger_settings: {
+        Row: {
+          anticipation_account_id: string | null
+          company_id: string
+          created_at: string
+          cutover_date: string
+          enabled: boolean
+          fee_account_id: string | null
+          gateway_bank_account_id: string | null
+          id: string
+          metadata: Json
+          organization_id: string
+          pagarme_account_id: string
+          payout_bank_account_id: string | null
+          refund_account_id: string | null
+          revenue_account_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          anticipation_account_id?: string | null
+          company_id: string
+          created_at?: string
+          cutover_date?: string
+          enabled?: boolean
+          fee_account_id?: string | null
+          gateway_bank_account_id?: string | null
+          id?: string
+          metadata?: Json
+          organization_id: string
+          pagarme_account_id: string
+          payout_bank_account_id?: string | null
+          refund_account_id?: string | null
+          revenue_account_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          anticipation_account_id?: string | null
+          company_id?: string
+          created_at?: string
+          cutover_date?: string
+          enabled?: boolean
+          fee_account_id?: string | null
+          gateway_bank_account_id?: string | null
+          id?: string
+          metadata?: Json
+          organization_id?: string
+          pagarme_account_id?: string
+          payout_bank_account_id?: string | null
+          refund_account_id?: string | null
+          revenue_account_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagarme_ledger_settings_anticipation_account_id_fkey"
+            columns: ["anticipation_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_fee_account_id_fkey"
+            columns: ["fee_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_gateway_bank_account_id_fkey"
+            columns: ["gateway_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_pagarme_account_id_fkey"
+            columns: ["pagarme_account_id"]
+            isOneToOne: false
+            referencedRelation: "pagarme_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_payout_bank_account_id_fkey"
+            columns: ["payout_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_refund_account_id_fkey"
+            columns: ["refund_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagarme_ledger_settings_revenue_account_id_fkey"
+            columns: ["revenue_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pagarme_payouts: {
         Row: {
           amount: number
@@ -2684,6 +2802,7 @@ export type Database = {
           interest_amount: number
           metadata: Json
           notes: string | null
+          pagarme_projection_key: string | null
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
@@ -2720,6 +2839,7 @@ export type Database = {
           interest_amount?: number
           metadata?: Json
           notes?: string | null
+          pagarme_projection_key?: string | null
           paid_amount?: number
           parent_id?: string | null
           payroll_item_id?: string | null
@@ -2756,6 +2876,7 @@ export type Database = {
           interest_amount?: number
           metadata?: Json
           notes?: string | null
+          pagarme_projection_key?: string | null
           paid_amount?: number
           parent_id?: string | null
           payroll_item_id?: string | null
@@ -3033,6 +3154,16 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_pagarme_ledger_health: {
+        Row: {
+          amount: number | null
+          company_id: string | null
+          detail: string | null
+          issue: string | null
+          occurrences: number | null
+        }
+        Relationships: []
       }
       v_transactions: {
         Row: {
@@ -3756,6 +3887,7 @@ export type Database = {
           interest_amount: number
           metadata: Json
           notes: string | null
+          pagarme_projection_key: string | null
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
@@ -3810,6 +3942,7 @@ export type Database = {
           interest_amount: number
           metadata: Json
           notes: string | null
+          pagarme_projection_key: string | null
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
@@ -4145,6 +4278,43 @@ export type Database = {
         }[]
       }
       pagarme_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
+      pagarme_project_ledger: {
+        Args: { p_company_id: string; p_from: string; p_to: string }
+        Returns: {
+          kind: string
+          lancamentos: number
+          valor: number
+        }[]
+      }
+      pagarme_reconcile_month: {
+        Args: { p_company_id: string; p_month: string }
+        Returns: {
+          detail: string
+          metric: string
+          value: number
+        }[]
+      }
+      pagarme_reconcile_payout: {
+        Args: {
+          p_amount: number
+          p_bank_account_id?: string
+          p_company_id: string
+          p_external_ref: string
+          p_funded_on: string
+          p_notes?: string
+          p_statement_line_id?: string
+        }
+        Returns: string
+      }
+      pagarme_setup_gateway_account: {
+        Args: {
+          p_account_id: string
+          p_company_id: string
+          p_cutover_date?: string
+          p_payout_bank_account_id?: string
+        }
+        Returns: string
+      }
       pagarme_start_backfill: {
         Args: {
           p_account_id: string
@@ -4215,6 +4385,7 @@ export type Database = {
           interest_amount: number
           metadata: Json
           notes: string | null
+          pagarme_projection_key: string | null
           paid_amount: number
           parent_id: string | null
           payroll_item_id: string | null
