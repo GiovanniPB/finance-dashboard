@@ -1,6 +1,8 @@
-import { Calendar, Plug, Settings2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Calendar, Plug } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -9,13 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { usePermissions } from "@/features/auth/usePermissions";
-import { useBankAccounts } from "@/features/bank-accounts/hooks";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import type { SalesGrain } from "@/features/sales/api";
-import { BackfillCard } from "@/features/sales/components/BackfillCard";
 import { LedgerHealthCard } from "@/features/sales/components/LedgerHealthCard";
-import { ProjectionSetupCard } from "@/features/sales/components/ProjectionSetupCard";
 import { ReceivablesScheduleChart } from "@/features/sales/components/ReceivablesScheduleChart";
 import { RecurrenceCard } from "@/features/sales/components/RecurrenceCard";
 import { SalesBreakdownCard } from "@/features/sales/components/SalesBreakdownCard";
@@ -63,8 +61,6 @@ const MONTH_LABELS = [
  */
 export default function VendasPage() {
   const { selectedCompanyId, selectedCompany, isConsolidated } = useCompanyScope();
-  const { canEdit } = usePermissions();
-  const { data: bankAccounts } = useBankAccounts(selectedCompanyId);
   const [filters, setFilters] = useSalesFilters();
   const { year, month, grain, dimension, account } = filters;
 
@@ -114,12 +110,20 @@ export default function VendasPage() {
             Evolução, composição e recebíveis contratados — direto do pagar.me.
           </p>
         </div>
-        <Badge tone="accent">
-          Recebíveis por empresa:{" "}
-          {isConsolidated
-            ? "consolidado"
-            : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—")}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone="accent">
+            Recebíveis por empresa:{" "}
+            {isConsolidated
+              ? "consolidado"
+              : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—")}
+          </Badge>
+          {/* esta tela só LÊ; carga histórica e projeção vivem na integração */}
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/integracoes">
+              <Plug className="size-4" /> Integração
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-4">
@@ -202,9 +206,12 @@ export default function VendasPage() {
           </div>
         </div>
         {accounts.data?.length === 0 ? (
-          <p className="mt-3 flex items-center gap-2 text-xs text-text-muted">
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-text-muted">
             <Plug className="size-3.5" />
-            Nenhuma conexão pagar.me cadastrada. Configure em NFS-e → Conexões.
+            Nenhuma conexão pagar.me cadastrada.
+            <Button size="sm" variant="link" asChild>
+              <Link to="/integracoes">Configurar integração</Link>
+            </Button>
           </p>
         ) : null}
       </div>
@@ -233,38 +240,6 @@ export default function VendasPage() {
           onDimensionChange={(d) => void setFilters({ dimension: d })}
         />
         <RecurrenceCard data={recurrence.data} loading={recurrence.isLoading} />
-      </div>
-
-      {/*
-        Operação da esteira. Fica no fim porque é uso pontual — carga histórica e
-        configuração da carteira acontecem no go-live e depois raramente. Exige
-        empresa selecionada: carteira e projeção são por empresa, e no consolidado
-        não há para onde lançar.
-      */}
-      <div className="space-y-5 border-t border-border pt-5">
-        <div className="flex items-center gap-2 text-text-muted">
-          <Settings2 className="size-4" />
-          <span className="text-xs font-medium tracking-wide uppercase">Operação da esteira</span>
-        </div>
-
-        <BackfillCard accounts={accounts.data ?? []} canEdit={canEdit} />
-
-        {selectedCompanyId ? (
-          <ProjectionSetupCard
-            companyId={selectedCompanyId}
-            accounts={accounts.data ?? []}
-            bankAccounts={(bankAccounts ?? []).map((b) => ({
-              id: b.id,
-              nickname: b.nickname,
-              accountType: b.account_type,
-            }))}
-            canEdit={canEdit}
-          />
-        ) : (
-          <p className="text-sm text-text-muted">
-            Selecione uma empresa para configurar a carteira do gateway e a projeção.
-          </p>
-        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Play, Power, Wallet } from "lucide-react";
+import { Play, Power } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,21 +15,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useBankAccounts } from "@/features/bank-accounts/hooks";
+import type { PagarmeAccount } from "@/features/nfse/api";
+import { useRecipients } from "@/features/nfse/hooks";
+import type { ProjectionResultRow } from "@/features/sales/api";
+import { useProjectLedger, useSetProjectionEnabled, useSetupGateway } from "@/features/sales/hooks";
 import { formatDate, isoDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
-import type { GatewayAccount, PagarmeAccountOption, ProjectionResultRow } from "../api";
-import {
-  useGatewayAccounts,
-  useProjectLedger,
-  useSetProjectionEnabled,
-  useSetupGateway,
-} from "../hooks";
+import type { ConnectionGateway } from "../api";
+import { useConnectionGateways } from "../hooks";
 
 interface Props {
-  companyId: string;
-  accounts: PagarmeAccountOption[];
-  bankAccounts: { id: string; nickname: string; accountType: string }[];
+  connection: PagarmeAccount;
   canEdit: boolean;
 }
 
@@ -41,76 +39,87 @@ const KIND_LABELS: Record<string, string> = {
 };
 
 /**
- * Carteira do gateway e projeção — o que transforma recebível em lançamento.
+ * Write-back financeiro desta conexão: uma carteira por empresa que recebe nela.
  *
- * Uma linha por (empresa × conexão pagar.me), porque no grupo a mesma empresa
- * pode receber por mais de uma conexão: a RCO é recebedora na conta dela E dentro
- * da conta da Jimmy, com carteira própria em cada uma.
+ * Orientado pela CONEXÃO (e não pela empresa) porque é assim que a configuração se
+ * apresenta na vida real: numa mesma conta pagar.me o split paga várias empresas, e
+ * cada uma precisa da própria carteira, do próprio plano de contas e do próprio
+ * corte. As empresas listadas são a dona da conexão mais as mapeadas no split.
  *
- * A projeção nasce DESLIGADA de propósito: ela escreve na DRE e no "A Receber", e
- * o desenho é conferir a configuração antes de deixá-la lançar. Desligar depois
- * não apaga nada — só para de recalcular.
+ * A projeção nasce desligada de propósito: ela escreve receita na DRE e título em
+ * "A Receber", então a ordem é configurar, conferir e só então ligar.
  */
-export function ProjectionSetupCard({ companyId, accounts, bankAccounts, canEdit }: Props) {
-  const production = accounts.filter((a) => a.ambiente === "producao");
-  const gateways = useGatewayAccounts(companyId);
-  const configured = gateways.data ?? [];
+export function ProjectionSettingsCard({ connection, canEdit }: Props) {
+  const gateways = useConnectionGateways(connection.id);
+  const { data: recipients = [] } = useRecipients(connection.id);
+
+  // dona + recebedoras do split, sem repetir
+  const companies = React.useMemo(() => {
+    const map = new Map<string, string>();
+    const ownerName =
+      connection.owner?.trade_name ?? connection.owner?.legal_name ?? "Empresa dona";
+    map.set(connection.owner_company_id, ownerName);
+    for (const r of recipients) {
+      if (!r.active || !r.company_id) continue;
+      map.set(r.company_id, r.company?.trade_name ?? r.company?.legal_name ?? "—");
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [connection, recipients]);
+
+  const isProduction = connection.ambiente === "producao";
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Wallet className="size-4 text-accent" />
-          Carteira do gateway e projeção
-        </CardTitle>
+        <CardTitle>Vendas no financeiro</CardTitle>
         <CardDescription>
-          A carteira é a conta onde o dinheiro de fato está antes do saque. A projeção lê os
-          recebíveis e lança receita bruta, taxas e estornos nela — nada antes da data de corte,
-          para não duplicar o histórico lançado à mão.
+          A carteira do gateway é a conta onde o dinheiro fica antes do saque. A projeção lê os
+          recebíveis desta conexão e lança receita bruta, taxas e estornos nela — nada antes da data
+          de corte, para não duplicar o que já foi lançado à mão.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
-        {gateways.isLoading ? (
+      <CardContent className="space-y-4">
+        {!isProduction ? (
+          <p className="text-sm text-text-muted">
+            Conexão de homologação não alimenta o financeiro — venda de teste não vira recebível.
+            Nada a configurar aqui.
+          </p>
+        ) : gateways.isLoading ? (
           <Skeleton className="h-28 w-full" />
         ) : (
-          production.map((account) => {
-            const settings = configured.find((g) => g.pagarmeAccountId === account.id) ?? null;
+          companies.map((company) => {
+            const settings = (gateways.data ?? []).find((g) => g.companyId === company.id) ?? null;
             return (
-              <ConnectionRow
-                // a `key` inclui a configuração: quando ela passa a existir (ou
-                // troca), o formulário remonta e reinicializa com o que está
-                // salvo, em vez de manter os defaults do primeiro render
-                key={`${account.id}:${settings?.settingsId ?? "new"}`}
-                companyId={companyId}
-                account={account}
+              <CompanyRow
+                // a `key` inclui a configuração: quando ela passa a existir, o
+                // formulário remonta e reinicializa com o que está salvo em vez de
+                // manter os defaults do primeiro render
+                key={`${company.id}:${settings?.settingsId ?? "new"}`}
+                accountId={connection.id}
+                company={company}
                 settings={settings}
-                bankAccounts={bankAccounts}
                 canEdit={canEdit}
               />
             );
           })
         )}
-        {production.length === 0 ? (
-          <p className="text-sm text-text-muted">Nenhuma conexão de produção cadastrada.</p>
-        ) : null}
       </CardContent>
     </Card>
   );
 }
 
-function ConnectionRow({
-  companyId,
-  account,
+function CompanyRow({
+  accountId,
+  company,
   settings,
-  bankAccounts,
   canEdit,
 }: {
-  companyId: string;
-  account: PagarmeAccountOption;
-  settings: GatewayAccount | null;
-  bankAccounts: { id: string; nickname: string; accountType: string }[];
+  accountId: string;
+  company: { id: string; name: string };
+  settings: ConnectionGateway | null;
   canEdit: boolean;
 }) {
+  const { data: bankAccounts = [] } = useBankAccounts(company.id);
   const setup = useSetupGateway();
   const toggle = useSetProjectionEnabled();
   const project = useProjectLedger();
@@ -126,23 +135,17 @@ function ConnectionRow({
     e.preventDefault();
     setup.mutate(
       {
-        accountId: account.id,
-        companyId,
+        accountId,
+        companyId: company.id,
         gatewayBankAccountId: gatewayId || null,
         payoutBankAccountId: payoutId || null,
         cutoverDate: cutover,
       },
       {
-        onSuccess: () => {
-          toast.success(
-            gatewayId
-              ? "Carteira vinculada. A projeção continua desligada até você ligar."
-              : "Carteira criada. A projeção continua desligada até você ligar.",
-          );
-        },
-        onError: (err) => {
-          toast.error(err instanceof Error ? err.message : "Não foi possível salvar.");
-        },
+        onSuccess: () =>
+          toast.success("Carteira configurada. A projeção continua desligada até você ligar."),
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : "Não foi possível salvar."),
       },
     );
   }
@@ -150,19 +153,17 @@ function ConnectionRow({
   function runProjection() {
     setResult(null);
     project.mutate(
-      { companyId, from, to, accountId: account.id },
+      { companyId: company.id, from, to, accountId },
       {
         onSuccess: (rows) => {
           setResult(rows);
-          if (rows.length === 0) {
-            toast.info("Nenhum recebível na janela — nada a lançar.");
-          } else {
-            toast.success("Projeção recalculada.");
-          }
+          toast[rows.length === 0 ? "info" : "success"](
+            rows.length === 0
+              ? "Nenhum recebível na janela — nada a lançar."
+              : "Projeção recalculada.",
+          );
         },
-        onError: (err) => {
-          toast.error(err instanceof Error ? err.message : "A projeção falhou.");
-        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "A projeção falhou."),
       },
     );
   }
@@ -170,7 +171,7 @@ function ConnectionRow({
   return (
     <div className="space-y-3 rounded-[var(--radius-md)] border border-border p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium">{account.label}</div>
+        <div className="text-sm font-medium">{company.name}</div>
         {settings ? (
           settings.enabled ? (
             <Badge tone="income">projeção ligada</Badge>
@@ -185,9 +186,9 @@ function ConnectionRow({
       {canEdit ? (
         <form onSubmit={save} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`gw-${account.id}`}>Carteira do gateway</Label>
+            <Label htmlFor={`gw-${company.id}`}>Carteira do gateway</Label>
             <Select value={gatewayId} onValueChange={setGatewayId}>
-              <SelectTrigger id={`gw-${account.id}`}>
+              <SelectTrigger id={`gw-${company.id}`}>
                 <SelectValue placeholder="Criar nova" />
               </SelectTrigger>
               <SelectContent>
@@ -199,14 +200,13 @@ function ConnectionRow({
               </SelectContent>
             </Select>
             <p className="text-2xs text-text-subtle">
-              Aponte para a conta “Pagar-me” que você já usa: o histórico e o saldo dela continuam
-              valendo.
+              Aponte para a conta “Pagar-me” que já existe: histórico e saldo continuam valendo.
             </p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`po-${account.id}`}>Conta de saque</Label>
+            <Label htmlFor={`po-${company.id}`}>Conta de saque</Label>
             <Select value={payoutId} onValueChange={setPayoutId}>
-              <SelectTrigger id={`po-${account.id}`}>
+              <SelectTrigger id={`po-${company.id}`}>
                 <SelectValue placeholder="Escolha a conta" />
               </SelectTrigger>
               <SelectContent>
@@ -219,9 +219,9 @@ function ConnectionRow({
             </Select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`co-${account.id}`}>Data de corte</Label>
+            <Label htmlFor={`co-${company.id}`}>Data de corte</Label>
             <Input
-              id={`co-${account.id}`}
+              id={`co-${company.id}`}
               type="date"
               value={cutover}
               onChange={(e) => setCutover(e.target.value)}
@@ -247,9 +247,8 @@ function ConnectionRow({
               toggle.mutate(
                 { settingsId: settings.settingsId, enabled: !settings.enabled },
                 {
-                  onSuccess: () => {
-                    toast.success(settings.enabled ? "Projeção desligada." : "Projeção ligada.");
-                  },
+                  onSuccess: () =>
+                    toast.success(settings.enabled ? "Projeção desligada." : "Projeção ligada."),
                 },
               )
             }
@@ -259,9 +258,9 @@ function ConnectionRow({
           </Button>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`pf-${account.id}`}>Projetar de</Label>
+            <Label htmlFor={`pf-${company.id}`}>Projetar de</Label>
             <Input
-              id={`pf-${account.id}`}
+              id={`pf-${company.id}`}
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
@@ -269,9 +268,9 @@ function ConnectionRow({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`pt-${account.id}`}>até</Label>
+            <Label htmlFor={`pt-${company.id}`}>até</Label>
             <Input
-              id={`pt-${account.id}`}
+              id={`pt-${company.id}`}
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
@@ -289,18 +288,18 @@ function ConnectionRow({
         </div>
       ) : null}
 
-      {settings && !settings.enabled ? (
-        <p className="text-2xs text-text-muted">
-          Enquanto estiver desligada, os recebíveis aparecem no dashboard de vendas mas não geram
-          lançamento, título em “A Receber” nem linha na DRE.
-        </p>
-      ) : null}
-
       {settings?.gatewayNickname ? (
         <p className="text-2xs text-text-subtle">
           Carteira: {settings.gatewayNickname}
           {settings.payoutNickname ? ` · saque para ${settings.payoutNickname}` : ""} · corte em{" "}
           {formatDate(settings.cutoverDate)}
+        </p>
+      ) : null}
+
+      {settings && !settings.enabled ? (
+        <p className="text-2xs text-text-muted">
+          Desligada: os recebíveis aparecem no dashboard de vendas mas não geram lançamento, título
+          em “A Receber” nem linha na DRE.
         </p>
       ) : null}
 

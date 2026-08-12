@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CircleAlert, History, Loader2 } from "lucide-react";
+import { CircleAlert, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -7,25 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import type { PagarmeAccount } from "@/features/nfse/api";
+import type { SyncRun } from "@/features/sales/api";
+import { useStartBackfill, useSyncRuns } from "@/features/sales/hooks";
 import { dayEndIso, dayStartIso, formatDate, isoDate } from "@/lib/dates";
 import { formatNumber } from "@/lib/format";
 
-import type { PagarmeAccountOption, SyncRun } from "../api";
-import { useStartBackfill, useSyncRuns } from "../hooks";
+import { useResumeSyncRun } from "../hooks";
 
 interface Props {
-  accounts: PagarmeAccountOption[];
+  connection: PagarmeAccount;
   canEdit: boolean;
 }
 
-/** Um lote sem progresso por mais tempo que isto = esteira provavelmente inativa. */
+/** Lote sem progresso por mais tempo que isto = esteira provavelmente inativa. */
 const STALE_MINUTES = 10;
 
 const STATUS_LABELS: Record<string, string> = {
@@ -35,54 +30,46 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 /**
- * Carga histórica das vendas do pagar.me.
+ * Carga histórica das vendas desta conexão.
  *
- * O ledger nasce vazio: webhook só traz venda NOVA. Todo o histórico — e com ele
- * os recebíveis já contratados que sustentam o "A Receber" — entra por aqui.
+ * O ledger nasce vazio: webhook só traz venda NOVA. Todo o histórico — e com ele os
+ * recebíveis já contratados que sustentam o "A Receber" — entra por aqui.
  *
  * A tela só ENFILEIRA. O cron `pagarme-backfill` drena o lote em blocos de duas
  * páginas por tick, retomável por cursor: cada venda paga custa uma consulta de
- * cronograma, então varrer anos de uma vez estouraria o tempo da Edge Function.
- * Sem os segredos do cron configurados o lote fica parado em zero — e é isso que
- * o aviso de lote travado detecta.
+ * cronograma, então varrer anos numa invocação estouraria o tempo da Edge Function.
+ * Sem os segredos do cron configurados o lote fica parado em zero — é o que o aviso
+ * de lote travado detecta.
  */
-export function BackfillCard({ accounts, canEdit }: Props) {
-  // sandbox não entra no ledger financeiro (o banco recusa), então nem aparece
-  const production = accounts.filter((a) => a.ambiente === "producao");
-
-  const [accountId, setAccountId] = React.useState(() => production[0]?.id ?? "");
+export function BackfillCard({ connection, canEdit }: Props) {
   const [start, setStart] = React.useState("2025-01-01");
   const [end, setEnd] = React.useState(() => isoDate());
 
   const runs = useSyncRuns();
   const startBackfill = useStartBackfill();
+  const resume = useResumeSyncRun();
 
-  const accountLabel = (id: string) => accounts.find((a) => a.id === id)?.label ?? "—";
+  const isProduction = connection.ambiente === "producao";
+  const mine = (runs.data ?? []).filter((r) => r.pagarmeAccountId === connection.id);
 
   function submit(e: React.SyntheticEvent) {
     e.preventDefault();
-    if (!accountId) {
-      toast.error("Escolha a conexão.");
-      return;
-    }
     if (end < start) {
       toast.error("A janela termina antes de começar.");
       return;
     }
     startBackfill.mutate(
       {
-        accountId,
+        accountId: connection.id,
         // a API filtra por instante: o dia final entra inteiro
         windowStart: dayStartIso(start),
         windowEnd: dayEndIso(end),
       },
       {
-        onSuccess: () => {
-          toast.success("Lote enfileirado. O cron drena em blocos — acompanhe abaixo.");
-        },
-        onError: (err) => {
-          toast.error(err instanceof Error ? err.message : "Não foi possível enfileirar o lote.");
-        },
+        onSuccess: () =>
+          toast.success("Lote enfileirado. O cron drena em blocos — acompanhe abaixo."),
+        onError: (err) =>
+          toast.error(err instanceof Error ? err.message : "Não foi possível enfileirar o lote."),
       },
     );
   }
@@ -90,33 +77,19 @@ export function BackfillCard({ accounts, canEdit }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <History className="size-4 text-accent" />
-          Carga histórica
-        </CardTitle>
+        <CardTitle>Carga histórica</CardTitle>
         <CardDescription>
           Importa vendas e cronograma de recebíveis de uma janela passada. É o que popula o
           dashboard e os recebíveis já contratados. Idempotente: repetir não duplica.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {canEdit ? (
+        {!isProduction ? (
+          <p className="text-sm text-text-muted">
+            Carga histórica só em produção — venda de sandbox não entra no financeiro.
+          </p>
+        ) : canEdit ? (
           <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="backfill-account">Conexão</Label>
-              <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger id="backfill-account">
-                  <SelectValue placeholder="Escolha a conexão" />
-                </SelectTrigger>
-                <SelectContent>
-                  {production.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="backfill-start">Vendas desde</Label>
               <Input
@@ -136,32 +109,39 @@ export function BackfillCard({ accounts, canEdit }: Props) {
               />
             </div>
             <div className="flex items-end">
-              <Button type="submit" disabled={startBackfill.isPending || production.length === 0}>
+              <Button type="submit" disabled={startBackfill.isPending}>
                 {startBackfill.isPending ? "Enfileirando…" : "Iniciar carga"}
               </Button>
             </div>
           </form>
         ) : null}
 
-        {production.length === 0 ? (
-          <p className="text-sm text-text-muted">
-            Nenhuma conexão de produção cadastrada. Conexões de homologação não alimentam o
-            financeiro.
-          </p>
-        ) : null}
-
         <div className="space-y-2">
           <h3 className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
-            Últimos lotes
+            Lotes desta conexão
           </h3>
           {runs.isLoading ? (
             <p className="text-sm text-text-muted">Carregando…</p>
-          ) : (runs.data ?? []).length === 0 ? (
+          ) : mine.length === 0 ? (
             <p className="text-sm text-text-muted">Nenhuma carga executada até agora.</p>
           ) : (
             <ul className="divide-y divide-border">
-              {(runs.data ?? []).map((run) => (
-                <RunRow key={run.id} run={run} accountLabel={accountLabel(run.pagarmeAccountId)} />
+              {mine.map((run) => (
+                <RunRow
+                  key={run.id}
+                  run={run}
+                  canEdit={canEdit}
+                  resuming={resume.isPending}
+                  onResume={() =>
+                    resume.mutate(run.id, {
+                      onSuccess: () => toast.success("Lote retomado de onde parou."),
+                      onError: (err) =>
+                        toast.error(
+                          err instanceof Error ? err.message : "Não foi possível retomar.",
+                        ),
+                    })
+                  }
+                />
               ))}
             </ul>
           )}
@@ -171,17 +151,26 @@ export function BackfillCard({ accounts, canEdit }: Props) {
   );
 }
 
-function RunRow({ run, accountLabel }: { run: SyncRun; accountLabel: string }) {
+function RunRow({
+  run,
+  canEdit,
+  resuming,
+  onResume,
+}: {
+  run: SyncRun;
+  canEdit: boolean;
+  resuming: boolean;
+  onResume: () => void;
+}) {
   const minutesSinceUpdate = (Date.now() - new Date(run.updatedAt).getTime()) / 60_000;
   // parado há muito tempo sem ter escrito nada: o sintoma de cron desligado
   const stale =
     run.status === "running" && run.itemsSeen === 0 && minutesSinceUpdate > STALE_MINUTES;
 
   return (
-    <li className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3">
+    <li className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 py-3">
       <div className="min-w-0">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          {accountLabel}
+        <div className="flex items-center gap-2 text-sm">
           {run.status === "running" ? (
             <Badge tone="info">
               <Loader2 className="size-3 animate-spin" /> em andamento
@@ -191,10 +180,12 @@ function RunRow({ run, accountLabel }: { run: SyncRun; accountLabel: string }) {
           ) : (
             <Badge tone="expense">{STATUS_LABELS[run.status] ?? run.status}</Badge>
           )}
+          <span className="text-text-muted">
+            {formatDate(run.windowStart)} → {formatDate(run.windowEnd)}
+          </span>
         </div>
         <div className="text-2xs text-text-subtle">
-          {formatDate(run.windowStart)} → {formatDate(run.windowEnd)} · página {run.pageCursor} ·
-          atualizado {formatDate(run.updatedAt, "dd/MM HH:mm")}
+          página {run.pageCursor} · atualizado {formatDate(run.updatedAt, "dd/MM HH:mm")}
         </div>
         {run.lastError ? (
           <div className="text-2xs text-expense">
@@ -210,9 +201,16 @@ function RunRow({ run, accountLabel }: { run: SyncRun; accountLabel: string }) {
           </div>
         ) : null}
       </div>
-      <div className="text-right text-sm">
-        <div className="font-mono">{formatNumber(run.itemsWritten)}</div>
-        <div className="text-2xs text-text-subtle">de {formatNumber(run.itemsSeen)} vistas</div>
+      <div className="flex items-center gap-3">
+        <div className="text-right text-sm">
+          <div className="font-mono">{formatNumber(run.itemsWritten)}</div>
+          <div className="text-2xs text-text-subtle">de {formatNumber(run.itemsSeen)} vistas</div>
+        </div>
+        {canEdit && run.status === "failed" ? (
+          <Button size="sm" variant="outline" disabled={resuming} onClick={onResume}>
+            <RotateCcw className="size-3.5" /> Retomar
+          </Button>
+        ) : null}
       </div>
     </li>
   );

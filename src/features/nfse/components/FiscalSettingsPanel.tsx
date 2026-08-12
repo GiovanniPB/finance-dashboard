@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,11 +8,9 @@ import type { Company } from "@/features/companies/api";
 
 import { AMBIENTE_META, DOCUMENT_TYPE_META, EMISSION_MODE_OPTIONS } from "../constants";
 import { useFiscalSettings } from "../hooks";
-import { FiscalSettingsDrawer } from "./FiscalSettingsDrawer";
 
 export function FiscalSettingsPanel({ companies }: { companies: Company[] }) {
   const { data: settings = [], isLoading } = useFiscalSettings();
-  const [editing, setEditing] = React.useState<Company | null>(null);
 
   const byCompany = React.useMemo(
     () => new Map(settings.map((s) => [s.company_id, s])),
@@ -88,8 +87,8 @@ export function FiscalSettingsPanel({ companies }: { companies: Company[] }) {
                       )}
                     </td>
                     <td className="px-3 py-2.5 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(c)}>
-                        {s ? "Editar" : "Configurar"}
+                      <Button size="sm" variant="ghost" asChild>
+                        <Link to={`/companies/${c.id}/fiscal`}>{s ? "Editar" : "Configurar"}</Link>
                       </Button>
                     </td>
                   </tr>
@@ -99,13 +98,6 @@ export function FiscalSettingsPanel({ companies }: { companies: Company[] }) {
           </table>
         </div>
       )}
-
-      <FiscalSettingsDrawer
-        open={Boolean(editing)}
-        onOpenChange={(o) => !o && setEditing(null)}
-        company={editing}
-        settings={editing ? (byCompany.get(editing.id) ?? null) : null}
-      />
     </div>
   );
 }

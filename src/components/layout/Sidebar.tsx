@@ -11,6 +11,7 @@ import {
   History,
   Landmark,
   LayoutDashboard,
+  Plug,
   Receipt,
   Repeat,
   Settings,
@@ -20,6 +21,7 @@ import {
   Upload,
   Users,
   Wallet,
+  Webhook,
 } from "lucide-react";
 
 import type { DataModule } from "@/features/auth/modules";
@@ -63,6 +65,9 @@ const navItems: NavItem[] = [
 const adminItems: NavItem[] = [
   { to: "/audit", label: "Auditoria", icon: History, module: "audit" },
   { to: "/companies", label: "Empresas", icon: Building2 },
+  // `end` para o item não ficar ativo junto de /integracoes/:slug
+  { to: "/integracoes", label: "Integrações", icon: Plug, end: true },
+  { to: "/webhooks", label: "Webhooks", icon: Webhook },
   { to: "/settings", label: "Configurações", icon: Settings, module: "financials" },
 ];
 

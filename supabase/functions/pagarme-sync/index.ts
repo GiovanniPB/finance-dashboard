@@ -205,6 +205,9 @@ async function runBackfill(supabase: SupabaseClient): Promise<Record<string, unk
   if (runs.length === 0) return { status: "idle" };
 
   const run = runs[0];
+  // `attempts` é reivindicação SEM PROGRESSO: o tick que avança zera o contador
+  // no fim desta função. Sem esse reset o contador viraria "ticks totais" e todo
+  // lote com mais de 2×MAX páginas morreria no meio, mesmo indo bem.
   if (run.attempts > MAX_RUN_ATTEMPTS) {
     await supabase
       .from("pagarme_sync_runs")
@@ -282,6 +285,10 @@ async function runBackfill(supabase: SupabaseClient): Promise<Record<string, unk
       items_written: written,
       items_skipped: skipped,
       last_error: null,
+      // o lote avançou: o orçamento de tentativas volta ao início, senão um
+      // histórico longo (que precisa de dezenas de ticks) seria abortado como se
+      // estivesse travado
+      attempts: 0,
       status: done ? "completed" : "running",
     })
     .eq("id", run.id);

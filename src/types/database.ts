@@ -4289,6 +4289,16 @@ export type Database = {
         }[]
       }
       pagarme_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
+      pagarme_cron_status: {
+        Args: never
+        Returns: {
+          active: boolean
+          job_name: string
+          last_run_at: string
+          last_status: string
+          schedule: string
+        }[]
+      }
       pagarme_gateway_accounts: {
         Args: { p_company_id: string }
         Returns: {
@@ -4355,6 +4365,7 @@ export type Database = {
         }
         Returns: string
       }
+      pagarme_resume_sync_run: { Args: { p_run_id: string }; Returns: string }
       pagarme_setup_gateway_account: {
         Args: {
           p_account_id: string
