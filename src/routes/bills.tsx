@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Plus, Search } from "lucide-react";
+import { parseAsInteger, useQueryStates } from "nuqs";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,19 @@ import {
 import { usePermissions } from "@/features/auth/usePermissions";
 import { BillDrawer } from "@/features/bills/components/BillDrawer";
 import { BillsAgingCard } from "@/features/bills/components/BillsAgingCard";
+import {
+  BillsPagination,
+  DEFAULT_BILLS_PAGE_SIZE,
+} from "@/features/bills/components/BillsPagination";
 import { BillsTable } from "@/features/bills/components/BillsTable";
 import { PaymentDialog } from "@/features/bills/components/PaymentDialog";
-import { useBills, useDeleteBill } from "@/features/bills/hooks";
+import {
+  DEFAULT_DUE_HORIZON,
+  DUE_HORIZONS,
+  dueLimitFor,
+  type DueHorizon,
+} from "@/features/bills/dueHorizon";
+import { useBills, useBillsAging, useDeleteBill } from "@/features/bills/hooks";
 import { ALL_STATUSES, STATUS_META } from "@/features/bills/schema";
 import type { BillDirection, BillEffectiveStatus, BillWithRelations } from "@/features/bills/types";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
@@ -35,6 +46,13 @@ export default function BillsPage() {
   const [tab, setTab] = React.useState<Tab>("outflow");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"open" | "all" | "paid">("open");
+  const [dueHorizon, setDueHorizon] = React.useState<DueHorizon>(DEFAULT_DUE_HORIZON);
+  // Página e tamanho na URL, como nas demais listas: o link continua apontando
+  // para o mesmo trecho quando alguém compartilha ou recarrega.
+  const [pagination, setPagination] = useQueryStates({
+    page: parseAsInteger.withDefault(1),
+    pageSize: parseAsInteger.withDefault(DEFAULT_BILLS_PAGE_SIZE),
+  });
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<BillWithRelations | null>(null);
   const [paying, setPaying] = React.useState<BillWithRelations | null>(null);
@@ -51,8 +69,35 @@ export default function BillsPage() {
     direction: tab,
     status: effectiveStatuses,
     search: search.trim() || null,
-    pageSize: 100,
+    to: dueLimitFor(dueHorizon),
+    page: pagination.page,
+    pageSize: pagination.pageSize,
   });
+
+  // Mudar qualquer filtro muda o conjunto, e a página antiga deixa de fazer
+  // sentido — na melhor hipótese mostra outra coisa, na pior cai fora do fim e
+  // fica vazia. O ref preserva a página que veio na URL na primeira renderização.
+  const filterKey = [tab, statusFilter, dueHorizon, search.trim(), selectedCompanyId].join("|");
+  const lastFilterKey = React.useRef(filterKey);
+  React.useEffect(() => {
+    if (lastFilterKey.current === filterKey) return;
+    lastFilterKey.current = filterKey;
+    void setPagination((prev) => ({ ...prev, page: 1 }));
+  }, [filterKey, setPagination]);
+
+  // Página além do fim — link antigo, ou filtro que encolheu o conjunto — cairia
+  // numa lista vazia sem explicação. Volta para a última página válida.
+  React.useEffect(() => {
+    const pageCount = data?.pageCount ?? 1;
+    if (!isLoading && pagination.page > pageCount) {
+      void setPagination((prev) => ({ ...prev, page: pageCount }));
+    }
+  }, [data?.pageCount, isLoading, pagination.page, setPagination]);
+
+  // O total vem do agregado, não da página: somar as linhas carregadas daria o
+  // total da página e passaria por total da empresa.
+  const { data: aging = [] } = useBillsAging(selectedCompanyId, tab);
+  const totalOpen = aging.reduce((acc, bucket) => acc + (bucket.total ?? 0), 0);
 
   const deleteMutation = useDeleteBill();
 
@@ -78,7 +123,7 @@ export default function BillsPage() {
       <Header
         companyName={selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—"}
         directionLabel={directionLabel}
-        totalOpen={data?.totalOpen ?? 0}
+        totalOpen={totalOpen}
         canEdit={canEdit}
         onCreate={() => {
           setEditing(null);
@@ -122,6 +167,18 @@ export default function BillsPage() {
             <SelectItem value="all">Todos</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={dueHorizon} onValueChange={(v) => setDueHorizon(v as DueHorizon)}>
+          <SelectTrigger className="w-48" aria-label="Vencimento até">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DUE_HORIZONS.map((h) => (
+              <SelectItem key={h.value} value={h.value}>
+                {h.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Tabela */}
@@ -135,6 +192,18 @@ export default function BillsPage() {
         }}
         onDelete={(bill) => setConfirmDelete(bill)}
         onPay={(bill) => setPaying(bill)}
+      />
+
+      <BillsPagination
+        page={pagination.page}
+        pageCount={data?.pageCount ?? 1}
+        totalCount={data?.totalCount ?? 0}
+        rowsOnPage={rows.length}
+        pageSize={pagination.pageSize}
+        onPageChange={(page) => void setPagination((prev) => ({ ...prev, page }))}
+        // Trocar o tamanho reposiciona tudo: manter a página levaria para além
+        // do fim quando o tamanho cresce.
+        onPageSizeChange={(pageSize) => void setPagination({ page: 1, pageSize })}
       />
 
       {/* Status summary */}
@@ -250,7 +319,9 @@ function StatusSummary({ rows }: { rows: BillWithRelations[] }) {
 
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
-      <span>{rows.length} título(s) ·</span>
+      {/* "Nesta página" porque a contagem é das linhas carregadas: com paginação,
+          "20 títulos" seco passaria por total do filtro. */}
+      <span>Nesta página: {rows.length} título(s) ·</span>
       {counts.map((c) => (
         <span key={c.status} className="inline-flex items-center gap-1.5">
           <span className={`size-2 rounded-full bg-${STATUS_META[c.status].tone}`} />

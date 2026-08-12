@@ -39,9 +39,9 @@ export interface BillFilters {
 
 export interface BillsListResult {
   rows: BillWithRelations[];
+  /** Total de títulos que casam com o filtro — não só os da página. */
   totalCount: number;
   pageCount: number;
-  totalOpen: number;
 }
 
 export interface AgingBucketRow {
