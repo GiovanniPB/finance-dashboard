@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  deleteLedgerSettings,
   fetchConnectionGateways,
   fetchCronStatus,
   fetchObservedEventTypes,
@@ -39,6 +40,17 @@ export function useCronStatus() {
     queryFn: fetchCronStatus,
     staleTime: 30 * 1000,
     retry: false,
+  });
+}
+
+export function useDeleteLedgerSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteLedgerSettings,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      void queryClient.invalidateQueries({ queryKey: ["sales"] });
+    },
   });
 }
 

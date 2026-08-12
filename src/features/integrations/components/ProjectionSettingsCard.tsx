@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Play, Power } from "lucide-react";
+import { Play, Power, Trash2, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,7 @@ import { formatDate, isoDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
 import type { ConnectionGateway } from "../api";
-import { useConnectionGateways } from "../hooks";
+import { useConnectionGateways, useDeleteLedgerSettings } from "../hooks";
 
 interface Props {
   connection: PagarmeAccount;
@@ -68,6 +68,12 @@ export function ProjectionSettingsCard({ connection, canEdit }: Props) {
 
   const isProduction = connection.ambiente === "producao";
 
+  // Configuração para empresa que NÃO recebe nesta conexão: nunca vai projetar
+  // nada. Mostrada explicitamente porque uma tela orientada pela conexão a
+  // esconderia — e config invisível que não faz nada foi exatamente o problema.
+  const expected = new Set(companies.map((c) => c.id));
+  const orphans = (gateways.data ?? []).filter((g) => !expected.has(g.companyId));
+
   return (
     <Card>
       <CardHeader>
@@ -87,24 +93,67 @@ export function ProjectionSettingsCard({ connection, canEdit }: Props) {
         ) : gateways.isLoading ? (
           <Skeleton className="h-28 w-full" />
         ) : (
-          companies.map((company) => {
-            const settings = (gateways.data ?? []).find((g) => g.companyId === company.id) ?? null;
-            return (
-              <CompanyRow
-                // a `key` inclui a configuração: quando ela passa a existir, o
-                // formulário remonta e reinicializa com o que está salvo em vez de
-                // manter os defaults do primeiro render
-                key={`${company.id}:${settings?.settingsId ?? "new"}`}
-                accountId={connection.id}
-                company={company}
-                settings={settings}
-                canEdit={canEdit}
-              />
-            );
-          })
+          <>
+            {companies.map((company) => {
+              const settings =
+                (gateways.data ?? []).find((g) => g.companyId === company.id) ?? null;
+              return (
+                <CompanyRow
+                  // a `key` inclui a configuração: quando ela passa a existir, o
+                  // formulário remonta e reinicializa com o que está salvo em vez de
+                  // manter os defaults do primeiro render
+                  key={`${company.id}:${settings?.settingsId ?? "new"}`}
+                  accountId={connection.id}
+                  company={company}
+                  settings={settings}
+                  canEdit={canEdit}
+                />
+              );
+            })}
+            {orphans.map((settings) => (
+              <OrphanRow key={settings.settingsId} settings={settings} canEdit={canEdit} />
+            ))}
+          </>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function OrphanRow({ settings, canEdit }: { settings: ConnectionGateway; canEdit: boolean }) {
+  const remove = useDeleteLedgerSettings();
+
+  return (
+    <div className="space-y-2 rounded-[var(--radius-md)] border border-warning/40 bg-warning-soft p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <TriangleAlert className="size-4 text-warning" />
+          {settings.companyName}
+        </div>
+        <Badge tone="warning">configuração órfã</Badge>
+      </div>
+      <p className="text-xs">
+        Esta empresa não é recebedora nesta conexão, então a projeção não tem recebível para lançar
+        aqui — a configuração fica sem efeito.
+        {settings.gatewayNickname ? ` Aponta para “${settings.gatewayNickname}”.` : ""}
+      </p>
+      {canEdit ? (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={remove.isPending}
+          onClick={() =>
+            remove.mutate(settings.settingsId, {
+              onSuccess: () => toast.success("Configuração removida."),
+              onError: (err) =>
+                toast.error(err instanceof Error ? err.message : "Não foi possível remover."),
+            })
+          }
+        >
+          <Trash2 className="size-3.5" /> Remover
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

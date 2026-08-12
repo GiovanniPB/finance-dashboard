@@ -99,6 +99,20 @@ export async function fetchConnectionGateways(accountId: string): Promise<Connec
   }));
 }
 
+/**
+ * Remove uma configuração de write-back.
+ *
+ * Existe por causa de um caso real: a versão anterior desta tela era orientada
+ * pela EMPRESA selecionada, então configurar "todas as conexões" criava carteira
+ * da empresa em foco para conexões que pagam OUTRA empresa. O resultado é uma
+ * linha que nunca projeta nada — e que ficaria invisível numa tela orientada pela
+ * conexão. Some com ela em vez de esconder.
+ */
+export async function deleteLedgerSettings(settingsId: string): Promise<void> {
+  const { error } = await supabase.from("pagarme_ledger_settings").delete().eq("id", settingsId);
+  if (error) throw error;
+}
+
 export interface CronJobStatus {
   jobName: string;
   schedule: string;
