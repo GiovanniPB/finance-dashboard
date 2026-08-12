@@ -9,7 +9,7 @@
 --     -f supabase/tests/recurring_horizonte.sql
 --
 -- Roda inteiro dentro de uma transação e termina em rollback: não suja o banco.
--- Falha de cenário aborta com `FALHOU <cenário>`; sucesso lista os 23 checks.
+-- Falha de cenário aborta com `FALHOU <cenário>`; sucesso lista os 29 checks.
 \set ON_ERROR_STOP on
 \timing off
 
@@ -235,8 +235,60 @@ begin
   -- E o caminho do cron (sem JWT) continua livre.
   perform pg_temp.check('sem JWT o backfill roda',
     public.backfill_recurring_template(v_tpl) >= 12, true);
-end $$;
 
+  -- ─── 11. Regressão: vencimento remarcado não vira duplicata ─────────
+  -- Bug de 20260812132325: ocorrência com competência 20/07 e vencimento
+  -- empurrado à mão para 20/09 sobrevivia ao resync, mas a âncora enxergava só
+  -- a competência e gerava outra em 20/09 por cima.
+  insert into recurring_templates
+    (company_id, account_id, description, amount, direction, frequency,
+     day_of_month, start_date, next_run_date, end_date, auto_generate, is_active)
+  values
+    (v_company, v_account, 'Vencimento remarcado', 2500.00, 'outflow', 'monthly',
+     20, date '2026-01-20', date '2026-09-20', date '2026-08-31', true, true)
+  returning id into v_tpl;
+
+  insert into transactions
+    (company_id, account_id, amount, direction, status, accrual_date, due_date,
+     description, recurring_template_id, recurring_manually_edited)
+  values
+    (v_company, v_account, 2500.00, 'outflow', 'scheduled',
+     date '2026-07-20', date '2026-09-20', 'Vencimento remarcado', v_tpl, true);
+
+  update recurring_templates set end_date = null where id = v_tpl;
+
+  select count(*)::int into v_n from transactions
+   where recurring_template_id = v_tpl and deleted_at is null
+     and due_date = date '2026-09-20';
+  perform pg_temp.check('vaga de 20/09 continua com um título só', v_n, 1);
+
+  perform pg_temp.check('a linha preservada é a editada à mão',
+    (select recurring_manually_edited from transactions
+      where recurring_template_id = v_tpl and due_date = date '2026-09-20'
+        and deleted_at is null), true);
+
+  -- E o mês seguinte segue sendo gerado normalmente.
+  select count(*)::int into v_n from transactions
+   where recurring_template_id = v_tpl and deleted_at is null
+     and due_date = date '2026-10-20';
+  perform pg_temp.check('20/10 foi gerado', v_n, 1);
+
+  -- ─── 12. A guarda vale para qualquer chamador ───────────────────────
+  -- Fronteira forçada de volta para uma data já ocupada: a materialização
+  -- direta tem de pular sem duplicar — e sem travar o template.
+  update recurring_templates set next_run_date = date '2026-10-20' where id = v_tpl;
+
+  v_tx := public.materialize_recurring_occurrence(v_tpl);
+  perform pg_temp.check('materialização em data ocupada não gera nada', v_tx, null::uuid);
+
+  select count(*)::int into v_n from transactions
+   where recurring_template_id = v_tpl and deleted_at is null
+     and due_date = date '2026-10-20';
+  perform pg_temp.check('20/10 continua com um título só', v_n, 1);
+
+  perform pg_temp.check('fronteira avançou mesmo tendo pulado',
+    (select next_run_date from recurring_templates where id = v_tpl), date '2026-11-20');
+end $$;
 
 select n, cenario, obtido from resultado order by n;
 
