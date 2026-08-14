@@ -1,7 +1,6 @@
 import { parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 
 const GRAINS = ["day", "week", "month"] as const;
-const DIMENSIONS = ["payment_method", "installments", "plan", "brand", "company"] as const;
 
 /**
  * Estado compartilhável do dashboard de vendas na URL (convenção do projeto:
@@ -17,7 +16,6 @@ export function useSalesFilters() {
     // 0 = ano inteiro; 1-12 = mês específico
     month: parseAsInteger.withDefault(0),
     grain: parseAsStringLiteral(GRAINS).withDefault("day"),
-    dimension: parseAsStringLiteral(DIMENSIONS).withDefault("payment_method"),
     account: parseAsString.withDefault("all"),
   });
 }

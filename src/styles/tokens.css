@@ -36,6 +36,21 @@
   --color-info: oklch(62% 0.16 235);
   --color-info-soft: oklch(95% 0.035 235);
 
+  /*
+   * Séries categóricas de gráfico. Ordem estável: a fatia n de qualquer
+   * composição usa sempre chart-n, então a mesma categoria não troca de cor
+   * entre um card e outro. Matizes espaçados para permanecerem distinguíveis
+   * lado a lado e em escala de cinza.
+   */
+  --color-chart-1: oklch(58% 0.22 285);
+  --color-chart-2: oklch(62% 0.16 235);
+  --color-chart-3: oklch(60% 0.16 158);
+  --color-chart-4: oklch(73% 0.16 75);
+  --color-chart-5: oklch(58% 0.21 24);
+  --color-chart-6: oklch(58% 0.16 325);
+  --color-chart-7: oklch(55% 0.1 200);
+  --color-chart-8: oklch(65% 0.12 110);
+
   /* Brand gradient stops para hero/bento destaque */
   --gradient-brand: linear-gradient(135deg, oklch(60% 0.22 285) 0%, oklch(64% 0.2 250) 100%);
   --gradient-income: linear-gradient(135deg, oklch(64% 0.16 158) 0%, oklch(70% 0.14 175) 100%);
@@ -125,6 +140,15 @@
   --color-warning-soft: oklch(28% 0.08 75);
   --color-info: oklch(70% 0.14 235);
   --color-info-soft: oklch(28% 0.06 235);
+
+  --color-chart-1: oklch(70% 0.2 285);
+  --color-chart-2: oklch(70% 0.14 235);
+  --color-chart-3: oklch(68% 0.16 158);
+  --color-chart-4: oklch(78% 0.14 75);
+  --color-chart-5: oklch(70% 0.18 24);
+  --color-chart-6: oklch(70% 0.15 325);
+  --color-chart-7: oklch(68% 0.09 200);
+  --color-chart-8: oklch(75% 0.12 110);
 
   --gradient-brand: linear-gradient(135deg, oklch(58% 0.22 285) 0%, oklch(60% 0.2 250) 100%);
 
