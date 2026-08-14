@@ -1,9 +1,9 @@
 import * as React from "react";
+import { Link } from "react-router-dom";
 import {
   Building2,
+  ChevronRight,
   Crown,
-  MoreHorizontal,
-  Pencil,
   PiggyBank,
   Plus,
   Receipt,
@@ -11,33 +11,22 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/features/auth/usePermissions";
 import { type Company } from "@/features/companies/api";
 import { CompanyDrawer } from "@/features/companies/components/CompanyDrawer";
 import { useAllCompanies, useCompanyStats } from "@/features/companies/hooks";
 import { TAX_REGIMES } from "@/features/companies/schema";
-import { FiscalSettingsPanel } from "@/features/nfse/components/FiscalSettingsPanel";
+import type { FiscalSettings } from "@/features/nfse/api";
+import { useFiscalSettings } from "@/features/nfse/hooks";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 
 const ORGANIZATION_ID = "00000000-0000-0000-0000-000000000001";
-
-const TABS = [
-  { value: "cadastro", label: "Cadastro" },
-  { value: "fiscal", label: "Configuração fiscal" },
-] as const;
 
 const TAX_REGIME_LABELS = Object.fromEntries(TAX_REGIMES.map((r) => [r.value, r.label]));
 
@@ -49,20 +38,20 @@ function formatCnpj(cnpj: string | null): string {
 export default function CompaniesPage() {
   const { data: companies = [], isLoading } = useAllCompanies();
   const { data: stats = [] } = useCompanyStats();
+  const { data: fiscalSettings = [] } = useFiscalSettings();
   const { canManage } = usePermissions();
-  const [tab, setTab] = useQueryState(
-    "tab",
-    parseAsStringLiteral(TABS.map((t) => t.value)).withDefault("cadastro"),
-  );
 
   const organizationId = companies[0]?.organization_id ?? ORGANIZATION_ID;
 
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<Company | null>(null);
 
   const statsByCompany = React.useMemo(
     () => Object.fromEntries(stats.map((s) => [s.company_id, s])),
     [stats],
+  );
+  const fiscalByCompany = React.useMemo(
+    () => Object.fromEntries(fiscalSettings.map((s) => [s.company_id, s])),
+    [fiscalSettings],
   );
 
   const activeCount = companies.filter((c) => c.is_active).length;
@@ -81,44 +70,14 @@ export default function CompaniesPage() {
             {activeCount} ativa(s) · {operationalCount} operacional(is)
           </p>
         </div>
-        {canManage && tab === "cadastro" && (
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setDrawerOpen(true);
-            }}
-          >
+        {canManage && (
+          <Button onClick={() => setDrawerOpen(true)}>
             <Plus className="size-4" /> Nova empresa
           </Button>
         )}
       </div>
 
-      <div className="flex gap-1 rounded-[var(--radius-md)] border border-border bg-surface-2 p-1">
-        {TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            onClick={() => void setTab(t.value)}
-            className={cn(
-              "flex-1 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium transition-colors",
-              tab === t.value
-                ? "bg-surface text-text shadow-sm"
-                : "text-text-muted hover:text-text",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/*
-        A configuração fiscal é dado da EMPRESA (inscrição municipal, item da
-        LC116, alíquota de ISS, regime) — não da integração. Vinha de uma aba da
-        tela de NFS-e, o que fazia parecer configuração do gateway.
-      */}
-      {tab === "fiscal" ? (
-        <FiscalSettingsPanel companies={companies} />
-      ) : isLoading ? (
+      {isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-56 w-full" />
@@ -135,11 +94,7 @@ export default function CompaniesPage() {
               key={company.id}
               company={company}
               stats={statsByCompany[company.id]}
-              canManage={canManage}
-              onEdit={() => {
-                setEditing(company);
-                setDrawerOpen(true);
-              }}
+              fiscal={fiscalByCompany[company.id]}
             />
           ))}
         </div>
@@ -148,7 +103,6 @@ export default function CompaniesPage() {
       <CompanyDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        company={editing}
         organizationId={organizationId}
       />
     </div>
@@ -168,27 +122,24 @@ interface CompanyCardProps {
         employee_count_active: number;
       }
     | undefined;
-  canManage: boolean;
-  onEdit: () => void;
+  fiscal: FiscalSettings | undefined;
 }
 
-function CompanyCard({ company, stats, canManage, onEdit }: CompanyCardProps) {
-  const accentColor = company.brand_color ?? "var(--color-accent)";
-
+/**
+ * O card inteiro é o link para as configurações da empresa — cadastro e fiscal.
+ * Por isso não há mais menu de "editar": o destino do clique já é a edição.
+ */
+function CompanyCard({ company, stats, fiscal }: CompanyCardProps) {
   return (
-    <div
+    <Link
+      to={`/companies/${company.id}`}
       className={cn(
-        "relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface shadow-[var(--shadow-xs)] transition-shadow hover:shadow-[var(--shadow-sm)]",
+        "group relative block overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface shadow-[var(--shadow-xs)] transition-shadow",
+        "hover:shadow-[var(--shadow-sm)] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:outline-none",
         !company.is_active && "opacity-60",
       )}
     >
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-1"
-        style={{ backgroundColor: accentColor }}
-      />
-
-      <div className="space-y-4 p-5 pt-6">
+      <div className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -216,23 +167,7 @@ function CompanyCard({ company, stats, canManage, onEdit }: CompanyCardProps) {
               )}
             </div>
           </div>
-          {canManage && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  aria-label="Ações"
-                  className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-sm)] text-text-muted hover:bg-surface-2 hover:text-text"
-                >
-                  <MoreHorizontal className="size-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={onEdit}>
-                  <Pencil className="size-4" /> Editar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <ChevronRight className="size-4 shrink-0 text-text-subtle transition-colors group-hover:text-text" />
         </div>
 
         <div className="grid grid-cols-2 gap-3 border-t border-border pt-4">
@@ -262,7 +197,7 @@ function CompanyCard({ company, stats, canManage, onEdit }: CompanyCardProps) {
           />
         </div>
 
-        <div className="text-2xs flex items-center justify-between border-t border-border pt-3 text-text-subtle">
+        <div className="text-2xs flex items-center justify-between gap-2 border-t border-border pt-3 text-text-subtle">
           <span className="inline-flex items-center gap-1">
             <PiggyBank className="size-3" />
             {stats?.bank_account_count ?? 0} conta(s) bancária(s)
@@ -273,9 +208,25 @@ function CompanyCard({ company, stats, canManage, onEdit }: CompanyCardProps) {
               : "Sem atividade"}
           </span>
         </div>
+
+        {/*
+          Substitui a visão que a aba "Configuração fiscal" dava: dá para ver de
+          relance quais empresas já emitem, sem abrir uma a uma.
+        */}
+        <div className="text-2xs flex items-center gap-1.5 border-t border-border pt-3 text-text-subtle">
+          <span>Fiscal</span>
+          <FiscalBadge fiscal={fiscal} />
+        </div>
       </div>
-    </div>
+    </Link>
   );
+}
+
+function FiscalBadge({ fiscal }: { fiscal: FiscalSettings | undefined }) {
+  if (!fiscal) return <Badge tone="default">não configurada</Badge>;
+  if (!fiscal.enabled) return <Badge tone="warning">desligada</Badge>;
+  if (!fiscal.focus_token_ref) return <Badge tone="warning">sem token</Badge>;
+  return <Badge tone="income">habilitada</Badge>;
 }
 
 interface StatBlockProps {

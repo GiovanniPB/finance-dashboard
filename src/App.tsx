@@ -45,7 +45,8 @@ const SettingsCostCentersPage = lazy(() => import("@/routes/settings.cost-center
 const SettingsCounterpartiesPage = lazy(() => import("@/routes/settings.counterparties"));
 const SettingsPayrollPage = lazy(() => import("@/routes/settings.payroll"));
 const CompaniesPage = lazy(() => import("@/routes/companies"));
-const CompanyFiscalPage = lazy(() => import("@/routes/companies.fiscal"));
+const CompanyDetailPage = lazy(() => import("@/routes/companies.detail"));
+const CompanyFiscalRedirect = lazy(() => import("@/routes/companies.fiscal"));
 const UsersPage = lazy(() => import("@/routes/users"));
 const ProfilePage = lazy(() => import("@/routes/profile"));
 const ResetPasswordPage = lazy(() => import("@/routes/reset-password"));
@@ -108,7 +109,8 @@ export default function App() {
                     <Route path="integracoes/:slug" element={<IntegracaoDetailPage />} />
                     <Route path="webhooks" element={<WebhooksPage />} />
                     <Route path="companies" element={<CompaniesPage />} />
-                    <Route path="companies/:id/fiscal" element={<CompanyFiscalPage />} />
+                    <Route path="companies/:id" element={<CompanyDetailPage />} />
+                    <Route path="companies/:id/fiscal" element={<CompanyFiscalRedirect />} />
                     <Route path="users" element={<UsersPage />} />
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="settings" element={<SettingsLayout />}>

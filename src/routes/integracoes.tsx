@@ -100,7 +100,7 @@ export default function IntegracoesPage() {
                 </CardDescription>
               </div>
               <Button variant="outline" asChild>
-                <Link to="/companies?tab=fiscal">
+                <Link to="/companies">
                   Configuração fiscal <ArrowRight className="size-4" />
                 </Link>
               </Button>
