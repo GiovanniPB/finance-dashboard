@@ -13,10 +13,14 @@ import {
 } from "@/components/ui/select";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import type { SalesGrain } from "@/features/sales/api";
+import { SalesByBrand } from "@/features/sales/components/breakdown/SalesByBrand";
+import { SalesByInstallments } from "@/features/sales/components/breakdown/SalesByInstallments";
+import { SalesByPaymentMethod } from "@/features/sales/components/breakdown/SalesByPaymentMethod";
+import { SalesByPlan } from "@/features/sales/components/breakdown/SalesByPlan";
+import { SalesBySplit } from "@/features/sales/components/breakdown/SalesBySplit";
 import { LedgerHealthCard } from "@/features/sales/components/LedgerHealthCard";
 import { ReceivablesScheduleChart } from "@/features/sales/components/ReceivablesScheduleChart";
 import { RecurrenceCard } from "@/features/sales/components/RecurrenceCard";
-import { SalesBreakdownCard } from "@/features/sales/components/SalesBreakdownCard";
 import { SalesEvolutionChart } from "@/features/sales/components/SalesEvolutionChart";
 import { SalesKpis } from "@/features/sales/components/SalesKpis";
 import {
@@ -62,7 +66,7 @@ const MONTH_LABELS = [
 export default function VendasPage() {
   const { selectedCompanyId, selectedCompany, isConsolidated } = useCompanyScope();
   const [filters, setFilters] = useSalesFilters();
-  const { year, month, grain, dimension, account } = filters;
+  const { year, month, grain, account } = filters;
 
   const accounts = usePagarmeAccounts();
   // Radix proíbe SelectItem com value="" (é o valor reservado para limpar a
@@ -81,7 +85,14 @@ export default function VendasPage() {
   const overview = useSalesOverview(range.start, range.end, accountId);
   const customers = useSalesCustomers(range.start, range.end, accountId);
   const timeseries = useSalesTimeseries(range.start, range.end, effectiveGrain, accountId);
-  const breakdown = useSalesBreakdown(range.start, range.end, dimension, accountId);
+  // Uma consulta por dimensão: cada card tem seu próprio recorte e seu próprio
+  // gráfico. São cinco leituras leves e paralelas — o custo real era a RLS, já
+  // corrigida na migration `rls_initplan_optimization`.
+  const byMethod = useSalesBreakdown(range.start, range.end, "payment_method", accountId);
+  const byInstallments = useSalesBreakdown(range.start, range.end, "installments", accountId);
+  const byBrand = useSalesBreakdown(range.start, range.end, "brand", accountId);
+  const byPlan = useSalesBreakdown(range.start, range.end, "plan", accountId);
+  const bySplit = useSalesBreakdown(range.start, range.end, "company", accountId);
   const recurrence = useSalesRecurrence(range.start, range.end, accountId);
   const health = useLedgerHealth();
 
@@ -233,14 +244,19 @@ export default function VendasPage() {
       <ReceivablesScheduleChart data={receivables.data} loading={receivables.isLoading} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <SalesBreakdownCard
-          data={breakdown.data}
-          loading={breakdown.isLoading}
-          dimension={dimension}
-          onDimensionChange={(d) => void setFilters({ dimension: d })}
-        />
-        <RecurrenceCard data={recurrence.data} loading={recurrence.isLoading} />
+        <SalesByPaymentMethod data={byMethod.data} loading={byMethod.isLoading} />
+        <SalesByBrand data={byBrand.data} loading={byBrand.isLoading} />
       </div>
+
+      {/* largura inteira: 1x…12x precisa de espaço para a sequência ser legível */}
+      <SalesByInstallments data={byInstallments.data} loading={byInstallments.isLoading} />
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <SalesByPlan data={byPlan.data} loading={byPlan.isLoading} />
+        <SalesBySplit data={bySplit.data} loading={bySplit.isLoading} />
+      </div>
+
+      <RecurrenceCard data={recurrence.data} loading={recurrence.isLoading} />
     </div>
   );
 }

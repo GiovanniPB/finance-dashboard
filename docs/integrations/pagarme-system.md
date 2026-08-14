@@ -14,7 +14,7 @@
 > - [`nfse-system.md`](nfse-system.md) — a esteira fiscal, que compartilha a mesma
 >   conexão pagar.me e o mesmo webhook.
 >
-> **Última atualização:** 12/08/2026.
+> **Última atualização:** 14/08/2026.
 
 ---
 
@@ -243,18 +243,18 @@ puro) · `api` (HTTP) · `writer` (escrita) · `fixtures` (formas reais, pseudon
 
 ## 6. Frontend
 
-| Rota                    | Papel                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `/vendas`               | dashboard (só leitura). Dois escopos: venda por conexão, dinheiro por empresa. |
-| `/integracoes`          | índice das integrações com o estado real de cada uma.                          |
-| `/integracoes/:slug`    | **toda** a config de uma conexão, na ordem de ativação.                        |
-| `/integracoes/nova`     | criação.                                                                       |
-| `/webhooks`             | cobertura de eventos, estado do pg_cron, fila de eventos.                      |
-| `/companies?tab=fiscal` | lista da config fiscal por empresa.                                            |
-| `/companies/:id/fiscal` | o formulário fiscal (era um sheet dentro de uma aba do /nfse).                 |
-| `/bills`                | A Receber com filtro de origem e detalhe das parcelas (só leitura).            |
-| `/forecast`             | série separada dos recebíveis pagar.me sobre as entradas.                      |
-| `/reconciliation`       | fecha o mês e registra o saque como transferência.                             |
+| Rota                 | Papel                                                                          |
+| -------------------- | ------------------------------------------------------------------------------ |
+| `/vendas`            | dashboard (só leitura). Dois escopos: venda por conexão, dinheiro por empresa. |
+| `/integracoes`       | índice das integrações com o estado real de cada uma.                          |
+| `/integracoes/:slug` | **toda** a config de uma conexão, na ordem de ativação.                        |
+| `/integracoes/nova`  | criação.                                                                       |
+| `/webhooks`          | cobertura de eventos, estado do pg_cron, fila de eventos.                      |
+| `/companies`         | lista das empresas, com o estado fiscal de cada uma no card.                   |
+| `/companies/:id`     | cadastro **e** configuração fiscal da empresa, na mesma página.                |
+| `/bills`             | A Receber com filtro de origem e detalhe das parcelas (só leitura).            |
+| `/forecast`          | série separada dos recebíveis pagar.me sobre as entradas.                      |
+| `/reconciliation`    | fecha o mês e registra o saque como transferência.                             |
 
 Organização por dono do dado: **configuração** em Integrações, **dado da empresa** em
 Empresas, **operação** em NFS-e, **análise** em Vendas.
@@ -265,6 +265,42 @@ Features: `src/features/sales/` (dados e componentes de análise) ·
 > **Dívida conhecida:** a conexão pagar.me (CRUD, recebedores, segredos) continua em
 > `src/features/nfse/api.ts`, onde nasceu com a esteira fiscal. Hoje serve notas **e**
 > vendas, então o nome está errado. Mover é refactor de import em ~40 arquivos.
+
+### 6.1 Desempenho: por que o /vendas estourava (e o que resolveu)
+
+Quando o backfill passou de ~1.200 para **7.623 vendas / 47.130 recebíveis**, o
+`/vendas` passou a demorar muito e às vezes falhar. Medido em produção com um
+usuário `editor` de 4 empresas:
+
+| Consulta                  | Antes     | Buffers |
+| ------------------------- | --------- | ------- |
+| `receivables_schedule`    | 12.460 ms | 344.105 |
+| `sales_overview`          | 6.484 ms  | 149.322 |
+| `sales_recurrence`        | 6.285 ms  | 225.316 |
+| `sales_customers`         | 2.969 ms  | 73.545  |
+| `v_pagarme_ledger_health` | 48.424 ms | 1,3 M   |
+
+Como `authenticated` tem `statement_timeout = 8s`, isso não era só lentidão: era
+erro. **O volume não era o problema** — a mesma agregação sobre as mesmas 42.618
+linhas rodava em **43 ms** sem RLS.
+
+A causa era o predicado das policies, não a query nem os índices:
+`has_company_access(company_id)` é `security definer`, então o Postgres não faz
+inlining; e como o argumento depende da linha, ela executava **uma vez por linha
+varrida**, cada execução rodando ainda `is_super_admin()` e um `exists` em
+`company_access`. O custo estimado inflado ainda passava de `jit_above_cost`, e o
+JIT somava ~1,9s de compilação por cima (a health view caía de 1.949 ms para 67 ms
+só com `jit = off`).
+
+A correção (migration `…_rls_initplan_optimization`) reescreve o predicado em forma
+de conjunto — `(select …)` para o que não depende da linha, `coluna in (subquery)`
+para o que depende — o que o planner resolve como InitPlan + hash semi-join. Mesmo
+`count`: **5.743 ms → 22 ms**. A equivalência do conjunto de linhas foi conferida
+usuário a usuário sobre os dados reais (0 diferenças nos dois sentidos), inclusive
+nos usuários que enxergam subconjuntos distintos (2.516 / 5.108 / 7.624 vendas).
+
+O padrão vale para o app inteiro, não só para vendas — ver a seção de RLS no
+`CLAUDE.md` antes de escrever policy nova.
 
 ---
 
@@ -361,8 +397,8 @@ Snapshot de 12/08/2026, fim da sessão:
 - ✅ Crons agendados **e chamando**. Segredos do sync no Vault.
 - ✅ `pagarme_recipient_map` completo nas duas conexões de produção (a RCO aparece na
   conta dela **e** na da Jimmy).
-- ✅ Carga histórica andando: **1.200 vendas, 13.945 recebíveis**, lote no cursor 41
-  com `attempts = 0` (o contador zera a cada avanço, como deveria).
+- ✅ Carga histórica andando: em 14/08 o remoto tem **7.623 vendas, 47.130
+  recebíveis, 3.216 clientes, 126 assinaturas** (era 1.200/13.945 em 12/08).
 - ✅ Config órfã removida pela UI.
 - ⛔ `db push` de `dre_competencia_inclui_pendente` (a última migration).
 - ⛔ Um lote antigo em `failed` (cursor 17) — vítima do bug já corrigido; pode ser
@@ -411,10 +447,14 @@ supabase/
 │   ├── pagarme-sync/index.ts      (settlements | maturity | subscriptions | backfill)
 │   └── _shared/pagarme/           time money payables charges subscriptions events ledger api writer fixtures (+ *.test.ts)
 src/features/sales/          api hooks useSalesFilters + components (KPIs, evolução, cronograma,
-│                            composição, recorrência, health, detalhe de parcelas, conciliação)
+│                            recorrência, health, detalhe de parcelas, conciliação)
+│   └── components/breakdown/ um card por dimensão, cada um com o gráfico que ela pede:
+│                            rosca (meio de pagamento, bandeira) · barra ordenada 1x…12x
+│                            (parcelamento) · ranking horizontal (plano, split por empresa).
+│                            labels.ts guarda rótulo e ordenação (puro, testado).
 src/features/integrations/   api hooks events + components (ConnectionForm, RecipientsSection,
 │                            WebhookEndpointCard, BackfillCard, ProjectionSettingsCard)
-src/routes/                  vendas · integracoes · integracoes.detail · webhooks · companies.fiscal
+src/routes/                  vendas · integracoes · integracoes.detail · webhooks · companies.detail
 docs/integrations/           pagarme-system.md (este) · pagarme-sales-plan.md · pagarme-api-contract.md
 ```
 
