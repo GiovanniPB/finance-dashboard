@@ -88,15 +88,46 @@ docs/
 ### RLS (obrigatório desde o primeiro dia em toda tabela nova)
 
 Helpers existentes: `is_super_admin()`, `has_company_access(uuid)`, `is_financial_user()`.
-Padrão para tabela company-scoped:
+
+⚠️ **No caminho de LEITURA, nunca chame `has_company_access(company_id)` direto na
+policy.** Ela é `security definer` → o Postgres não faz inlining, e como o argumento
+depende da linha, a função roda **uma vez por linha varrida**. Numa tabela de 47k
+linhas isso custou 12s onde a mesma agregação sem RLS custava 43ms — e o
+`statement_timeout` do papel `authenticated` é de **8s**. Pior: o custo estimado
+inflado ultrapassa `jit_above_cost`, e o JIT ainda soma ~2s de compilação.
+
+Padrão para tabela company-scoped (SELECT) — subquery não-correlacionada, que o
+planner resolve como InitPlan + hash semi-join, O(1) por linha:
 
 ```sql
 alter table public.<t> enable row level security;
-create policy "<t>_scoped" on public.<t>
-  for all
-  using (public.has_company_access(company_id))
-  with check (public.has_company_access(company_id));
+
+create policy "<t>_sel" on public.<t>
+  for select to authenticated
+  using (
+    (select public.can_view_module('<modulo>'))
+    and (
+      (select public.is_super_admin())
+      or company_id in (
+           select ca.company_id from public.company_access ca
+           where ca.user_id = (select auth.uid())
+         )
+    )
+  );
 ```
+
+Regras que valem para qualquer policy nova:
+
+- todo predicado **sem dependência de linha** vai dentro de `(select …)` — vira
+  InitPlan, avaliado uma vez (vale para `is_super_admin()`, `can_view_module()`,
+  `current_user_role()`, `is_financial_user()`, `auth.uid()`);
+- predicado **com dependência de linha** vira `coluna in (subquery)`, nunca chamada
+  de função — a subquery não-correlacionada é hasheada uma vez;
+- escopo via tabela pai (ex.: `pagarme_account_id` → dono da conexão) segue a mesma
+  forma: `fk in (select … from pai where …)`.
+
+Referência: migration `…_rls_initplan_optimization`, que converteu as 33 policies de
+SELECT e mediu 5.743ms → 22ms com equivalência de linhas conferida por usuário.
 
 - Acesso é por `company_access` (usuário ↔ empresa). Super admin bypassa.
 - Tabelas de ingest/segredo: política restrita a `is_super_admin()`; escrita pelas Edge Functions usa **service role** (bypassa RLS).

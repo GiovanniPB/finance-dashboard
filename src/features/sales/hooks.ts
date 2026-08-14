@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   fetchGatewayAccounts,
@@ -22,6 +22,13 @@ import {
   type SalesDimension,
   type SalesGrain,
 } from "./api";
+
+/**
+ * Trocar ano/mês/granularidade/conexão re-consulta as seis RPCs de uma vez. Sem
+ * isto, cada troca de filtro joga o dashboard inteiro para o esqueleto; com o
+ * dado anterior no lugar, a tela só se atualiza quando o novo chega.
+ */
+const FILTRAVEL = { placeholderData: keepPreviousData } as const;
 
 export const salesKeys = {
   accounts: () => ["sales", "accounts"] as const,
@@ -53,6 +60,7 @@ export function useSalesOverview(from: string, to: string, accountId: string | n
   return useQuery({
     queryKey: salesKeys.overview(from, to, accountId),
     queryFn: () => fetchSalesOverview(from, to, accountId),
+    ...FILTRAVEL,
   });
 }
 
@@ -65,6 +73,7 @@ export function useSalesTimeseries(
   return useQuery({
     queryKey: salesKeys.timeseries(from, to, grain, accountId),
     queryFn: () => fetchSalesTimeseries(from, to, grain, accountId),
+    ...FILTRAVEL,
   });
 }
 
@@ -77,6 +86,7 @@ export function useSalesBreakdown(
   return useQuery({
     queryKey: salesKeys.breakdown(from, to, dimension, accountId),
     queryFn: () => fetchSalesBreakdown(from, to, dimension, accountId),
+    ...FILTRAVEL,
   });
 }
 
@@ -84,6 +94,7 @@ export function useSalesCustomers(from: string, to: string, accountId: string | 
   return useQuery({
     queryKey: salesKeys.customers(from, to, accountId),
     queryFn: () => fetchSalesCustomers(from, to, accountId),
+    ...FILTRAVEL,
   });
 }
 
@@ -91,6 +102,7 @@ export function useSalesRecurrence(from: string, to: string, accountId: string |
   return useQuery({
     queryKey: salesKeys.recurrence(from, to, accountId),
     queryFn: () => fetchSalesRecurrence(from, to, accountId),
+    ...FILTRAVEL,
   });
 }
 
@@ -98,6 +110,7 @@ export function useReceivablesSchedule(from: string, to: string, companyId: stri
   return useQuery({
     queryKey: salesKeys.receivables(from, to, companyId),
     queryFn: () => fetchReceivablesSchedule(from, to, companyId),
+    ...FILTRAVEL,
   });
 }
 
