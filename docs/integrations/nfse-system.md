@@ -194,8 +194,10 @@ protegidas por **segredo compartilhado** na URL/header. Config em `config.toml`.
 - **Drain:** `claim_nfse_jobs` → para cada job: monta payload + token do Vault →
   `POST /v2/nfse?ref=` no Focus → atualiza status. Exceções: backoff
   (`next_attempt_at`, 1/3/9/27… min) até `MAX_ATTEMPTS=5` → `failed`.
-- **Reconcile:** jobs presos em `processing_authorization`/`submitting` há >10 min →
-  `GET /v2/nfse/{ref}` → `applyFocusDocument`.
+- **Reconcile:** jobs presos em `processing_authorization`/`submitting`/`cancelling`
+  há >10 min → `GET /v2/nfse/{ref}` → `applyFocusDocument`. `cancelling` entra aqui
+  porque um cancelamento de resposta ambígua tem de ser resolvido consultando o
+  Focus, nunca por palpite local.
 - **Env:** `NFSE_WORKER_SECRET` (+ auto).
 
 ### `focus-webhook`
@@ -205,6 +207,23 @@ protegidas por **segredo compartilhado** na URL/header. Config em `config.toml`.
   → `applyFocusDocument` (status + download XML/DANFSe em `autorizado`).
 - **Env:** `FOCUS_WEBHOOK_SECRET` (+ auto).
 
+### `nfse-cancel`
+
+- **Rota/uso:** UI/operador → `POST /functions/v1/nfse-cancel` com JWT. `verify_jwt=true`
+  e a function ainda exige `role = super_admin`.
+- **Corpo:** `{ jobIds: string[], justificativa: string, dryRun?: boolean }`.
+  `dryRun` é o **default**: só executa quem manda `dryRun: false` explicitamente.
+- **Fluxo:** valida (NFS-e, `authorized`, tem `focus_ref`, justificativa 15–255) →
+  `DELETE /v2/nfse/{ref}` com `{justificativa}` → `applyFocusDocument` aplica o
+  status. Ambiguidade (5xx, corpo ilegível, rede caiu) → job vai a `cancelling`
+  e o reconcile decide. Teto de 25 notas por chamada.
+- **Por que existe:** as 21 NFS-e duplicadas emitidas em produção pelo bug da chave
+  de idempotência por recebedor (migration 20260819141651). O sistema sabia
+  observar cancelamento, não pedir.
+- **Cuidado:** cancelamento é definitivo e algumas prefeituras não aceitam por
+  webservice. Fora do mês de competência costuma exigir retificação — decisão
+  contábil, não técnica.
+
 ### `_shared/nfse/` (código puro/Deno, testado por Vitest)
 
 | Módulo        | Responsabilidade                                                                          |
@@ -213,6 +232,7 @@ protegidas por **segredo compartilhado** na URL/header. Config em `config.toml`.
 | `document.ts` | validação/normalização CPF/CNPJ                                                           |
 | `parse.ts`    | webhook bruto do pagar.me → `ChargePaidEvent` (split aninhado, subscriptionId)            |
 | `split.ts`    | `allocateShares` (maior-resto), `resolveTomador` (+gate de endereço), `explodeChargePaid` |
+| `cancel.ts`   | cancelamento: validação da justificativa, caminho e leitura da resposta do Focus          |
 | `address.ts`  | **endereço híbrido**: deriva logradouro/numero/bairro de `line_1` + completude            |
 | `payload.ts`  | `buildNfsePayload` — corpo **aninhado** (prestador/tomador/servico) p/ o Focus            |
 | `focus.ts`    | `mapFocusStatus` (puro) + `applyFocusDocument` (status→job + download) — fonte única      |
@@ -383,7 +403,8 @@ bun run dev                                                            # UI em /
 1. **UI de revisão de endereço:** completar numero/bairro dos jobs `pending_review`
    (hoje não há edição do `tomador_endereco` na UI).
 2. **Write-back financeiro:** `invoice_jobs.transaction_id` existe mas não é populado.
-3. **Cancelamento de NFS-e:** fora de escopo (enum/estados já preveem).
+3. **Cancelamento de NF-e:** não implementado (contrato próprio e prazo de 24h
+   após a emissão). NFS-e já cancela — ver `nfse-cancel`.
 4. **Produção:** registrar webhooks definitivos + tokens de produção.
 5. **`PAGARME_WEBHOOK_SECRET` legado:** pode ser removido das secrets (sem uso).
 

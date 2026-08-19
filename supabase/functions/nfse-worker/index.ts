@@ -320,7 +320,7 @@ async function reconcile(supabase: SupabaseClient): Promise<{ checked: number; u
     supabase
       .from("invoice_jobs")
       .select(cols)
-      .in("status", ["processing_authorization", "submitting"])
+      .in("status", ["processing_authorization", "submitting", "cancelling"])
       .lt("updated_at", cutoff)
       .limit(50),
     // candidatos a "rejeição falsa": rejeitados sem status do Focus. O corpo de
