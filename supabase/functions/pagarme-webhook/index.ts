@@ -240,7 +240,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       sales_event_id: inserted[0].id,
     }));
     const { error: jobsErr } = await supabase.from("invoice_jobs").upsert(rows, {
-      onConflict: "pagarme_charge_id,pagarme_recipient_id,ambiente",
+      onConflict: "dedup_scope",
       ignoreDuplicates: true,
     });
     if (jobsErr) return json({ error: "invoice_jobs_failed", detail: jobsErr.message }, 500);

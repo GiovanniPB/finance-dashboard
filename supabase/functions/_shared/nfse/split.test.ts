@@ -125,6 +125,36 @@ describe("explodeChargePaid", () => {
     expect(skipped).toEqual([{ recipientId: "rp_desconhecido", reason: "recipient_not_mapped" }]);
   });
 
+  it("soma numa nota só as pernas do split que caem na mesma empresa", () => {
+    // duas contas de recebimento distintas apontando para a MESMA empresa: a
+    // unidade de nota é a empresa, então tem de sair UMA nota com a soma.
+    const ctx = baseContext();
+    ctx.recipients = [
+      ...ctx.recipients,
+      { pagarmeRecipientId: "rp_company_a_2", companyId: IDS.COMPANY_A, organizationId: IDS.ORG },
+    ];
+    const event = baseEvent();
+    event.amountCents = 30000;
+    event.split = [
+      { recipientId: "rp_company_a", amount: 50, type: "percentage" },
+      { recipientId: "rp_company_a_2", amount: 30, type: "percentage" },
+      { recipientId: "rp_company_b", amount: 20, type: "percentage" },
+    ];
+
+    const { jobs } = explodeChargePaid(event, ctx);
+
+    expect(jobs).toHaveLength(2);
+    const a = jobs.find((j) => j.companyId === IDS.COMPANY_A);
+    expect(a?.valorServicos).toBe(240);
+    expect((a?.metadata as { mergedRecipientIds?: string[] }).mergedRecipientIds).toEqual([
+      "rp_company_a",
+      "rp_company_a_2",
+    ]);
+    expect(jobs.find((j) => j.companyId === IDS.COMPANY_B)?.valorServicos).toBe(60);
+    // o total continua fechando com o valor pago
+    expect(jobs.reduce((acc, j) => acc + j.valorServicos, 0)).toBe(300);
+  });
+
   it("é determinístico (mesma entrada -> mesma saída) — suporta idempotência", () => {
     const r1 = explodeChargePaid(baseEvent(), baseContext());
     const r2 = explodeChargePaid(baseEvent(), baseContext());

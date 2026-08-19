@@ -345,7 +345,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         const { data: inserted, error } = await supabase
           .from("invoice_jobs")
           .upsert(rows, {
-            onConflict: "pagarme_charge_id,pagarme_recipient_id,ambiente",
+            onConflict: "dedup_scope",
             ignoreDuplicates: true,
           })
           .select("id");
