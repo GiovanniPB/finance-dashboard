@@ -1083,6 +1083,7 @@ export type Database = {
           company_id: string
           created_at: string
           danfse_path: string | null
+          dedup_scope: string | null
           document_type: Database["public"]["Enums"]["fiscal_document_type"]
           emitida_em: string | null
           erros: Json | null
@@ -1126,6 +1127,7 @@ export type Database = {
           company_id: string
           created_at?: string
           danfse_path?: string | null
+          dedup_scope?: string | null
           document_type?: Database["public"]["Enums"]["fiscal_document_type"]
           emitida_em?: string | null
           erros?: Json | null
@@ -1169,6 +1171,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           danfse_path?: string | null
+          dedup_scope?: string | null
           document_type?: Database["public"]["Enums"]["fiscal_document_type"]
           emitida_em?: string | null
           erros?: Json | null
@@ -3726,6 +3729,7 @@ export type Database = {
           company_id: string
           created_at: string
           danfse_path: string | null
+          dedup_scope: string | null
           document_type: Database["public"]["Enums"]["fiscal_document_type"]
           emitida_em: string | null
           erros: Json | null

@@ -236,6 +236,19 @@ export function explodeChargePaid(event: ChargePaidEvent, ctx: ExplodeContext): 
 
   const shares = allocateShares(event.amountCents, event.split);
 
+  // Agrupa as pernas por EMPRESA: a unidade de nota (e a chave de idempotência
+  // no banco) é "uma nota por empresa por cobrança", então duas pernas do split
+  // que caem na mesma empresa somam numa nota só. Sem isso o banco engoliria a
+  // segunda perna em silêncio e a empresa receberia nota a menos.
+  interface CompanyLeg {
+    companyId: string;
+    organizationId: string;
+    recipientId: string;
+    extraRecipientIds: string[];
+    valorCents: number;
+  }
+  const byCompany = new Map<string, CompanyLeg>();
+
   event.split.forEach((entry, index) => {
     const recipient = recipientById.get(entry.recipientId);
     if (!recipient) {
@@ -243,27 +256,53 @@ export function explodeChargePaid(event: ChargePaidEvent, ctx: ExplodeContext): 
       return;
     }
 
-    jobs.push(
-      buildJob(
-        {
-          account: ctx.account,
-          companyId: recipient.companyId,
-          organizationId: recipient.organizationId,
-          recipientId: entry.recipientId,
-          valorCents: shares[index],
-          planId: event.planId,
-          tomador,
-          eventId: event.eventId,
-          chargeId: event.chargeId,
-          chargeCreatedAt: event.chargeCreatedAt,
-          paidAt: event.paidAt,
-          noSplit: false,
-        },
-        ctx.services,
-        settingsByCompany.get(recipient.companyId),
-      ),
-    );
+    const acc = byCompany.get(recipient.companyId);
+    if (acc) {
+      acc.valorCents += shares[index];
+      acc.extraRecipientIds.push(entry.recipientId);
+      return;
+    }
+    byCompany.set(recipient.companyId, {
+      companyId: recipient.companyId,
+      organizationId: recipient.organizationId,
+      recipientId: entry.recipientId,
+      extraRecipientIds: [],
+      valorCents: shares[index],
+    });
   });
+
+  for (const leg of byCompany.values()) {
+    const job = buildJob(
+      {
+        account: ctx.account,
+        companyId: leg.companyId,
+        organizationId: leg.organizationId,
+        recipientId: leg.recipientId,
+        valorCents: leg.valorCents,
+        planId: event.planId,
+        tomador,
+        eventId: event.eventId,
+        chargeId: event.chargeId,
+        chargeCreatedAt: event.chargeCreatedAt,
+        paidAt: event.paidAt,
+        noSplit: false,
+      },
+      ctx.services,
+      settingsByCompany.get(leg.companyId),
+    );
+    // procedência: quais outros recebedores foram somados nesta nota
+    jobs.push(
+      leg.extraRecipientIds.length > 0
+        ? {
+            ...job,
+            metadata: {
+              ...job.metadata,
+              mergedRecipientIds: [leg.recipientId, ...leg.extraRecipientIds],
+            },
+          }
+        : job,
+    );
+  }
 
   return { jobs, skipped };
 }
