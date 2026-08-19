@@ -189,6 +189,69 @@ begin
 end;
 $$;
 
+-- ── Cenário 7: linha LEGADA (dedup_scope nulo) só entra na fiscalização quando
+-- a adoção é pedida explicitamente — é a porta usada pela remediação histórica.
+do $$
+declare
+  v_org uuid; v_comp uuid; v_legada uuid; v_inseridas int;
+begin
+  select org, comp_b into v_org, v_comp from ctx;
+
+  -- fabrica uma linha como as anteriores à migration: sem chave. Só dá para
+  -- nascer assim com o trigger desligado — uma linha JÁ fiscalizada não pode ser
+  -- rebaixada para NULL (o trigger recalcula), e isso é proposital.
+  alter table invoice_jobs disable trigger trg_invoice_jobs_dedup_scope;
+  insert into invoice_jobs (organization_id, company_id, pagarme_charge_id,
+                            pagarme_recipient_id, ambiente, valor_servicos)
+  values (v_org, v_comp, 'ch_legado', null, 'producao', 70.00) returning id into v_legada;
+  alter table invoice_jobs enable trigger trg_invoice_jobs_dedup_scope;
+
+  perform pg_temp.check(
+    'linha legada nasce sem chave',
+    (select dedup_scope from invoice_jobs where id = v_legada),
+    null::text);
+
+  -- um UPDATE comum (que não pede adoção) não ressuscita a chave
+  update invoice_jobs set tomador_nome = 'Fulano' where id = v_legada;
+  perform pg_temp.check(
+    'update comum nao ressuscita a chave do legado',
+    (select dedup_scope from invoice_jobs where id = v_legada),
+    null::text);
+
+  -- sem chave, o legado NÃO protege contra uma segunda nota da mesma venda
+  with ins as (
+    insert into invoice_jobs (organization_id, company_id, pagarme_charge_id,
+                              pagarme_recipient_id, ambiente, valor_servicos)
+    values (v_org, v_comp, 'ch_legado', 're_zzz', 'producao', 70.00)
+    on conflict (dedup_scope) do nothing
+    returning 1
+  )
+  select count(*) into v_inseridas from ins;
+  perform pg_temp.check('legado sem chave nao barra duplicata (por isso a remediacao)',
+                        v_inseridas, 1);
+
+  -- remediação: apaga a duplicata e pede a adoção da chave
+  delete from invoice_jobs where pagarme_charge_id = 'ch_legado' and id <> v_legada;
+  update invoice_jobs set dedup_scope = 'adotar' where id = v_legada;
+
+  perform pg_temp.check(
+    'adocao explicita calcula a chave canonica (valor informado e ignorado)',
+    (select dedup_scope from invoice_jobs where id = v_legada),
+    'ch_legado|' || v_comp::text || '|producao');
+
+  -- agora sim: protegida
+  with ins2 as (
+    insert into invoice_jobs (organization_id, company_id, pagarme_charge_id,
+                              pagarme_recipient_id, ambiente, valor_servicos)
+    values (v_org, v_comp, 'ch_legado', 're_zzz', 'producao', 70.00)
+    on conflict (dedup_scope) do nothing
+    returning 1
+  )
+  select count(*) into v_inseridas from ins2;
+  perform pg_temp.check('depois da adocao o legado barra duplicata', v_inseridas, 0);
+end;
+$$;
+
 select cenario, obtido from resultado order by n;
 
 do $$

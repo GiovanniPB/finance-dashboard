@@ -51,10 +51,17 @@ comment on column public.invoice_jobs.dedup_scope is
   'fora da fiscalização) ou job sem cobrança do pagar.me (emissão manual).';
 
 -- -----------------------------------------------------------------------------
--- Cálculo da chave. Só jobs COM cobrança do pagar.me entram na fiscalização:
--- emissão manual (sem charge) não tem o que deduplicar.
--- No UPDATE recalcula apenas se já havia chave — assim uma correção de empresa
--- na revisão mantém a linha coerente, e o legado NULL continua NULL.
+-- Cálculo da chave. Regra única: `dedup_scope` é SEMPRE calculado das colunas,
+-- nunca aceito do cliente. NULL só permanece em dois casos:
+--   * job sem `pagarme_charge_id` (emissão manual — não há o que deduplicar);
+--   * linha LEGADA (dedup_scope já era NULL) num UPDATE que não pediu a adoção.
+--
+-- "Pedir a adoção" = informar qualquer valor não-nulo em dedup_scope no UPDATE;
+-- o valor informado é ignorado e a chave canônica é recalculada. É por essa
+-- porta que a remediação das duplicatas históricas devolve a fiscalização às
+-- linhas que sobrarem (ver docs/integrations/sql/nfse-remediacao-duplicatas.sql).
+-- Consequência boa: um UPDATE comum numa linha já fiscalizada recalcula a chave,
+-- então corrigir a empresa na revisão mantém a linha coerente.
 -- -----------------------------------------------------------------------------
 create or replace function public.invoice_jobs_set_dedup_scope()
 returns trigger
@@ -62,8 +69,8 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  if tg_op = 'UPDATE' and old.dedup_scope is null then
-    new.dedup_scope := null;
+  -- legado que não pediu adoção continua fora da fiscalização
+  if tg_op = 'UPDATE' and old.dedup_scope is null and new.dedup_scope is null then
     return new;
   end if;
 
