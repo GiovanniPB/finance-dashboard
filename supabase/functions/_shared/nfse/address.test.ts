@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { enrichTomadorAddress } from "./address.ts";
 
 describe("enrichTomadorAddress", () => {
-  it("deriva numero/logradouro/bairro de line_1 no formato pagar.me e fica completo", () => {
+  it("deriva numero/logradouro/bairro de line_1, mas sem IBGE segue incompleto", () => {
     const r = enrichTomadorAddress({
       line_1: "100, Rua Exemplo, Centro",
       line_2: "Sala 5",
@@ -12,8 +12,9 @@ describe("enrichTomadorAddress", () => {
       state: "SP",
     });
 
-    expect(r.complete).toBe(true);
-    expect(r.missing).toEqual([]);
+    // o IBGE só vem do ViaCEP (ou da revisão manual): sem ele o Focus rejeita
+    expect(r.complete).toBe(false);
+    expect(r.missing).toEqual(["codigoMunicipio"]);
     expect(r.endereco).toMatchObject({
       numero: "100",
       logradouro: "Rua Exemplo",
@@ -89,13 +90,21 @@ describe("enrichTomadorAddress", () => {
     expect(r.endereco.logradouro).toBe("Av. Brasil");
     expect(r.endereco.bairro).toBeNull();
     expect(r.complete).toBe(false);
-    expect(r.missing).toEqual(["bairro"]);
+    expect(r.missing).toEqual(["bairro", "codigoMunicipio"]);
   });
 
   it("endereço nulo -> incompleto com todos os campos faltando", () => {
     const r = enrichTomadorAddress(null);
     expect(r.complete).toBe(false);
-    expect(r.missing).toEqual(["logradouro", "numero", "bairro", "cep", "municipio", "uf"]);
+    expect(r.missing).toEqual([
+      "logradouro",
+      "numero",
+      "bairro",
+      "cep",
+      "municipio",
+      "uf",
+      "codigoMunicipio",
+    ]);
   });
 
   it("normaliza CEP para dígitos", () => {
@@ -145,6 +154,67 @@ describe("enrichTomadorAddress", () => {
       expect(r.endereco.bairro).toBe("Centro");
       expect(r.complete).toBe(true);
       expect(r.missing).toEqual([]);
+    });
+  });
+
+  describe("correção manual (nfse_override)", () => {
+    it("completa os campos que a derivação não achou e libera a emissão", () => {
+      const r = enrichTomadorAddress({
+        line_1: "Rua Escócia , 214", // sem bairro, e o CEP não resolveu no ViaCEP
+        zip_code: "35180000",
+        city: "Conselheiro Pena",
+        state: "MG",
+        nfse_override: { bairro: "Centro", codigoMunicipio: "3118304" },
+      });
+
+      expect(r.endereco.bairro).toBe("Centro");
+      expect(r.endereco.codigoMunicipio).toBe("3118304");
+      expect(r.endereco.logradouro).toBe("Rua Escócia"); // segue derivado
+      expect(r.endereco.numero).toBe("214");
+      expect(r.complete).toBe(true);
+      expect(r.missing).toEqual([]);
+    });
+
+    it("tem precedência sobre o ViaCEP quando o operador discorda dele", () => {
+      const r = enrichTomadorAddress({
+        line_1: "100, Rua Antiga, Bairro Antigo",
+        zip_code: "06401000",
+        city: "Barueri",
+        state: "SP",
+        cep_info: { logradouro: "Rua do ViaCEP", bairro: "Bairro do ViaCEP", ibge: "3505708" },
+        nfse_override: { logradouro: "Rua Corrigida", numero: "999" },
+      });
+
+      expect(r.endereco.logradouro).toBe("Rua Corrigida");
+      expect(r.endereco.numero).toBe("999");
+      expect(r.endereco.bairro).toBe("Bairro do ViaCEP"); // não sobrescrito -> derivado
+    });
+
+    it("ignora campos vazios do override (não apaga o que já estava derivado)", () => {
+      const r = enrichTomadorAddress({
+        line_1: "100, Rua Exemplo, Centro",
+        zip_code: "06401000",
+        city: "Barueri",
+        state: "SP",
+        cep_info: { ibge: "3505708" },
+        nfse_override: { logradouro: "   ", bairro: "" },
+      });
+
+      expect(r.endereco.logradouro).toBe("Rua Exemplo");
+      expect(r.endereco.bairro).toBe("Centro");
+      expect(r.complete).toBe(true);
+    });
+
+    it("normaliza o CEP corrigido para dígitos", () => {
+      const r = enrichTomadorAddress({
+        line_1: "10, Rua A, Bairro B",
+        zip_code: "06401000",
+        city: "Barueri",
+        state: "SP",
+        nfse_override: { cep: "35.180-000", codigoMunicipio: "3118304" },
+      });
+
+      expect(r.endereco.cep).toBe("35180000");
     });
   });
 });

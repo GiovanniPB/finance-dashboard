@@ -160,3 +160,56 @@ export function emptySandboxChargeForm(): SandboxChargeFormValues {
     useSplit: false,
   };
 }
+
+// Revisão manual do tomador de uma nota rejeitada/em revisão. Todos os campos
+// são opcionais de propósito: o operador pode corrigir o bairro hoje e obter o
+// CPF do cliente amanhã, e cada passo salvo é progresso preservado. O que está
+// FALTANDO para emitir é responsabilidade da tela avisar (deriveTomadorEndereco),
+// não do schema bloquear — travar o salvamento parcial só faria o operador
+// perder o que já descobriu.
+const digitsOnly = (v: string | undefined) => (v ?? "").replace(/\D/gu, "");
+
+export const tomadorReviewFormSchema = z.object({
+  documento: z
+    .string()
+    .max(18)
+    .optional()
+    .refine((v) => {
+      const d = digitsOnly(v);
+      return d.length === 0 || d.length === 11 || d.length === 14;
+    }, "CPF (11) ou CNPJ (14) dígitos"),
+  nome: optText(120),
+  email: z
+    .string()
+    .max(120)
+    .optional()
+    .refine((v) => !v?.trim() || z.string().email().safeParse(v.trim()).success, "E-mail inválido"),
+
+  logradouro: optText(120),
+  numero: optText(20),
+  complemento: optText(60),
+  bairro: optText(60),
+  cep: z
+    .string()
+    .max(9)
+    .optional()
+    .refine((v) => {
+      const d = digitsOnly(v);
+      return d.length === 0 || d.length === 8;
+    }, "CEP deve ter 8 dígitos"),
+  municipio: optText(60),
+  uf: z
+    .string()
+    .max(2)
+    .optional()
+    .refine((v) => !v?.trim() || /^[A-Za-z]{2}$/u.test(v.trim()), "UF com 2 letras"),
+  codigoMunicipio: z
+    .string()
+    .max(7)
+    .optional()
+    .refine((v) => {
+      const d = digitsOnly(v);
+      return d.length === 0 || d.length === 7;
+    }, "IBGE tem 7 dígitos"),
+});
+export type TomadorReviewFormValues = z.infer<typeof tomadorReviewFormSchema>;

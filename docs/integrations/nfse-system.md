@@ -6,7 +6,7 @@
 > técnica; o [`NFSE_STATUS.md`](../../NFSE_STATUS.md) (raiz) é o snapshot curto de
 > "onde estamos".
 >
-> **Última atualização:** 17/06/2026.
+> **Última atualização:** 28/08/2026.
 
 ---
 
@@ -226,17 +226,17 @@ protegidas por **segredo compartilhado** na URL/header. Config em `config.toml`.
 
 ### `_shared/nfse/` (código puro/Deno, testado por Vitest)
 
-| Módulo        | Responsabilidade                                                                          |
-| ------------- | ----------------------------------------------------------------------------------------- |
-| `types.ts`    | tipos de domínio (`ChargePaidEvent`, `PagarmeAccount`, `InvoiceJobDraft`, …)              |
-| `document.ts` | validação/normalização CPF/CNPJ                                                           |
-| `parse.ts`    | webhook bruto do pagar.me → `ChargePaidEvent` (split aninhado, subscriptionId)            |
-| `split.ts`    | `allocateShares` (maior-resto), `resolveTomador` (+gate de endereço), `explodeChargePaid` |
-| `cancel.ts`   | cancelamento: validação da justificativa, caminho e leitura da resposta do Focus          |
-| `address.ts`  | **endereço híbrido**: deriva logradouro/numero/bairro de `line_1` + completude            |
-| `payload.ts`  | `buildNfsePayload` — corpo **aninhado** (prestador/tomador/servico) p/ o Focus            |
-| `focus.ts`    | `mapFocusStatus` (puro) + `applyFocusDocument` (status→job + download) — fonte única      |
-| `fixtures.ts` | fixtures de teste (sem PII real)                                                          |
+| Módulo        | Responsabilidade                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `types.ts`    | tipos de domínio (`ChargePaidEvent`, `PagarmeAccount`, `InvoiceJobDraft`, …)                                                                      |
+| `document.ts` | validação/normalização CPF/CNPJ                                                                                                                   |
+| `parse.ts`    | webhook bruto do pagar.me → `ChargePaidEvent` (split aninhado, subscriptionId)                                                                    |
+| `split.ts`    | `allocateShares` (maior-resto), `resolveTomador` (+gate de endereço), `explodeChargePaid`                                                         |
+| `cancel.ts`   | cancelamento: validação da justificativa, caminho e leitura da resposta do Focus                                                                  |
+| `address.ts`  | **endereço híbrido**: deriva logradouro/numero/bairro de `line_1` + completude; aplica a correção manual (`nfse_override`) com precedência máxima |
+| `payload.ts`  | `buildNfsePayload` — corpo **aninhado** (prestador/tomador/servico) p/ o Focus                                                                    |
+| `focus.ts`    | `mapFocusStatus` (puro) + `applyFocusDocument` (status→job + download) — fonte única                                                              |
+| `fixtures.ts` | fixtures de teste (sem PII real)                                                                                                                  |
 
 > **Restrição importante:** Edge Functions só importam de dentro de
 > `supabase/functions/`. Código compartilhado vive em `_shared/` (Deno-puro,
@@ -299,7 +299,9 @@ Item na sidebar (`FileText`). Página com 4 abas (estado na URL via nuqs):
   escolhida — pagamento, compra, fila ou emissão, que também ordena a lista e
   nomeia a 1ª coluna),
   detalhe (`InvoiceJobDrawer`: tomador, fiscal, resultado Focus), **aprovar**
-  (`pending_review`→`queued`) e **reemitir** (`rejected/failed`→`queued`), baixar XML/DANFSe.
+  (`pending_review`→`queued`), **reemitir** (`rejected/failed`→`queued`), **revisar o
+  tomador** (`TomadorReviewForm`: documento, nome, e-mail e endereço estruturado, com
+  busca por CEP no ViaCEP e ação "salvar e reemitir") e baixar XML/DANFSe.
 - **Conexões pagar.me** (`ConnectionsPanel`) — CRUD de `pagarme_accounts`
   (`ConnectionDrawer`); a **URL do webhook é gerada e revelada 1×** (+ rotacionar);
   recebedores por conta (`RecipientsSheet`).
@@ -324,8 +326,11 @@ charge.paid → 2 jobs (Jimmy e RCO), cada um com sua fatia → fila → emissã
 charge.paid sem `split[]` → 1 job da **empresa dona** (RCO), valor cheio.
 
 **C) Tomador com endereço incompleto**
-`address.ts` não consegue derivar numero/bairro → `resolveTomador` marca
-incompleto → job nasce `pending_review` (não emite endereço furado).
+`address.ts` não consegue derivar numero/bairro/IBGE → `resolveTomador` marca
+incompleto → job nasce `pending_review` (não emite endereço furado). O operador
+abre a nota em `/nfse`, usa **Revisar** para completar os campos (o CEP puxa o
+resto do ViaCEP, inclusive o IBGE) e **salva e reemite**. A correção fica em
+`tomador_endereco.nfse_override` e vence a derivação automática na emissão.
 
 **D) Erro de autorização**
 Focus retorna `erro_autorizacao` → job `rejected` com `mensagem_sefaz`/`erros`
@@ -349,6 +354,15 @@ Focus retorna `erro_autorizacao` → job `rejected` com `mensagem_sefaz`/`erros`
   webhook não quebra).
 - **Endereço híbrido:** pagar.me não dá endereço estruturado; derivamos o possível e,
   se incompleto, mandamos para revisão (em vez de emitir errado).
+- **Correção manual como CAMADA, não sobrescrita** (`tomador_endereco.nfse_override`):
+  o payload original do pagar.me fica intacto ao lado da correção — dá para auditar
+  o que veio do gateway e o que uma pessoa consertou. Precedência na emissão:
+  correção manual > ViaCEP > parse de `line_1`. Campos não preenchidos seguem
+  derivados. Quem revisou e o que mudou vai em `metadata.tomadorRevisao`.
+- **IBGE é obrigatório no gate** (`REQUIRED_FIELDS` em `address.ts`): Barueri rejeita
+  sem `codigo_municipio`, e ele só vem do ViaCEP ou da revisão manual. Antes disso o
+  endereço passava por "completo" sem IBGE, o job nascia `queued` e só descobria o
+  furo na rejeição do Focus.
 - **Idempotência em camadas:** `sales_events(event_id)`, `invoice_jobs(charge,recipient)`,
   `focus_events(dedup_key)`.
 - **Retorno com dois caminhos convergentes** (webhook + reconcile) via
@@ -400,13 +414,13 @@ bun run dev                                                            # UI em /
 
 ## 14. Pendências conhecidas (não bloqueiam o funcionamento)
 
-1. **UI de revisão de endereço:** completar numero/bairro dos jobs `pending_review`
-   (hoje não há edição do `tomador_endereco` na UI).
-2. **Write-back financeiro:** `invoice_jobs.transaction_id` existe mas não é populado.
-3. **Cancelamento de NF-e:** não implementado (contrato próprio e prazo de 24h
+1. **Write-back financeiro:** `invoice_jobs.transaction_id` existe mas não é populado.
+2. **Cancelamento de NF-e:** não implementado (contrato próprio e prazo de 24h
    após a emissão). NFS-e já cancela — ver `nfse-cancel`.
-4. **Produção:** registrar webhooks definitivos + tokens de produção.
-5. **`PAGARME_WEBHOOK_SECRET` legado:** pode ser removido das secrets (sem uso).
+3. **Produção:** registrar webhooks definitivos + tokens de produção.
+4. **`PAGARME_WEBHOOK_SECRET` legado:** pode ser removido das secrets (sem uso).
+5. **Revisão em lote:** a correção do tomador é uma nota por vez; se um lote inteiro
+   cair por CEP não resolvido, hoje se corrige uma a uma.
 
 ---
 
@@ -424,8 +438,10 @@ supabase/
 └── config.toml      ([functions.*] verify_jwt=false)
 src/features/nfse/
 ├── api.ts hooks.ts schema.ts constants.ts
+├── tomador.ts (espelho da derivação p/ a UI) · cep.ts (ViaCEP sob demanda)
 └── components/  Connections{Panel,Drawer}, RecipientsSheet, FiscalSettings{Panel,Drawer},
-                 InvoiceJobs{Panel}, InvoiceJobDrawer, Webhooks{Panel}, WebhookEventDrawer, FieldToggle
+                 InvoiceJobs{Panel}, InvoiceJobDrawer, TomadorReviewForm, Webhooks{Panel},
+                 WebhookEventDrawer, FieldToggle
 src/routes/nfse.tsx · src/components/layout/Sidebar.tsx (item NFS-e)
 docs/integrations/  nfse-system.md (este) · nfse-pagarme-architecture.md · nfse-implementation-plan.md · sql/nfse-fase2-local-setup.sql
 NFSE_STATUS.md (raiz, snapshot) · focusnfe.md · pagarme.md (refs de API)

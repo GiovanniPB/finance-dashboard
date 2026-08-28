@@ -10,7 +10,7 @@
  * Origem verificada por segredo (FOCUS_WEBHOOK_SECRET). Idempotente por hash.
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 import { applyFocusDocument } from "../_shared/nfse/focus.ts";
 

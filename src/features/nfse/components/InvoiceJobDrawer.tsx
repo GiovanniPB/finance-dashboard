@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CheckCircle2, Download, Loader2, RefreshCw } from "lucide-react";
+import { CheckCircle2, Download, Loader2, Pencil, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +14,16 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { usePermissions } from "@/features/auth/usePermissions";
 import { formatDate } from "@/lib/dates";
+import { formatDocument } from "@/lib/document";
 import { formatBRL } from "@/lib/format";
 
-import { nfseFileUrl, type InvoiceJob } from "../api";
+import { nfseFileUrl, TOMADOR_EDITABLE_STATUSES, type InvoiceJob } from "../api";
 import { DOCUMENT_TYPE_META, JOB_STATUS_META } from "../constants";
 import { useApproveInvoiceJob, useRequeueInvoiceJob } from "../hooks";
+import { deriveTomadorEndereco, ENDERECO_FIELD_LABELS, hasEnderecoOverride } from "../tomador";
+import { TomadorReviewForm } from "./TomadorReviewForm";
 
 interface Props {
   open: boolean;
@@ -29,8 +33,14 @@ interface Props {
 
 export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
   const { user } = useAuth();
+  const { canEdit } = usePermissions();
   const approve = useApproveInvoiceJob();
   const requeue = useRequeueInvoiceJob();
+  const [editing, setEditing] = React.useState(false);
+
+  // trocar de nota (ou fechar) sempre volta ao modo leitura
+  const jobId = job?.id ?? null;
+  React.useEffect(() => setEditing(false), [jobId, open]);
 
   if (!job) return null;
 
@@ -44,7 +54,19 @@ export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
   const payablesDivergence = metadata.payablesDivergence === true;
   const canApprove = job.status === "pending_review";
   const canRequeue = job.status === "rejected" || job.status === "failed";
-  const endereco = job.tomador_endereco as Record<string, unknown> | null;
+  const { endereco, missing: missingEndereco } = deriveTomadorEndereco(job.tomador_endereco);
+  const docDigits = (job.tomador_documento ?? "").replace(/\D/gu, "").length;
+  const missingTomador = [
+    ...(docDigits === 11 || docDigits === 14 ? [] : ["CPF/CNPJ"]),
+    ...missingEndereco.map((f) => ENDERECO_FIELD_LABELS[f]),
+  ];
+  const isEditable = TOMADOR_EDITABLE_STATUSES.includes(job.status);
+  // "falta para emitir" só faz sentido enquanto a nota AINDA vai ser emitida: numa
+  // nota já autorizada o aviso seria ruído (e nota velha pode não ter IBGE gravado)
+  const needsTomadorFix = isEditable && missingTomador.length > 0;
+  // segue o mesmo gate de escrita do resto do app; a RLS confirma no banco
+  const canReview = canEdit && isEditable;
+  const wasReviewed = hasEnderecoOverride(job.tomador_endereco);
   const hasFocusResult =
     job.numero_nfse != null ||
     job.chave_nfse != null ||
@@ -103,19 +125,58 @@ export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
             </p>
           )}
 
-          <Section title="Tomador">
-            <Row label="Nome" value={job.tomador_nome ?? "—"} />
-            <Row label="Documento" value={job.tomador_documento ?? "—"} mono />
-            <Row label="E-mail" value={job.tomador_email ?? "—"} />
-            {endereco && (
-              <Row
-                label="Endereço"
-                value={
-                  [endereco.line_1, endereco.city, endereco.state].filter(Boolean).join(", ") || "—"
-                }
+          <Section
+            title="Tomador"
+            action={
+              canReview && !editing ? (
+                <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+                  <Pencil className="size-3.5" /> Revisar
+                </Button>
+              ) : undefined
+            }
+          >
+            {editing ? (
+              <TomadorReviewForm
+                job={job}
+                onCancel={() => setEditing(false)}
+                onSaved={(requeued) => {
+                  setEditing(false);
+                  toast.success(
+                    requeued ? "Dados salvos — nota reenviada para a fila" : "Dados salvos",
+                  );
+                  if (requeued) onOpenChange(false);
+                }}
               />
+            ) : (
+              <>
+                <Row label="Nome" value={job.tomador_nome ?? "—"} />
+                <Row
+                  label="Documento"
+                  value={job.tomador_documento ? formatDocument(job.tomador_documento) : "—"}
+                  mono
+                />
+                <Row label="E-mail" value={job.tomador_email ?? "—"} />
+                <Row label="Logradouro" value={enderecoLinha(endereco)} />
+                <Row label="Bairro" value={endereco.bairro ?? "—"} />
+                <Row
+                  label="Município"
+                  value={[endereco.municipio, endereco.uf].filter(Boolean).join(" / ") || "—"}
+                />
+                <Row label="CEP" value={endereco.cep ?? "—"} mono />
+                <Row label="Código IBGE" value={endereco.codigoMunicipio ?? "—"} mono />
+                {wasReviewed && (
+                  <p className="text-2xs pt-1 text-text-subtle">Endereço corrigido manualmente.</p>
+                )}
+              </>
             )}
           </Section>
+
+          {!editing && needsTomadorFix && (
+            <p className="text-2xs rounded-[var(--radius-sm)] bg-warning-soft p-2 text-warning">
+              Faltando para emitir: <strong>{missingTomador.join(", ")}</strong>
+              {canReview ? " — use Revisar para completar." : ""}
+            </p>
+          )}
 
           <Section title="Classificação fiscal">
             {isNfe ? (
@@ -199,7 +260,7 @@ export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
-          {canApprove && (
+          {canApprove && !editing && (
             <Button
               disabled={approve.isPending || !user}
               onClick={() => {
@@ -224,7 +285,7 @@ export function InvoiceJobDrawer({ open, onOpenChange, job }: Props) {
               Aprovar
             </Button>
           )}
-          {canRequeue && (
+          {canRequeue && !editing && (
             <Button
               disabled={requeue.isPending}
               onClick={() => {
@@ -257,10 +318,33 @@ function pisCofinsLabel(pis: unknown, cofins: unknown): string {
   return `${fmt(pis)} / ${fmt(cofins)}`;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/** Linha "Rua X, 100 - Sala 5" a partir do endereço derivado. */
+function enderecoLinha(endereco: {
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+}): string {
+  const rua = [endereco.logradouro, endereco.numero].filter(Boolean).join(", ");
+  return [rua, endereco.complemento].filter(Boolean).join(" - ") || "—";
+}
+
+function Section({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
-      <div className="text-2xs font-semibold tracking-wide text-text-subtle uppercase">{title}</div>
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <div className="text-2xs font-semibold tracking-wide text-text-subtle uppercase">
+          {title}
+        </div>
+        {action}
+      </div>
       <div className="space-y-1 rounded-[var(--radius-md)] border border-border bg-surface p-3">
         {children}
       </div>

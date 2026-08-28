@@ -11,7 +11,7 @@
  * que toca o banco (contexto fiscal) e as APIs (payables/ViaCEP).
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 import { fetchCepInfo } from "./cep.ts";
 import { fetchChargeSplit } from "./payables.ts";

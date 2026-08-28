@@ -9,7 +9,7 @@
  * sweep e backfill podem tocar a mesma linha em qualquer ordem.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 import { fetchChargePayables } from "./api.ts";
 import type { PagarmeChargeRecord, PagarmeCustomerRecord } from "./charges.ts";

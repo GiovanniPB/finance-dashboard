@@ -1,7 +1,10 @@
 import { dayEndIso, dayStartIso } from "@/lib/dates";
+import { onlyDigits } from "@/lib/document";
 import { supabase, type Enums, type Tables } from "@/lib/supabase";
 
 import { jobSearchOr } from "./job-filters";
+import type { TomadorReviewFormValues } from "./schema";
+import { buildEnderecoOverride, changedEnderecoFields, type TomadorEndereco } from "./tomador";
 
 /** Bucket de Storage dos XML/DANFSe (criado junto com a focus-webhook, Fase 5). */
 const NFSE_FILES_BUCKET = "nfse-files";
@@ -418,6 +421,109 @@ export async function requeueInvoiceJob(id: string): Promise<void> {
     .eq("id", id)
     .in("status", ["rejected", "failed"]);
   if (error) throw error;
+}
+
+/**
+ * Status em que a revisão manual do tomador é permitida: a nota ainda não saiu
+ * (ou saiu e voltou). Mexer no tomador de uma nota AUTORIZADA seria falsear um
+ * documento fiscal já emitido — para essa há cancelamento, não edição.
+ */
+export const TOMADOR_EDITABLE_STATUSES: InvoiceJobStatus[] = [
+  "pending_review",
+  "rejected",
+  "failed",
+];
+
+export interface SaveTomadorReviewInput {
+  id: string;
+  userId: string;
+  values: TomadorReviewFormValues;
+  /** Recoloca a nota na fila no mesmo UPDATE (botão "Salvar e reemitir"). */
+  requeue: boolean;
+}
+
+/**
+ * Grava a correção manual do tomador de uma nota e, opcionalmente, devolve a
+ * nota à fila — tudo num único UPDATE, para que nunca exista o estado "corrigi
+ * mas não reenviou" por falha no meio do caminho.
+ *
+ * O endereço original do pagar.me é preservado: a correção entra em
+ * `tomador_endereco.nfse_override`, que tem precedência na hora de emitir (ver
+ * `supabase/functions/_shared/nfse/address.ts`). Quem revisou e o que mudou fica
+ * em `metadata.tomadorRevisao` — além do `audit_log`, que já registra o UPDATE.
+ */
+export async function saveTomadorReview({
+  id,
+  userId,
+  values,
+  requeue,
+}: SaveTomadorReviewInput): Promise<void> {
+  const current = await supabase
+    .from("invoice_jobs")
+    .select("status, tomador_endereco, metadata")
+    .eq("id", id)
+    .single();
+  if (current.error) throw current.error;
+
+  const status = current.data.status;
+  if (!TOMADOR_EDITABLE_STATUSES.includes(status)) {
+    throw new Error(`Nota em "${status}" não aceita revisão do tomador.`);
+  }
+
+  const endereco = values as unknown as Record<keyof TomadorEndereco, string>;
+  const documento = onlyDigits(values.documento ?? "");
+  const metadata = (current.data.metadata ?? {}) as Record<string, unknown>;
+  const text = (value: string | undefined): string | null => {
+    const trimmed = value?.trim();
+    return trimmed != null && trimmed.length > 0 ? trimmed : null;
+  };
+
+  const patch: Tables["invoice_jobs"]["Update"] = {
+    tomador_documento: documento.length > 0 ? documento : null,
+    tomador_nome: text(values.nome),
+    tomador_email: text(values.email),
+    tomador_endereco: buildEnderecoOverride(
+      current.data.tomador_endereco,
+      endereco,
+    ) as Tables["invoice_jobs"]["Update"]["tomador_endereco"],
+    metadata: {
+      ...metadata,
+      tomadorRevisao: {
+        by: userId,
+        at: new Date().toISOString(),
+        campos: changedEnderecoFields(current.data.tomador_endereco, endereco),
+      },
+    },
+  };
+
+  if (requeue) {
+    patch.status = "queued";
+    patch.attempts = 0;
+    patch.next_attempt_at = null;
+    // sair de pending_review é uma aprovação — registra quem autorizou a emissão
+    if (status === "pending_review") {
+      patch.approved_by = userId;
+      patch.approved_at = new Date().toISOString();
+    }
+  }
+
+  // o guard de status vai no próprio UPDATE: entre o SELECT acima e aqui, o cron
+  // pode ter movido a nota. `.select()` confirma que alguma linha casou — sem
+  // isso, um 0-rows silencioso viraria um "salvo com sucesso" mentiroso.
+  // Atenção: a RLS também nega escrita devolvendo 0 linhas (não erro), então a
+  // mensagem cobre as duas causas possíveis — não dá para distingui-las aqui.
+  const { data, error } = await supabase
+    .from("invoice_jobs")
+    .update(patch)
+    .eq("id", id)
+    .in("status", TOMADOR_EDITABLE_STATUSES)
+    .select("id");
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error(
+      "Nada foi salvo: a nota mudou de status durante a edição ou você não tem permissão de escrita nesta empresa.",
+    );
+  }
 }
 
 /** URL assinada para baixar um arquivo (XML/DANFSe) do Storage. */

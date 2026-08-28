@@ -137,6 +137,7 @@ SELECT e mediu 5.743ms → 22ms com equivalência de linhas conferida por usuár
 Webhooks e orquestração server-side (ex.: esteira NFS-e) vivem em `supabase/functions/` (runtime Deno).
 
 - **Importação restrita:** uma function só importa de dentro de `supabase/functions/` — **não** de `src/` (o runtime não monta `src`). Código puro compartilhado vai em `supabase/functions/_shared/` (Deno-puro, imports com extensão `.ts` explícita).
+- **Dependência externa usa o especificador `npm:` direto** (ex.: `from "npm:@supabase/supabase-js@2"`), inclusive em `import type`. O CLI ≥2.x **não** usa um `deno.json` compartilhado em `supabase/functions/` no deploy — bare specifier (`from "@supabase/supabase-js"`) quebra o bundling com `Relative import path ... not prefixed with / or ./ or ../`.
 - O código em `_shared/` é validado por **Vitest** (testes rodam de qualquer pasta) e pelo **Deno** (no deploy); **não** pelo `tsc` do app (que cobre só `src/`).
 - Segredos só via `Deno.env` (Vault/secrets) — nunca hardcoded. Webhooks **verificam origem** (segredo na URL/header) e são **idempotentes** (dedup por id do evento).
 - Testar local: `supabase functions serve <nome> --no-verify-jwt` + POST de fixture.

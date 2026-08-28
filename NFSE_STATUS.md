@@ -1,6 +1,6 @@
 # Nota Fiscal (Focus NFe × pagar.me) — Estado da Integração
 
-> **Snapshot:** 17/06/2026 · Atualize ao avançar de fase.
+> **Snapshot:** 28/08/2026 · Atualize ao avançar de fase.
 > **Objetivo:** emitir **nota fiscal** a partir das assinaturas do pagar.me, com
 > **split** entre empresas do grupo e **múltiplas contas pagar.me**
 > (`1 charge.paid → N notas`). Motor **configurável multi-documento**: cada empresa
@@ -47,7 +47,8 @@ o **split autoritativo via `/payables`** e o **endereço enriquecido por ViaCEP*
 - **Multi-conta:** cada conta pagar.me é uma `pagarme_accounts` (slug na URL, empresa dona, segredo próprio). Cobrança **com split** → N notas (recebedores da conta); **sem split** → 1 nota da empresa dona.
 - **Segredos 100% pela UI:** RPCs `SECURITY DEFINER` (`rotate_account_webhook_secret`, `set_company_focus_token`) autorizam pelo `has_company_access` do usuário e escrevem no Vault. Nada de SQL/Vault manual; o front nunca vê service role nem o segredo (exceto a URL do webhook, revelada 1×).
 - **Slug automático** do nome (trigger), estável (não muda em updates).
-- **Endereço do tomador: híbrido** — deriva logradouro/numero/bairro de `line_1`; se incompleto, job vai a `pending_review`.
+- **Endereço do tomador: híbrido** — deriva logradouro/numero/bairro de `line_1`; se incompleto (inclusive sem **IBGE**, que Barueri exige), job vai a `pending_review`.
+- **Revisão manual do tomador pela UI:** nota em `pending_review`/`rejected`/`failed` pode ter documento, nome, e-mail e endereço corrigidos em `/nfse` (busca por CEP no ViaCEP) e ser reenviada no mesmo passo. A correção entra como **camada** (`tomador_endereco.nfse_override`) com precedência na emissão — o payload original do pagar.me é preservado para auditoria.
 - **Cancelamento:** fora de escopo.
 
 ---

@@ -52,6 +52,28 @@ export interface CepInfo {
   ibge?: string | null; // código IBGE do município (codigo_municipio na NFS-e)
 }
 
+/**
+ * Correção manual do endereço do tomador, feita por um operador na UI (/nfse).
+ *
+ * Existe porque o pagar.me entrega o endereço em texto livre: quando a derivação
+ * de `line_1` + ViaCEP não chega nos campos que o Focus exige, alguém precisa
+ * completar à mão — senão a nota fica presa rejeitando pelo mesmo motivo.
+ *
+ * Só os campos digitados vêm preenchidos; os demais continuam sendo derivados.
+ * O payload original do pagar.me fica intacto ao lado (rastro de origem do dado
+ * fiscal): a correção é uma CAMADA POR CIMA, nunca uma sobrescrita destrutiva.
+ */
+export interface NfseEnderecoOverride {
+  logradouro?: string | null;
+  numero?: string | null;
+  complemento?: string | null;
+  bairro?: string | null;
+  cep?: string | null;
+  municipio?: string | null;
+  uf?: string | null;
+  codigoMunicipio?: string | null; // IBGE
+}
+
 export interface PagarmeAddress {
   line_1?: string | null;
   line_2?: string | null;
@@ -60,6 +82,7 @@ export interface PagarmeAddress {
   state?: string | null;
   country?: string | null;
   cep_info?: CepInfo | null; // enriquecimento ViaCEP (preenchido no webhook)
+  nfse_override?: NfseEnderecoOverride | null; // correção manual (precede tudo)
 }
 
 export interface PagarmeCustomer {
