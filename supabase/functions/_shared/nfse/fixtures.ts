@@ -35,6 +35,8 @@ export function baseEvent(): ChargePaidEvent {
         city: "Barueri",
         state: "SP",
         country: "BR",
+        // já enriquecido por ViaCEP (enrichEventAddress roda ANTES do explode)
+        cep_info: { bairro: "Centro", municipio: "Barueri", uf: "SP", ibge: "3505708" },
       },
     },
     split: [

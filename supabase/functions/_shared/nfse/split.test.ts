@@ -55,6 +55,34 @@ describe("resolveTomador", () => {
     expect(t.warnings).toContain("tomador_documento_invalido");
     expect(t.warnings).toContain("tomador_endereco_incompleto");
   });
+
+  it("manda para revisão quando falta o IBGE, mesmo com o resto do endereço ok", () => {
+    // o ViaCEP não resolveu o CEP: sem `codigo_municipio` Barueri rejeita a nota.
+    // Melhor parar aqui do que queimar uma tentativa de emissão.
+    const event = baseEvent();
+    const t = resolveTomador({
+      ...event.customer,
+      address: { ...event.customer.address, cep_info: null },
+    });
+
+    expect(t.valid).toBe(false);
+    expect(t.warnings).toEqual(["tomador_endereco_incompleto"]);
+  });
+
+  it("aceita o endereço quando a revisão manual supre o que faltava", () => {
+    const event = baseEvent();
+    const t = resolveTomador({
+      ...event.customer,
+      address: {
+        ...event.customer.address,
+        cep_info: null,
+        nfse_override: { codigoMunicipio: "3505708" },
+      },
+    });
+
+    expect(t.valid).toBe(true);
+    expect(t.warnings).toEqual([]);
+  });
 });
 
 describe("explodeChargePaid", () => {

@@ -52,7 +52,7 @@ export function InvoiceJobsPanel() {
   const approveJobs = useApproveInvoiceJobs();
 
   const { filters: ui, setFilters, setPage, reset } = useInvoiceJobFilters();
-  const [detail, setDetail] = React.useState<InvoiceJob | null>(null);
+  const [detailId, setDetailId] = React.useState<string | null>(null);
   const [exporting, setExporting] = React.useState<ExportFormat | "zip" | null>(null);
 
   // segue o switcher global: empresa selecionada filtra a fila; consolidado = todas
@@ -77,11 +77,15 @@ export function InvoiceJobsPanel() {
   }, [ui, companyId]);
 
   const { data, isLoading } = useInvoiceJobs(filters);
-  const jobs = data?.rows ?? [];
+  const jobs = React.useMemo(() => data?.rows ?? [], [data]);
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const { selected, toggle, toggleAll, headerChecked, pendingIds, clear } = useJobSelection(jobs);
+
+  // o detalhe sai da lista já refetchada, e não de um snapshot congelado no clique:
+  // depois de revisar o tomador, o drawer precisa mostrar o dado novo, não o antigo
+  const detail = React.useMemo(() => jobs.find((j) => j.id === detailId) ?? null, [jobs, detailId]);
 
   // filtro muda -> a seleção deixa de fazer sentido (a página volta ao 1º no setter)
   React.useEffect(() => {
@@ -265,7 +269,7 @@ export function InvoiceJobsPanel() {
                   <tr
                     key={job.id}
                     className="cursor-pointer hover:bg-surface-2/60"
-                    onClick={() => setDetail(job)}
+                    onClick={() => setDetailId(job.id)}
                   >
                     <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -341,7 +345,7 @@ export function InvoiceJobsPanel() {
 
       <InvoiceJobDrawer
         open={Boolean(detail)}
-        onOpenChange={(o) => !o && setDetail(null)}
+        onOpenChange={(o) => !o && setDetailId(null)}
         job={detail}
       />
     </div>

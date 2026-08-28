@@ -14,7 +14,7 @@
  * Puro e determinístico — testável por Vitest e usável pelas Edge Functions.
  */
 
-import type { PagarmeAddress } from "./types.ts";
+import type { NfseEnderecoOverride, PagarmeAddress } from "./types.ts";
 
 /**
  * Valor de `numero` quando não conseguimos extrair um número do endereço. É o
@@ -95,6 +95,14 @@ function parseLine1(line1: string | null): {
   return { numero: null, logradouro: parts[0] ?? null, bairro: parts[1] ?? null };
 }
 
+/**
+ * Campos que o Focus (Barueri/EISS) exige para autorizar a nota.
+ *
+ * `codigoMunicipio` (IBGE) está aqui porque a prefeitura o rejeita quando ausente
+ * ("codigo_municipio: Campo obrigatório") — e ele NÃO é digitável de cabeça, vem
+ * do ViaCEP ou da revisão manual. Sem esta linha o job nascia `queued` com o
+ * endereço "completo", queimava tentativa e só descobria o furo na rejeição.
+ */
 const REQUIRED_FIELDS: (keyof NfseEndereco)[] = [
   "logradouro",
   "numero",
@@ -102,6 +110,7 @@ const REQUIRED_FIELDS: (keyof NfseEndereco)[] = [
   "cep",
   "municipio",
   "uf",
+  "codigoMunicipio",
 ];
 
 /**
@@ -109,20 +118,26 @@ const REQUIRED_FIELDS: (keyof NfseEndereco)[] = [
  * Quando há `cep_info` (enriquecido por ViaCEP no webhook), ele tem precedência
  * sobre o parse de `line_1` para logradouro/bairro/município/UF e fornece o IBGE.
  * O número vem sempre de `line_1` (o ViaCEP não traz número).
+ *
+ * Acima de ambos vem `nfse_override`: a correção manual do operador na UI. Só os
+ * campos preenchidos nela sobrescrevem — o resto segue derivado normalmente.
  */
 export function enrichTomadorAddress(address: PagarmeAddress | null | undefined): EnrichedAddress {
   const parsed = parseLine1(address?.line_1 ?? null);
   const cep = address?.cep_info ?? {};
+  const fix: NfseEnderecoOverride = address?.nfse_override ?? {};
 
+  // Precedência: correção manual > ViaCEP > parse do line_1 > campos crus.
+  // A revisão humana ganha de tudo — é o último recurso quando a derivação falhou.
   const endereco: NfseEndereco = {
-    logradouro: clean(cep.logradouro) ?? parsed.logradouro,
-    numero: parsed.numero,
-    complemento: clean(address?.line_2),
-    bairro: clean(cep.bairro) ?? parsed.bairro,
-    cep: digits(address?.zip_code),
-    municipio: clean(cep.municipio) ?? clean(address?.city),
-    uf: clean(cep.uf) ?? clean(address?.state),
-    codigoMunicipio: clean(cep.ibge),
+    logradouro: clean(fix.logradouro) ?? clean(cep.logradouro) ?? parsed.logradouro,
+    numero: clean(fix.numero) ?? parsed.numero,
+    complemento: clean(fix.complemento) ?? clean(address?.line_2),
+    bairro: clean(fix.bairro) ?? clean(cep.bairro) ?? parsed.bairro,
+    cep: digits(fix.cep) ?? digits(address?.zip_code),
+    municipio: clean(fix.municipio) ?? clean(cep.municipio) ?? clean(address?.city),
+    uf: clean(fix.uf) ?? clean(cep.uf) ?? clean(address?.state),
+    codigoMunicipio: clean(fix.codigoMunicipio) ?? clean(cep.ibge),
   };
 
   const missing = REQUIRED_FIELDS.filter((f) => endereco[f] == null);

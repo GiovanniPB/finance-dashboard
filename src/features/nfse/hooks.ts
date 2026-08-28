@@ -21,6 +21,7 @@ import {
   reemitAuthorizedToProducao,
   requeueInvoiceJob,
   rotateWebhookSecret,
+  saveTomadorReview,
   setFocusToken,
   setPagarmeAccountSecret,
   updateConnection,
@@ -189,6 +190,15 @@ export function useRequeueInvoiceJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => requeueInvoiceJob(id),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
+  });
+}
+
+/** Revisão manual do tomador (com ou sem reenvio para a fila). */
+export function useSaveTomadorReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: saveTomadorReview,
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["nfse", "jobs"] }),
   });
 }
