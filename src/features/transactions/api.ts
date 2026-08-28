@@ -15,7 +15,7 @@ const SELECT_WITH_RELATIONS = `
   *,
   account:chart_of_accounts!transactions_account_id_fkey(id, code, name, kind, dre_section),
   company:companies!transactions_company_id_fkey(id, trade_name, legal_name),
-  cost_center:cost_centers!transactions_cost_center_id_fkey(id, code, name),
+  cost_center:cost_centers!transactions_cost_center_id_fkey(id, name),
   bank_account:bank_accounts!transactions_bank_account_id_fkey(id, nickname, bank_name),
   counterparty:counterparties!transactions_counterparty_id_fkey(id, name)
 ` as const;

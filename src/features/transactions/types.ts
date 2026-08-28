@@ -17,7 +17,7 @@ export interface TransactionWithRelations extends TransactionRow {
     dre_section: Enums["dre_section"] | null;
   } | null;
   company: { id: string; trade_name: string | null; legal_name: string } | null;
-  cost_center: { id: string; code: string; name: string } | null;
+  cost_center: { id: string; name: string } | null;
   bank_account: { id: string; nickname: string; bank_name: string } | null;
   counterparty: { id: string; name: string } | null;
 }

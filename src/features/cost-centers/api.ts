@@ -9,7 +9,7 @@ export async function fetchCostCenters(companyId: string): Promise<CostCenter[]>
     .from("cost_centers")
     .select("*")
     .eq("company_id", companyId)
-    .order("code", { ascending: true });
+    .order("name", { ascending: true });
   if (error) throw error;
   return data ?? [];
 }

@@ -95,6 +95,44 @@ export type Database = {
         }
         Relationships: []
       }
+      balance_report_models: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          lines: Json
+          metadata: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lines?: Json
+          metadata?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lines?: Json
+          metadata?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balance_report_models_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_accounts: {
         Row: {
           account_number: string | null
@@ -548,7 +586,6 @@ export type Database = {
       }
       cost_centers: {
         Row: {
-          code: string
           company_id: string
           created_at: string
           description: string | null
@@ -558,7 +595,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          code: string
           company_id: string
           created_at?: string
           description?: string | null
@@ -568,7 +604,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          code?: string
           company_id?: string
           created_at?: string
           description?: string | null
@@ -3831,12 +3866,27 @@ export type Database = {
       cost_center_analysis: {
         Args: { p_company_id: string; p_from: string; p_to: string }
         Returns: {
-          cost_center_code: string
           cost_center_id: string
           cost_center_name: string
           expense: number
           margin_pct: number
           net: number
+          revenue: number
+          transaction_count: number
+        }[]
+      }
+      cost_center_monthly_series: {
+        Args: {
+          p_basis?: Database["public"]["Enums"]["accounting_basis"]
+          p_company_id: string
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          cost_center_id: string
+          cost_center_name: string
+          expense: number
+          month: string
           revenue: number
           transaction_count: number
         }[]
@@ -4654,6 +4704,7 @@ export type Database = {
         | "equity"
         | "tax_on_profit"
         | "summary"
+      accounting_basis: "accrual" | "cash"
       attachment_entity_type:
         | "transaction"
         | "counterparty"
@@ -4914,6 +4965,7 @@ export const Constants = {
         "tax_on_profit",
         "summary",
       ],
+      accounting_basis: ["accrual", "cash"],
       attachment_entity_type: [
         "transaction",
         "counterparty",

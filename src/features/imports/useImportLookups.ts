@@ -29,7 +29,7 @@ export function useImportLookups(companyId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cost_centers")
-        .select("id, code")
+        .select("id, name")
         .eq("company_id", companyId ?? "")
         .eq("is_active", true);
       if (error) throw error;
@@ -64,7 +64,9 @@ export function useImportLookups(companyId: string | null) {
   const lookups: LookupMaps = useMemo(
     () => ({
       accountsByCode: new Map((accounts.data ?? []).map((a) => [a.code, a.id])),
-      costCentersByCode: new Map((costCenters.data ?? []).map((c) => [c.code, c.id])),
+      costCentersByName: new Map(
+        (costCenters.data ?? []).map((c) => [c.name.trim().toLowerCase(), c.id]),
+      ),
       bankAccountsByNickname: new Map((bankAccounts.data ?? []).map((b) => [b.nickname, b.id])),
       counterpartiesByName: new Map(
         (counterparties.data ?? []).map((cp) => [cp.name.toLowerCase(), cp.id]),

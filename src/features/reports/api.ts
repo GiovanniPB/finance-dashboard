@@ -2,7 +2,6 @@ import { supabase } from "@/lib/supabase";
 
 export interface CostCenterRow {
   costCenterId: string | null;
-  code: string;
   name: string;
   revenue: number;
   expense: number;
@@ -24,7 +23,6 @@ export async function fetchCostCenterAnalysis(
   if (error) throw error;
   return (data ?? []).map((r) => ({
     costCenterId: r.cost_center_id,
-    code: r.cost_center_code,
     name: r.cost_center_name,
     revenue: r.revenue,
     expense: r.expense,

@@ -176,7 +176,7 @@ export function BulkEditDrawer({ open, onOpenChange, ids, companyId, onApplied }
                   <SelectItem value={CLEAR}>Limpar</SelectItem>
                   {costCenters.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.code} · {c.name}
+                      {c.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

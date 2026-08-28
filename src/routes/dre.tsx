@@ -7,9 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChartAccountManager } from "@/features/chart-of-accounts/components/ChartAccountManager";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { DreTable } from "@/features/dre/components/DreTable";
-import { PeriodPicker } from "@/features/dre/components/PeriodPicker";
 import { useDreByCompany, useDreConsolidated } from "@/features/dre/hooks";
-import { resolvePreset, usePeriod } from "@/features/dre/usePeriod";
+import { PeriodPicker } from "@/features/periods/PeriodPicker";
+import { effectiveRange, usePeriod } from "@/features/periods/usePeriod";
 import { cn } from "@/lib/cn";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { formatDate } from "@/lib/dates";
@@ -26,10 +26,7 @@ export default function DrePage() {
   const [period] = usePeriod();
   const [tab, setTab] = React.useState<Tab>("view");
 
-  const effective =
-    period.preset === "custom"
-      ? { from: period.from, to: period.to }
-      : resolvePreset(period.preset);
+  const effective = effectiveRange(period);
 
   const companyResult = useDreByCompany(
     isConsolidated ? null : selectedCompanyId,

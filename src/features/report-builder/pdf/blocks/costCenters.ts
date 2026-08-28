@@ -21,6 +21,19 @@ import {
 /** Máximo de centros no gráfico — além disso os rótulos ficam ilegíveis. */
 const MAX_CHART_BARS = 12;
 
+/**
+ * Nome de centro de custo é livre e costuma ser longo ('OTM CORRETORA - RENDIMENTOS
+ * APLIC'). No eixo do gráfico, rótulo largo demais faz o `drawAxes` pular categorias
+ * para caber — então encurta aqui, que a tabela logo abaixo traz o nome inteiro.
+ */
+const MAX_CHART_LABEL_CHARS = 16;
+
+function chartLabel(name: string): string {
+  return name.length <= MAX_CHART_LABEL_CHARS
+    ? name
+    : `${name.slice(0, MAX_CHART_LABEL_CHARS - 1).trimEnd()}…`;
+}
+
 export const renderCostCenters: BlockRenderer = (ctx, block) => {
   const rows = ctx.data.costCenters ?? [];
   const heading = block.options.heading ?? "Centros de custo";
@@ -39,9 +52,8 @@ export const renderCostCenters: BlockRenderer = (ctx, block) => {
   }
 
   const table: DataTableOptions = {
-    head: [["Código", "Centro de custo", "Receita", "Despesa", "Resultado", "Margem"]],
+    head: [["Centro de custo", "Receita", "Despesa", "Resultado", "Margem"]],
     body: rows.map((row) => [
-      row.code,
       row.name,
       formatBRL(row.revenue),
       formatOutflow(row.expense),
@@ -49,8 +61,7 @@ export const renderCostCenters: BlockRenderer = (ctx, block) => {
       row.marginPct == null ? "—" : formatPercent(row.marginPct, { fromHundred: true }),
     ]),
     columns: [
-      { width: 18 },
-      { width: CONTENT.widthMm - 18 - 4 * 28 },
+      { width: CONTENT.widthMm - 4 * 28 },
       { width: 28, align: "right" },
       { width: 28, align: "right" },
       { width: 28, align: "right" },
@@ -59,8 +70,8 @@ export const renderCostCenters: BlockRenderer = (ctx, block) => {
     cellTextColor: (rowIndex, columnIndex) => {
       const row = rows[rowIndex];
       if (row == null) return undefined;
-      if (columnIndex === 3) return row.expense === 0 ? undefined : COLORS.expense;
-      if (columnIndex === 4 && isNegativeValue(row.net)) return COLORS.expense;
+      if (columnIndex === 2) return row.expense === 0 ? undefined : COLORS.expense;
+      if (columnIndex === 3 && isNegativeValue(row.net)) return COLORS.expense;
       return undefined;
     },
   };
@@ -79,7 +90,7 @@ export const renderCostCenters: BlockRenderer = (ctx, block) => {
     draw: (frame) => {
       drawBarChart(ctx.doc, {
         frame,
-        categories: charted.map((row) => (row.code === "" ? row.name : row.code)),
+        categories: charted.map((row) => chartLabel(row.name)),
         series: [
           { label: "Resultado", color: COLORS.accent, values: charted.map((row) => row.net) },
         ],
