@@ -95,14 +95,14 @@ describe("suggestMapping", () => {
     expect(result.amount).toBe("Valor");
     expect(result.direction).toBe("Tipo");
     expect(result.account_code).toBe("Conta contábil");
-    expect(result.cost_center_code).toBe("Centro de custo");
+    expect(result.cost_center_name).toBe("Centro de custo");
   });
 });
 
 describe("parseRow", () => {
   const lookups: LookupMaps = {
     accountsByCode: new Map([["1.01", "acc-1"]]),
-    costCentersByCode: new Map([["COM", "cc-1"]]),
+    costCentersByName: new Map([["comercial", "cc-1"]]),
     bankAccountsByNickname: new Map([["BTG conta", "bank-1"]]),
     counterpartiesByName: new Map([["acme", "cp-1"]]),
   };
@@ -148,6 +148,42 @@ describe("parseRow", () => {
     );
     expect(r.isValid).toBe(false);
     expect(r.errors.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("resolves cost center by name, ignoring case and surrounding spaces", () => {
+    const r = parseRow(
+      1,
+      { d: "01/01/2025", desc: "x", v: "10", t: "+", c: "1.01", cc: "  COMERCIAL " },
+      {
+        accrual_date: "d",
+        description: "desc",
+        amount: "v",
+        direction: "t",
+        account_code: "c",
+        cost_center_name: "cc",
+      },
+      lookups,
+    );
+    expect(r.isValid).toBe(true);
+    expect(r.parsed.cost_center_id).toBe("cc-1");
+  });
+
+  it("reports unknown cost center name", () => {
+    const r = parseRow(
+      1,
+      { d: "01/01/2025", desc: "x", v: "10", t: "+", c: "1.01", cc: "Marketing" },
+      {
+        accrual_date: "d",
+        description: "desc",
+        amount: "v",
+        direction: "t",
+        account_code: "c",
+        cost_center_name: "cc",
+      },
+      lookups,
+    );
+    expect(r.isValid).toBe(false);
+    expect(r.errors.some((e) => e.includes("Centro de custo não encontrado"))).toBe(true);
   });
 
   it("reports unknown account code", () => {

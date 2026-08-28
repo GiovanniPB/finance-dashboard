@@ -10,16 +10,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { PRESET_LABELS, resolvePreset, usePeriod, type PeriodPreset } from "../usePeriod";
+import { effectiveRange, PRESET_LABELS, PRESETS, resolvePreset, usePeriod } from "./usePeriod";
 
 export function PeriodPicker() {
   const [period, setPeriod] = usePeriod();
 
-  const effectivePreset = period.preset;
-  const effective =
-    effectivePreset === "custom"
-      ? { from: period.from, to: period.to }
-      : resolvePreset(effectivePreset);
+  const isCustom = period.preset === "custom";
+  const effective = effectiveRange(period);
+  const invalidRange =
+    isCustom && Boolean(effective.from && effective.to) ? effective.from > effective.to : false;
 
   return (
     <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-4">
@@ -31,10 +30,12 @@ export function PeriodPicker() {
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="preset">Preset</Label>
           <Select
-            value={effectivePreset}
+            value={period.preset}
             onValueChange={(v) => {
-              const next = v as PeriodPreset;
-              const resolved = resolvePreset(next);
+              const next = v as (typeof PRESETS)[number];
+              // Ao sair do personalizado, materializa o intervalo do preset na URL
+              // para o link continuar significando o mesmo período depois.
+              const resolved = next === "custom" ? effective : resolvePreset(next);
               void setPeriod({ preset: next, from: resolved.from, to: resolved.to });
             }}
           >
@@ -42,9 +43,9 @@ export function PeriodPicker() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.entries(PRESET_LABELS) as [PeriodPreset, string][]).map(([k, v]) => (
-                <SelectItem key={k} value={k}>
-                  {v}
+              {PRESETS.map((preset) => (
+                <SelectItem key={preset} value={preset}>
+                  {PRESET_LABELS[preset]}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -57,7 +58,8 @@ export function PeriodPicker() {
             id="from"
             type="date"
             value={effective.from}
-            disabled={effectivePreset !== "custom"}
+            disabled={!isCustom}
+            aria-invalid={invalidRange}
             onChange={(e) => void setPeriod({ from: e.target.value, preset: "custom" })}
           />
         </div>
@@ -67,11 +69,15 @@ export function PeriodPicker() {
             id="to"
             type="date"
             value={effective.to}
-            disabled={effectivePreset !== "custom"}
+            disabled={!isCustom}
+            aria-invalid={invalidRange}
             onChange={(e) => void setPeriod({ to: e.target.value, preset: "custom" })}
           />
         </div>
       </div>
+      {invalidRange && (
+        <p className="text-2xs mt-2 text-expense">A data inicial precisa vir antes da final.</p>
+      )}
     </div>
   );
 }

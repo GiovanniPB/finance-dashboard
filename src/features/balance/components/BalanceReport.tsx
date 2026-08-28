@@ -1,0 +1,240 @@
+/**
+ * Aba "Balanço" — orquestra período, modelo e matriz.
+ *
+ * O rascunho do modelo vive aqui para a matriz mostrar o efeito de cada mudança
+ * antes de salvar: montar um Ebitda às cegas e só descobrir o número depois de
+ * persistir seria pior. `draft === null` significa "seguindo o que está salvo".
+ */
+import * as React from "react";
+import { AlertTriangle, ArrowUpDown, Download, Loader2, Settings2, Sparkles } from "lucide-react";
+import { parseAsBoolean, parseAsStringLiteral, useQueryState } from "nuqs";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCostCenters } from "@/features/cost-centers/hooks";
+import { cn } from "@/lib/cn";
+import { downloadCsv } from "@/lib/csv";
+
+import { buildBalanceMatrix } from "../compute";
+import { buildBalanceCsv } from "../csv";
+import { BASIS_LABELS } from "../drilldown";
+import { useBalanceModel, useMonthlySeries, useSaveBalanceModel } from "../hooks";
+import { linesFromCostCenters, type BalanceLine } from "../schema";
+import { BalanceMatrix } from "./BalanceMatrix";
+import { BalanceModelPanel } from "./BalanceModelPanel";
+
+const BASES = ["accrual", "cash"] as const;
+
+interface Props {
+  companyId: string;
+  from: string;
+  to: string;
+}
+
+export function BalanceReport({ companyId, from, to }: Props) {
+  const [draft, setDraft] = React.useState<BalanceLine[] | null>(null);
+  const [editing, setEditing] = React.useState(false);
+  // Na URL junto com aba e período: o link reproduz a tela como ela está.
+  const [showVariation, setShowVariation] = useQueryState(
+    "variacao",
+    parseAsBoolean.withDefault(true),
+  );
+  const [basis, setBasis] = useQueryState(
+    "regime",
+    parseAsStringLiteral(BASES).withDefault("accrual"),
+  );
+
+  const seriesQuery = useMonthlySeries(companyId, from, to, basis);
+  const modelQuery = useBalanceModel(companyId);
+  const costCentersQuery = useCostCenters(companyId);
+  const save = useSaveBalanceModel(companyId);
+
+  const saved = React.useMemo(() => modelQuery.data ?? [], [modelQuery.data]);
+  const lines = draft ?? saved;
+  const isDirty = draft != null && JSON.stringify(draft) !== JSON.stringify(saved);
+
+  const activeCostCenters = React.useMemo(
+    () => (costCentersQuery.data ?? []).filter((cc) => cc.is_active),
+    [costCentersQuery.data],
+  );
+
+  const matrix = React.useMemo(
+    () => buildBalanceMatrix({ from, to, series: seriesQuery.data ?? [], lines }),
+    [from, to, seriesQuery.data, lines],
+  );
+
+  const isLoading = seriesQuery.isLoading || modelQuery.isLoading || costCentersQuery.isLoading;
+  if (isLoading) return <Skeleton className="h-72 w-full" />;
+
+  // Consulta que falha NÃO pode virar matriz vazia: sem dado, toda linha calcula
+  // zero e a tela fica idêntica a "não houve movimento no período" — um erro de
+  // banco passa por resultado legítimo e ninguém percebe.
+  const failure = seriesQuery.error ?? modelQuery.error ?? costCentersQuery.error;
+  if (failure) {
+    return (
+      <div className="space-y-3 rounded-[var(--radius-lg)] border border-expense/40 bg-expense/5 p-6">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-expense" />
+          <div>
+            <h3 className="text-sm font-semibold text-expense">
+              Não foi possível carregar o balanço
+            </h3>
+            <p className="mt-1 font-mono text-xs text-text-muted">{failure.message}</p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            void seriesQuery.refetch();
+            void modelQuery.refetch();
+            void costCentersQuery.refetch();
+          }}
+        >
+          Tentar de novo
+        </Button>
+      </div>
+    );
+  }
+
+  const persist = () => {
+    if (draft == null) return;
+    save.mutate(draft, {
+      onSuccess: () => {
+        setDraft(null);
+        toast.success("Modelo salvo");
+      },
+      onError: (err) => toast.error("Erro ao salvar o modelo", { description: err.message }),
+    });
+  };
+
+  if (lines.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-[var(--radius-lg)] border border-dashed border-border bg-surface p-12 text-center">
+          <h3 className="text-sm font-semibold">Monte o balanço desta empresa</h3>
+          <p className="mx-auto mt-1 max-w-md text-sm text-text-muted">
+            Cada linha da matriz é um item: um grupo de centros de custo, uma fórmula sobre outros
+            itens (Ebitda, Lucro Líquido) ou um percentual (Margem).
+          </p>
+          <Button
+            className="mt-4"
+            disabled={activeCostCenters.length === 0}
+            onClick={() => {
+              setDraft(linesFromCostCenters(activeCostCenters));
+              setEditing(true);
+            }}
+          >
+            <Sparkles className="size-4" /> Começar com um item por centro de custo
+          </Button>
+          {activeCostCenters.length === 0 && (
+            <p className="text-2xs mt-3 text-text-muted">
+              Cadastre centros de custo em Configurações antes de montar o balanço.
+            </p>
+          )}
+        </div>
+        {editing && (
+          <BalanceModelPanel
+            lines={lines}
+            costCenters={activeCostCenters}
+            onChange={(next) => setDraft(next)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div
+          role="group"
+          aria-label="Regime contábil"
+          className="mr-auto inline-flex rounded-[var(--radius-md)] border border-border p-0.5"
+        >
+          {BASES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={basis === option}
+              onClick={() => void setBasis(option)}
+              className={cn(
+                "rounded-[var(--radius-sm)] px-2.5 py-1 text-xs font-medium transition-colors",
+                basis === option ? "bg-surface-3 text-text" : "text-text-muted hover:text-text",
+              )}
+            >
+              {BASIS_LABELS[option]}
+            </button>
+          ))}
+        </div>
+
+        {isDirty && (
+          <>
+            <span className="text-2xs text-text-muted">Alterações não salvas</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDraft(null)}
+              disabled={save.isPending}
+            >
+              Descartar
+            </Button>
+            <Button size="sm" onClick={persist} disabled={save.isPending}>
+              {save.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              Salvar modelo
+            </Button>
+          </>
+        )}
+        <Button
+          variant={showVariation ? "secondary" : "outline"}
+          size="sm"
+          aria-pressed={showVariation}
+          onClick={() => void setShowVariation(!showVariation)}
+        >
+          <ArrowUpDown className="size-3.5" /> Variação mês a mês
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}>
+          <Settings2 className="size-3.5" /> {editing ? "Ocultar modelo" : "Editar modelo"}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            downloadCsv(
+              `balanco-${basis === "cash" ? "caixa" : "competencia"}-${from}-${to}.csv`,
+              buildBalanceCsv(matrix.months, matrix.lines, { includeVariation: showVariation }),
+            )
+          }
+        >
+          <Download className="size-3.5" /> Exportar CSV
+        </Button>
+      </div>
+
+      {editing && (
+        <BalanceModelPanel
+          lines={lines}
+          costCenters={activeCostCenters}
+          onChange={(next) => setDraft(next)}
+        />
+      )}
+
+      <BalanceMatrix
+        matrix={matrix}
+        showVariation={showVariation}
+        basis={basis}
+        companyId={companyId}
+        from={from}
+        to={to}
+      />
+
+      {matrix.lines.some((l) => l.kind === "unclassified") && (
+        <p className="text-2xs text-text-muted">
+          A linha <strong>Não classificado</strong> é o que nenhum item captura — inclusive
+          lançamento sem centro de custo. Ela existe para o relatório fechar com o total da empresa;
+          some quando o modelo cobre tudo.
+        </p>
+      )}
+    </div>
+  );
+}

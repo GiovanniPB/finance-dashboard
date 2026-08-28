@@ -1,0 +1,14 @@
+-- Migration NEUTRALIZADA — não contém statement nenhum, de propósito.
+--
+-- Esta versão foi registrada em `supabase_migrations.schema_migrations` no remoto
+-- com ZERO statements: ficou marcada como aplicada sem nunca ter executado (é o
+-- que acontece quando a versão é registrada sem rodar o arquivo, por exemplo com
+-- `supabase migration repair --status applied`). Como o `db:push` só compara
+-- versões, ele nunca mais executaria este arquivo — o conteúdo que estava aqui
+-- não chegaria ao banco em nenhuma hipótese.
+--
+-- Apagar o arquivo não é opção: o remoto tem a versão registrada, e o push passaria
+-- a falhar com "Remote migration versions not found in local migrations directory".
+--
+-- Então ele fica aqui, vazio, para o histórico local bater com o remoto. O que
+-- deveria estar nele foi para a migration seguinte.

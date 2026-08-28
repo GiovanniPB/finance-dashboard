@@ -1,5 +1,6 @@
 import * as React from "react";
-import { BarChart3, Building2, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, Building2, Table2, Users, type LucideIcon } from "lucide-react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BalanceReport } from "@/features/balance/components/BalanceReport";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { PeriodPicker } from "@/features/periods/PeriodPicker";
+import { effectiveRange, usePeriod } from "@/features/periods/usePeriod";
 import type { CounterpartyKindFilter } from "@/features/reports/api";
 import { CostCenterReport } from "@/features/reports/components/CostCenterReport";
 import { CounterpartyReport } from "@/features/reports/components/CounterpartyReport";
@@ -18,43 +22,15 @@ import { DreComparisonReport } from "@/features/reports/components/DreComparison
 import { cn } from "@/lib/cn";
 import { formatMonthYear } from "@/lib/dates";
 
-type Tab = "cost-center" | "counterparty" | "dre-comparison";
+const TAB_VALUES = ["cost-center", "balance", "counterparty", "dre-comparison"] as const;
+type Tab = (typeof TAB_VALUES)[number];
 
 const TABS: { value: Tab; label: string; icon: LucideIcon }[] = [
   { value: "cost-center", label: "Centros de Custo", icon: Building2 },
+  { value: "balance", label: "Balanço", icon: Table2 },
   { value: "counterparty", label: "Contrapartes", icon: Users },
   { value: "dre-comparison", label: "DRE Comparativo", icon: BarChart3 },
 ];
-
-type Preset = "current_month" | "last_month" | "ytd" | "last_12m";
-
-function periodFor(preset: Preset): { from: string; to: string; label: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  switch (preset) {
-    case "current_month":
-      return {
-        from: iso(new Date(y, m, 1)),
-        to: iso(new Date(y, m + 1, 0)),
-        label: formatMonthYear(new Date(y, m, 1)),
-      };
-    case "last_month":
-      return {
-        from: iso(new Date(y, m - 1, 1)),
-        to: iso(new Date(y, m, 0)),
-        label: formatMonthYear(new Date(y, m - 1, 1)),
-      };
-    case "ytd":
-      return { from: iso(new Date(y, 0, 1)), to: iso(now), label: `${y} (YTD)` };
-    case "last_12m": {
-      const start = new Date(y, m - 11, 1);
-      return { from: iso(start), to: iso(now), label: "Últimos 12 meses" };
-    }
-  }
-}
 
 type Comparison = "mom" | "yoy";
 
@@ -98,8 +74,12 @@ function comparisonPeriods(cmp: Comparison): {
 
 export default function ReportsPage() {
   const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
-  const [tab, setTab] = React.useState<Tab>("cost-center");
-  const [preset, setPreset] = React.useState<Preset>("current_month");
+  // Aba e período na URL: o link para um balanço vale o balanço daquele período.
+  const [tab, setTab] = useQueryState(
+    "aba",
+    parseAsStringLiteral(TAB_VALUES).withDefault("cost-center"),
+  );
+  const [period] = usePeriod();
   const [kind, setKind] = React.useState<CounterpartyKindFilter>("all");
   const [comparison, setComparison] = React.useState<Comparison>("mom");
 
@@ -117,7 +97,10 @@ export default function ReportsPage() {
   }
 
   const companyName = selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—";
-  const period = periodFor(preset);
+  const range = effectiveRange(period);
+  // No preset "Personalizado" o intervalo fica incompleto entre um clique e outro;
+  // sem esta guarda os RPCs receberiam data vazia ou invertida.
+  const rangeReady = Boolean(range.from && range.to) && range.from <= range.to;
   const cmp = comparisonPeriods(comparison);
 
   return (
@@ -126,7 +109,7 @@ export default function ReportsPage() {
 
       <div className="flex items-center gap-1 border-b border-border">
         {TABS.map((t) => (
-          <TabButton key={t.value} active={tab === t.value} onClick={() => setTab(t.value)}>
+          <TabButton key={t.value} active={tab === t.value} onClick={() => void setTab(t.value)}>
             <t.icon className="size-3.5" /> {t.label}
           </TabButton>
         ))}
@@ -149,31 +132,26 @@ export default function ReportsPage() {
           </span>
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5 sm:max-w-xs">
-          <Label htmlFor="period">Período</Label>
-          <Select value={preset} onValueChange={(v) => setPreset(v as Preset)}>
-            <SelectTrigger id="period">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="current_month">Mês atual</SelectItem>
-              <SelectItem value="last_month">Mês anterior</SelectItem>
-              <SelectItem value="ytd">Ano até hoje</SelectItem>
-              <SelectItem value="last_12m">Últimos 12 meses</SelectItem>
-            </SelectContent>
-          </Select>
-          <span className="text-2xs text-text-subtle">{period.label}</span>
+        <PeriodPicker />
+      )}
+
+      {tab !== "dre-comparison" && !rangeReady && (
+        <div className="rounded-[var(--radius-lg)] border border-dashed border-border bg-surface p-12 text-center text-sm text-text-muted">
+          Escolha as datas inicial e final do período.
         </div>
       )}
 
-      {tab === "cost-center" && (
-        <CostCenterReport companyId={selectedCompanyId} from={period.from} to={period.to} />
+      {tab === "cost-center" && rangeReady && (
+        <CostCenterReport companyId={selectedCompanyId} from={range.from} to={range.to} />
       )}
-      {tab === "counterparty" && (
+      {tab === "balance" && rangeReady && (
+        <BalanceReport companyId={selectedCompanyId} from={range.from} to={range.to} />
+      )}
+      {tab === "counterparty" && rangeReady && (
         <CounterpartyReport
           companyId={selectedCompanyId}
-          from={period.from}
-          to={period.to}
+          from={range.from}
+          to={range.to}
           kind={kind}
           onKindChange={setKind}
         />
@@ -230,8 +208,8 @@ function Header({
         {isConsolidated ? "Consolidado" : companyName}
       </h1>
       <p className="mt-1 text-sm text-text-muted">
-        Análises por centro de custo, contraparte e comparativos de DRE (MoM/YoY) — todas
-        exportáveis para CSV.
+        Balanço gerencial mês a mês, análises por centro de custo e contraparte e comparativos de
+        DRE (MoM/YoY) — todos exportáveis para CSV.
       </p>
     </div>
   );

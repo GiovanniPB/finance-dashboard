@@ -44,7 +44,7 @@ export function suggestMapping(columns: string[]): ColumnMapping {
     amount: ["valor", "amount", "value", "total"],
     direction: ["tipo", "direction", "natureza", "operacao"],
     account_code: ["conta", "account", "contacontabil", "accountcode", "codigoconta"],
-    cost_center_code: ["centrocusto", "centrodecusto", "costcenter", "cc"],
+    cost_center_name: ["centrocusto", "centrodecusto", "costcenter", "cc"],
     bank_account_nickname: ["banco", "bank", "conta", "bankaccount"],
     counterparty_name: [
       "contraparte",
@@ -77,12 +77,13 @@ export function suggestMapping(columns: string[]): ColumnMapping {
 
 /**
  * Parses a single raw row into a normalized transaction shape.
- * Resolves account_code / cost_center_code / bank_nickname / counterparty_name into ids
+ * Resolves account_code / cost_center_name / bank_nickname / counterparty_name into ids
  * using the provided lookup maps.
  */
 export interface LookupMaps {
   accountsByCode: Map<string, string>;
-  costCentersByCode: Map<string, string>;
+  /** Chaveado pelo nome normalizado (minúsculo, sem espaço nas pontas). */
+  costCentersByName: Map<string, string>;
   bankAccountsByNickname: Map<string, string>;
   counterpartiesByName: Map<string, string>;
 }
@@ -150,10 +151,10 @@ export function parseRow(
   }
 
   // Optional fields
-  const ccCode = get("cost_center_code");
-  if (ccCode) {
-    const ccId = lookups.costCentersByCode.get(ccCode);
-    if (!ccId) errors.push(`Centro de custo não encontrado: "${ccCode}"`);
+  const ccName = get("cost_center_name");
+  if (ccName) {
+    const ccId = lookups.costCentersByName.get(ccName.trim().toLowerCase());
+    if (!ccId) errors.push(`Centro de custo não encontrado: "${ccName}"`);
     else out.cost_center_id = ccId;
   } else {
     out.cost_center_id = null;

@@ -41,7 +41,7 @@ export function CostCenterSelect({
         <SelectItem value={NONE}>— {placeholder}</SelectItem>
         {active.map((cc) => (
           <SelectItem key={cc.id} value={cc.id}>
-            {cc.code} · {cc.name}
+            {cc.name}
           </SelectItem>
         ))}
       </SelectContent>

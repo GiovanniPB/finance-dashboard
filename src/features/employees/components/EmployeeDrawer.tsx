@@ -269,7 +269,7 @@ export function EmployeeDrawer({ open, onOpenChange, employee, companyId }: Prop
                         <SelectItem value="__none__">— sem centro de custo —</SelectItem>
                         {costCenters.map((cc) => (
                           <SelectItem key={cc.id} value={cc.id}>
-                            {cc.code} · {cc.name}
+                            {cc.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

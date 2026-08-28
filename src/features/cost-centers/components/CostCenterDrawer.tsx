@@ -46,7 +46,6 @@ export function CostCenterDrawer({ open, onOpenChange, costCenter, companyId }: 
     if (costCenter) {
       return {
         companyId: costCenter.company_id,
-        code: costCenter.code,
         name: costCenter.name,
         description: costCenter.description,
         isActive: costCenter.is_active,
@@ -75,7 +74,6 @@ export function CostCenterDrawer({ open, onOpenChange, costCenter, companyId }: 
   const onSubmit = handleSubmit((values) => {
     const payload = {
       company_id: values.companyId,
-      code: values.code,
       name: values.name,
       description: values.description,
       is_active: values.isActive,
@@ -117,27 +115,15 @@ export function CostCenterDrawer({ open, onOpenChange, costCenter, companyId }: 
           className="flex flex-1 flex-col overflow-hidden"
         >
           <SheetBody className="space-y-5">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="code">Código</Label>
-                <Input
-                  id="code"
-                  placeholder="COM"
-                  {...register("code")}
-                  aria-invalid={Boolean(errors.code)}
-                />
-                {errors.code && <p className="text-2xs text-expense">{errors.code.message}</p>}
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label htmlFor="name">Nome</Label>
-                <Input
-                  id="name"
-                  placeholder="Comercial"
-                  {...register("name")}
-                  aria-invalid={Boolean(errors.name)}
-                />
-                {errors.name && <p className="text-2xs text-expense">{errors.name.message}</p>}
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Nome</Label>
+              <Input
+                id="name"
+                placeholder="Comercial"
+                {...register("name")}
+                aria-invalid={Boolean(errors.name)}
+              />
+              {errors.name && <p className="text-2xs text-expense">{errors.name.message}</p>}
             </div>
 
             <div className="space-y-1.5">

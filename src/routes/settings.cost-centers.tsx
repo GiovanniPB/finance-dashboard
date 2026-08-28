@@ -90,7 +90,6 @@ export default function SettingsCostCentersPage() {
           <table className="w-full text-sm">
             <thead className="bg-surface-2/60">
               <tr className="border-b border-border">
-                <Th>Código</Th>
                 <Th>Nome</Th>
                 <Th>Descrição</Th>
                 <Th align="right">Status</Th>
@@ -106,7 +105,6 @@ export default function SettingsCostCentersPage() {
                     !row.is_active && "opacity-60",
                   )}
                 >
-                  <td className="px-4 py-3 font-mono text-xs">{row.code}</td>
                   <td className="px-4 py-3 font-medium">{row.name}</td>
                   <td className="max-w-[400px] truncate px-4 py-3 text-text-muted">
                     {row.description ?? "—"}

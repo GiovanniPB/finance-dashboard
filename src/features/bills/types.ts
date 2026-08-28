@@ -17,7 +17,7 @@ export interface BillWithRelations extends BillRow {
     name: string;
     kind: Enums["account_kind"];
   } | null;
-  cost_center: { id: string; code: string; name: string } | null;
+  cost_center: { id: string; name: string } | null;
   bank_account: { id: string; nickname: string; bank_name: string } | null;
   counterparty: { id: string; name: string } | null;
 }

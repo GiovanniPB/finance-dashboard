@@ -46,7 +46,6 @@ export function CostCenterReport({ companyId, from, to }: Props) {
           size="sm"
           onClick={() => {
             const csv = toCsv<CostCenterRow>(data, [
-              { key: "code", header: "Código", getValue: (r) => r.code },
               { key: "name", header: "Centro de custo", getValue: (r) => r.name },
               { key: "revenue", header: "Receita", getValue: (r) => r.revenue.toFixed(2) },
               { key: "expense", header: "Despesa", getValue: (r) => r.expense.toFixed(2) },
@@ -83,10 +82,7 @@ export function CostCenterReport({ companyId, from, to }: Props) {
           <tbody className="divide-y divide-border">
             {data.map((r) => (
               <tr key={r.costCenterId ?? "none"} className="hover:bg-surface-2/60">
-                <td className="px-3 py-2">
-                  <div className="text-sm">{r.name}</div>
-                  <div className="text-2xs font-mono text-text-subtle">{r.code}</div>
-                </td>
+                <td className="px-3 py-2 text-sm">{r.name}</td>
                 <td className="px-3 py-2 text-right font-mono text-xs text-income">
                   {r.revenue > 0 ? formatBRL(r.revenue) : "—"}
                 </td>

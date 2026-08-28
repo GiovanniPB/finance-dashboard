@@ -11,7 +11,7 @@ export const IMPORTABLE_FIELDS = [
   { key: "amount", label: "Valor", required: true },
   { key: "direction", label: "Tipo (entrada/saída)", required: true },
   { key: "account_code", label: "Código da conta", required: true },
-  { key: "cost_center_code", label: "Centro de custo (código)", required: false },
+  { key: "cost_center_name", label: "Centro de custo (nome)", required: false },
   { key: "bank_account_nickname", label: "Conta bancária (apelido)", required: false },
   { key: "counterparty_name", label: "Contraparte (nome)", required: false },
   { key: "document_ref", label: "Documento", required: false },

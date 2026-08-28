@@ -8,7 +8,7 @@ export type EmployeeKind = Enums["employee_kind"];
 
 export interface PayrollMappingWithAccount extends PayrollMapping {
   account: { id: string; code: string; name: string } | null;
-  cost_center: { id: string; code: string; name: string } | null;
+  cost_center: { id: string; name: string } | null;
 }
 
 export async function fetchPayrollMappings(
@@ -19,7 +19,7 @@ export async function fetchPayrollMappings(
     .select(
       `*,
        account:chart_of_accounts!payroll_account_mappings_account_id_fkey(id, code, name),
-       cost_center:cost_centers!payroll_account_mappings_cost_center_id_fkey(id, code, name)`,
+       cost_center:cost_centers!payroll_account_mappings_cost_center_id_fkey(id, name)`,
     )
     .eq("company_id", companyId)
     .order("employee_kind")
