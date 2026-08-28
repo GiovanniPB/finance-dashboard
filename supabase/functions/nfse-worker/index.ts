@@ -19,7 +19,7 @@
  *   exceção      -> volta para 'queued' com backoff (next_attempt_at)
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 import { focusEmitPath, focusQueryPath } from "../_shared/nfse/builder.ts";
 import {

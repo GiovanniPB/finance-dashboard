@@ -27,7 +27,7 @@
  * são reportados separadamente na resposta.
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 import { parseChargePaidWebhook } from "../_shared/nfse/parse.ts";
 import {

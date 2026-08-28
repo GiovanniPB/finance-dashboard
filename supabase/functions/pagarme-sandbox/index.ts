@@ -16,7 +16,7 @@
  *   3) recusa se a chave do Vault não começar com `sk_test_`.
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 import { buildSandboxOrder, type SandboxOrderInput } from "../_shared/nfse/sandbox.ts";
 

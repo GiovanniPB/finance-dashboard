@@ -7,7 +7,7 @@
  * client Supabase por parâmetro (import type-only, sem dep em runtime no Vitest).
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 export const FOCUS_BASE: Record<string, string> = {
   homologacao: "https://homologacao.focusnfe.com.br",

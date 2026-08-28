@@ -27,7 +27,7 @@
  * Acionada por pg_cron ou manual (POST). Auth: header `x-worker-secret`.
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 import { fetchChargeDetail, fetchChargesPage } from "../_shared/nfse/charges.ts";
 import { parseChargeResource } from "../_shared/nfse/parse.ts";
