@@ -134,6 +134,16 @@ export function optionalBoolean(
   return value;
 }
 
+export function requireString(params: Record<string, unknown>, key: string, dica = ""): string {
+  const value = params[key];
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new McpParamError(
+      `Parâmetro "${key}" é obrigatório e deve ser um texto não vazio. ${dica}`.trim(),
+    );
+  }
+  return value.trim();
+}
+
 export function optionalString(params: Record<string, unknown>, key: string): string | undefined {
   const value = params[key];
   if (value === undefined || value === null) return undefined;

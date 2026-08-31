@@ -14,6 +14,7 @@ describe("listTools", () => {
       "get_dre",
       "get_cashflow",
       "search_transactions",
+      "sql_query",
     ]);
     for (const t of tools) {
       expect(t.inputSchema).toHaveProperty("type", "object");

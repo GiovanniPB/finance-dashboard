@@ -248,22 +248,55 @@ Verificar no spike S2.
 Tudo por migration, testado com `db:reset` antes de `db:push`, seguindo
 [`docs/database/migrations.md`](../database/migrations.md).
 
-1. `schema mcp_api` + views `security_invoker` (transações com sinal e regime,
-   contas, centros de custo, contrapartes, vendas, recebíveis, obrigações fiscais,
-   folha agregada).
-2. `role mcp_ro` + grants mínimos.
-3. `mcp_query_log` — `user_id`, `tool`, `params jsonb`, `row_count`, `duration_ms`,
-   `created_at`. **Sem conteúdo de linha** (só parâmetros), com retenção definida.
-4. `mcp_tokens` — token pessoal com hash, escopo (empresas, módulos), expiração e
-   revogação. Habilita a Fase 3 e serve de plano B se o OAuth atrasar.
+**Já implementado** (`..._mcp_api_schema_e_sandbox_sql`):
+
+1. `schema mcp_api` + views `security_invoker` — `empresas`, `contas`,
+   `centros_de_custo`, `contrapartes`, `transacoes`. A view central carrega a
+   semântica em coluna (`valor` com sinal, `entra_em_competencia`, `entra_em_caixa`,
+   `e_transferencia`, `e_projecao_pagarme`): é documentação executável, e tira do
+   modelo a chance de reinventar a regra contábil.
+2. `mcp_api.mask_cpf` — mesma regra do `format.ts`, em SQL, porque o SQL livre não
+   passa pelo TypeScript.
+3. `mcp_api.run_query` + a porta `public.mcp_run_query` (o PostgREST não expõe
+   `mcp_api`, e não vamos abrir).
+4. `mcp_query_log` com RLS: cada um lê o próprio rastro, super admin lê tudo,
+   ninguém edita.
+
+**Descoberto ao validar — drift de privilégios (§5.1).**
+
+**Pendente para as fases seguintes:**
+
 5. **Blindagem de escrita**: predicado `and (select auth.jwt() ->> 'client_id') is null`
-   em todas as policies de INSERT/UPDATE/DELETE (§4.4). Migration mecânica, com teste
-   que prova que um token OAuth recebe `42501` ao tentar escrever.
+   em todas as policies de INSERT/UPDATE/DELETE (§4.4), com `mcp_query_log` como
+   exceção deliberada e comentada.
 6. `mcp_clients` — `client_id` → empresas e módulos permitidos. O escopo que o
    Supabase ainda não tem.
-7. RLS em toda tabela nova, no padrão InitPlan da convenção do projeto.
+7. Views de vendas, fiscal e folha agregada, para o SQL exploratório cobrir o
+   escopo total decidido em D3.
 
----
+### 5.1 Drift de privilégios entre remoto e migrations
+
+Ao validar o schema no banco local reconstruído do zero, as views falharam com
+`permission denied`. A causa não é o MCP:
+
+|                      | `authenticated` em `public.transactions`                        |
+| -------------------- | --------------------------------------------------------------- |
+| **Remoto**           | `SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, TRUNCATE` |
+| **`db:reset` local** | `REFERENCES, TRIGGER, TRUNCATE` — sem `SELECT`                  |
+
+Os privilégios do remoto vêm do default do Supabase de quando o projeto foi criado;
+**nenhuma migration os reproduz**. Duas consequências:
+
+- um banco reconstruído só a partir das migrations sobe com a aplicação **incapaz de
+  ler qualquer tabela** — o `db:reset` não é fiel ao remoto;
+- no remoto, `anon` tem `SELECT/INSERT/UPDATE/DELETE` nessas tabelas. Não é porta
+  aberta — a RLS é quem barra —, mas significa que a RLS é a **única** camada entre a
+  anon key e o dado. Qualquer tabela futura sem RLS fica exposta por padrão.
+
+Esta migration corrige só o mínimo do próprio recorte (`grant select` para
+`authenticated` nas cinco tabelas-base das views, mais `company_access`, que a
+subquery da policy de `transactions` precisa ler). **O drift geral continua aberto** e
+merece migration própria — decisão do dono do repo, não deste PR.
 
 ## 6. LGPD e dado sensível
 
@@ -326,13 +359,16 @@ três reescritas.
   teste de regressão que compara `get_dre` com o resultado da RPC direta.
 - **Pronto quando:** `bun run preflight` verde e o catálogo inteiro roda por stdio.
 
-### Fase 2 — Schema `mcp_api` e sandbox SQL · _média_
+### Fase 2 — Schema `mcp_api` e sandbox SQL · _média_ · **ENTREGUE**
 
-- Migration com o schema, as views `security_invoker`, o role `mcp_ro` e
-  `mcp_query_log`.
-- `sql_query` com todas as travas do §4.3 e testes de que cada trava dispara
-  (escrita bloqueada, timeout, limite de linhas, schema fora de alcance).
-- **Pronto quando:** `db:reset` do zero aplica tudo e as travas têm teste.
+- Migration com schema, views `security_invoker`, `mask_cpf`, `run_query`, a porta
+  `public.mcp_run_query` e `mcp_query_log`.
+- Tool `sql_query` no núcleo, que **não** revalida a consulta: quem decide é o banco,
+  fonte única da verdade.
+- Jaula provada de ponta a ponta pelo PostgREST, com JWT de usuário real: agregação
+  correta dentro do escopo da RLS (309 linhas visíveis = 309 pelo caminho direto),
+  escrita recusada, fuga de schema recusada, e `anon` sem sequer poder executar a
+  função (42501).
 
 ### Fase 3 — Transporte HTTP + token pessoal · _média_
 

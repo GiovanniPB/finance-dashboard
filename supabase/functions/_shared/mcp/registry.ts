@@ -9,10 +9,11 @@ import { McpParamError } from "./params.ts";
 import { getCashflow } from "./tools/cashflow.ts";
 import { listCompanies } from "./tools/companies.ts";
 import { getDre } from "./tools/dre.ts";
+import { sqlQuery } from "./tools/sql.ts";
 import { searchTransactions } from "./tools/transactions.ts";
 import type { JsonSchema, McpDataSource, McpTool, ToolResponse } from "./types.ts";
 
-export const TOOLS: McpTool[] = [listCompanies, getDre, getCashflow, searchTransactions];
+export const TOOLS: McpTool[] = [listCompanies, getDre, getCashflow, searchTransactions, sqlQuery];
 
 export interface ToolDescriptor {
   name: string;
