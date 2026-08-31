@@ -378,19 +378,46 @@ três reescritas.
 - **Pronto quando:** Claude Code remoto e um agente n8n consultam com token próprio,
   e revogar o token derruba o acesso na hora.
 
-### Fase 4 — OAuth 2.1 e connector · _média_ (era grande; o Supabase encolheu)
+### Fase 4 — OAuth 2.1 e connector · _média_ · **em andamento**
 
-- Habilitar `[auth.oauth_server]` local, depois no remoto.
-- Migration da blindagem de escrita (`client_id is null`) + `mcp_clients`, com teste de
-  que a escrita por token OAuth falha.
-- Rota `/oauth/consent` no SPA: detalhes da autorização, empresas e módulos em português
-  claro, aprovar/negar.
-- Resource server: `/.well-known/oauth-protected-resource`, 401 com `WWW-Authenticate`,
-  validação por JWKS.
-- Connector publicado; convite a sócios e contador, cada um com o próprio escopo.
-- **Pronto quando:** o contador entra com o login dele no claude.ai, enxerga fiscal e
-  financeiro, **não** enxerga folha, e uma tentativa de escrita pelo token dele é
-  recusada pelo banco — os três comprovados por teste.
+**Feito:**
+
+- Migration `..._mcp_oauth_sem_escrita`: 117 policies restritivas (39 tabelas × 3),
+  aditivas — nenhuma policy existente foi tocada. Provado local via PostgREST com
+  dois JWTs do mesmo usuário: com `client_id`, INSERT falha com 42501 citando a
+  policy, PATCH e DELETE alcançam zero linhas e o dado fica intacto; sem
+  `client_id`, o mesmo PATCH altera a linha. `mcp_query_log` é a exceção.
+- Convenção registrada no CLAUDE.md: tabela nova com RLS precisa do mesmo trio.
+
+**Falta:**
+
+- `[auth.oauth_server]` no config local e, depois, no dashboard do remoto.
+- Rota `/oauth/consent` no SPA (`getAuthorizationDetails` → empresas e módulos em
+  português claro → `approve`/`deny`).
+- Handler MCP sobre HTTP: `/.well-known/oauth-protected-resource`, 401 com
+  `WWW-Authenticate`, validação por JWKS. Escrito como função `Request → Response`,
+  independente de host.
+- `mcp_clients` (`client_id` → empresas e módulos), o escopo que falta no Supabase.
+- Escolha do host: Edge Function ou Cloudflare Worker (§4.5).
+
+### 4.5 Onde hospedar o resource server
+
+Decidido deixar para o fim, porque o handler é uma função `Request → Response` e o
+entrypoint é casca fina nos dois casos.
+
+|                      | Supabase Edge Function                                                                                                             | Cloudflare Worker                                  |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Descoberta OAuth     | não somos donos da raiz do host: `/.well-known/oauth-protected-resource` só chega ao cliente pelo header `WWW-Authenticate` do 401 | domínio próprio, a rota fica onde a RFC 9728 manda |
+| Latência ao Postgres | colado no `sa-east-1`                                                                                                              | um hop a mais, da borda mais próxima de quem chama |
+| Defesa de borda      | código nosso                                                                                                                       | WAF, rate limiting e analytics do Cloudflare       |
+| Operação             | mesmo deploy de todo o server-side de hoje                                                                                         | segundo runtime, segundos segredos, segundo log    |
+
+**Inclinação: Worker**, porque o alvo é cliente de IA de terceiros descobrindo o
+endpoint sozinho, e depender do header é uma aposta no comportamento de cada cliente.
+
+⚠️ Restrição do repo: `wrangler.toml` na raiz é lido pelo build do Pages e engole as
+variáveis do dashboard (ver README, quebra de 30/07/2026). Um Worker aqui vive em
+subpasta com config próprio, nunca na raiz.
 
 ### Fase 5 — Operação · _pequena_
 

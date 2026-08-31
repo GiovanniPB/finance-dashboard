@@ -129,6 +129,13 @@ Regras que valem para qualquer policy nova:
 Referência: migration `…_rls_initplan_optimization`, que converteu as 33 policies de
 SELECT e mediu 5.743ms → 22ms com equivalência de linhas conferida por usuário.
 
+⚠️ **Toda tabela nova com RLS precisa também do trio restritivo que impede escrita
+por token de OAuth** (`oauth_sem_escrita_ins|upd|del`), porque o OAuth Server do
+Supabase ainda não tem escopos e o token do cliente de IA carrega todos os
+privilégios do usuário. O predicado é `(select auth.jwt() ->> 'client_id') is null`
+— claim que só existe em token emitido por OAuth. Ver
+`…_mcp_oauth_sem_escrita`; a única exceção é `mcp_query_log`.
+
 - Acesso é por `company_access` (usuário ↔ empresa). Super admin bypassa.
 - Tabelas de ingest/segredo: política restrita a `is_super_admin()`; escrita pelas Edge Functions usa **service role** (bypassa RLS).
 
