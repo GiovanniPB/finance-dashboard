@@ -8,6 +8,10 @@
 > **Status:** rascunho de projeto — nada implementado.
 > **Última atualização:** 31/08/2026.
 >
+> **A referência técnica do sistema pronto é**
+> [`mcp-insights-system.md`](mcp-insights-system.md). Este documento é o plano — vale
+> pela cronologia das decisões e pelo registro das validações, não como manual.
+>
 > Documentos irmãos: [`pagarme-system.md`](pagarme-system.md) e
 > [`nfse-system.md`](nfse-system.md) (os dois maiores produtores de dado que o MCP vai ler).
 

@@ -207,8 +207,12 @@ ChatGPT, Claude Code) em linguagem natural, autenticado pelo login de cada pesso
 o OAuth 2.1 Server do Supabase. Núcleo em `supabase/functions/_shared/mcp/`,
 transportes em `scripts/mcp-stdio.ts` (local) e `workers/mcp/` (Cloudflare Worker).
 
-> 📘 **Referência:** [`docs/integrations/mcp-insights-plan.md`](docs/integrations/mcp-insights-plan.md)
-> — arquitetura, decisões e estado. Go-live: [`mcp-go-live.md`](docs/integrations/mcp-go-live.md).
+> 📘 **Referência técnica completa (leia primeiro):**
+> [`docs/integrations/mcp-insights-system.md`](docs/integrations/mcp-insights-system.md) —
+> arquitetura, banco, núcleo, transportes, segurança, decisões e como operar.
+> O plano (com a cronologia das decisões) está em
+> [`mcp-insights-plan.md`](docs/integrations/mcp-insights-plan.md); a configuração das
+> plataformas, em [`mcp-go-live.md`](docs/integrations/mcp-go-live.md).
 
 **Invariantes que não podem ser violadas:**
 
