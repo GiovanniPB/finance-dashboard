@@ -398,31 +398,29 @@ três reescritas.
   de dados são **injetadas** — é o que mantém o mesmo código rodando em Edge
   Function ou Worker, e testável por Vitest sem rede.
 
-**Bloqueado:**
+**Validado local, fluxo OAuth completo por curl** (31/08/2026, CLI 2.116.0):
 
-- ⚠️ **O CLI local (2.111.0, via brew) não conhece `[auth.oauth_server]`** — a chave
-  não existe no binário; qualquer valor derruba o `supabase start` com
-  `ProjectConfigParseError`. Testar o fluxo de consentimento ponta a ponta exige
-  atualizar para ≥ 2.116. Decisão do dono da máquina; o config foi deixado como
-  estava.
+1. `GET /auth/v1/oauth/authorize` redireciona para
+   `http://127.0.0.1:3000/oauth/consent?authorization_id=…` — a rota do SPA, como
+   configurado.
+2. `GET /auth/v1/oauth/authorizations/{id}` devolve exatamente o que a tela consome:
+   cliente, usuário, `redirect_uri` e o `scope` (`openid email profile` — que, como
+   previsto, não diz nada sobre dado financeiro).
+3. `POST …/consent {"action":"approve"}` devolve a URL de retorno com o `code`.
+4. Troca do código por token com PKCE funciona.
+5. **O access token emitido carrega `client_id`** — a hipótese sobre a qual a
+   blindagem inteira foi construída, agora confirmada com token real.
+6. Com esse token real: `SELECT` 200 com dado; `INSERT` 403/42501 citando
+   `oauth_sem_escrita_ins`; `UPDATE` e `DELETE` alcançam zero linhas e o dado fica
+   intacto; a jaula de SQL responde (309 linhas no escopo); e o `INSERT` em
+   `mcp_query_log` passa (201), como a exceção manda.
 
-**Falta:**
-
-- Ligar o OAuth Server (local, após atualizar o CLI; depois no dashboard do remoto).
-- Entrypoint de runtime: verificador JWKS + client Supabase com o token do usuário.
-- `mcp_clients` (`client_id` → empresas e módulos), o escopo que falta no Supabase.
-- Escolha do host (§4.5).
-
-### 4.6 A tela de consentimento diz a verdade
-
-O `scope` que chega do Supabase é `openid email profile` — não diz nada sobre dado
-financeiro. Exibir aquilo cru seria consentimento de fachada.
-
-A tela mostra o escopo **real**: as empresas de `company_access`, os módulos de
-`visible_modules` e a garantia de somente-leitura, em uma frase antes da lista
-("Este aplicativo poderá LER, em seu nome, os dados de 2 empresas, nos módulos
-Financeiro e Impostos. Não poderá criar, alterar nem apagar nada."). A montagem
-dessa frase é função pura, testada — não markup.
+⚠️ **Descoberta de metadados.** Local, o documento do AS está em
+`/auth/v1/.well-known/oauth-authorization-server`; a forma com caminho inserido
+(`/.well-known/oauth-authorization-server/auth/v1`), que a RFC 8414 manda o cliente
+tentar, dá 404 no Kong local. A documentação afirma que o hospedado serve as duas —
+**verificar no remoto antes do go-live**, porque é por aí que o cliente MCP descobre
+onde se autenticar.
 
 ### 4.5 Onde hospedar o resource server
 

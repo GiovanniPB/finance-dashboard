@@ -352,13 +352,15 @@ enabled = false
 # Obtain from https://clerk.com/setup/supabase
 # domain = "example.clerk.accounts.dev"
 
-# OAuth server configuration
+# OAuth 2.1 Server — transforma este projeto em authorization server, que é o que o
+# spec de auth do MCP exige (PKCE, registro dinâmico, JWKS). A tela de consentimento
+# é nossa, na rota abaixo do SPA; a emissão de token é do Supabase.
 [auth.oauth_server]
-# Enable OAuth server functionality
-enabled = false
-# Path for OAuth consent flow UI
+enabled = true
+# Rota do SPA que recebe `authorization_id` e mostra o que o acesso concede.
 authorization_url_path = "/oauth/consent"
-# Allow dynamic client registration
+# Local não precisa que clientes se registrem sozinhos. No remoto isto é ligado para
+# o claude.ai se registrar sem intervenção.
 allow_dynamic_registration = false
 
 [edge_runtime]
