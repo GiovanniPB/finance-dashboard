@@ -4,10 +4,19 @@
   // variáveis de build do dashboard — foi o que quebrou o deploy em 30/07/2026.
   // Ver README, seção "Não adicione wrangler.toml a este projeto".
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "otm-mcp",
+  "name": "finance-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Superfície pública, explícita em vez de herdada. O wrangler avisa que liga as
+  // duas por padrão quando elas não estão no arquivo — e "padrão" não é uma decisão.
+  //
+  // `workers_dev` fica true só até o domínio próprio existir; depois vire false, para
+  // o servidor MCP não ficar acessível também num endereço *.workers.dev.
+  "workers_dev": true,
+  // URLs de preview são públicas e por versão: não valem o risco aqui.
+  "preview_urls": false,
+
   "observability": { "enabled": true },
   // Valores de PRODUÇÃO, e nenhum é segredo: são as mesmas chaves públicas que o
   // front embute no bundle. Ficam aqui, e não no dashboard, porque `wrangler deploy`

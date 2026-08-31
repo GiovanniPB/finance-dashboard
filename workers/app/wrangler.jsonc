@@ -20,5 +20,14 @@
     // loop infinito (erro 100324). Por isso o arquivo foi removido do repositório.
     "not_found_handling": "single-page-application"
   },
+  // Superfície pública, explícita em vez de herdada. O wrangler avisa que liga as
+  // duas por padrão quando elas não estão no arquivo — e "padrão" não é uma decisão.
+  //
+  // `workers_dev` fica true só até o domínio próprio existir; depois vire false, para
+  // o dashboard não ficar acessível também num endereço *.workers.dev.
+  "workers_dev": true,
+  // URLs de preview são públicas e por versão: não valem o risco aqui.
+  "preview_urls": false,
+
   "observability": { "enabled": true }
 }
