@@ -32,9 +32,15 @@ export default function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
+  // Preserva a URL inteira de origem, não só o pathname: um deep link como
+  // /oauth/consent?authorization_id=… perde o sentido sem a query string.
+  const origem = (
+    location.state as { from?: { pathname: string; search?: string; hash?: string } } | null
+  )?.from;
+  const destino = origem ? `${origem.pathname}${origem.search ?? ""}${origem.hash ?? ""}` : "/";
+
   if (session) {
-    const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? "/";
-    return <Navigate to={from} replace />;
+    return <Navigate to={destino} replace />;
   }
 
   const onSubmit = handleSubmit(async (values) => {
@@ -44,7 +50,7 @@ export default function LoginPage() {
       setSubmitError(traduzirErro(error));
       return;
     }
-    void navigate("/", { replace: true });
+    void navigate(destino, { replace: true });
   });
 
   return (

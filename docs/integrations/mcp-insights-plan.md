@@ -388,17 +388,41 @@ três reescritas.
   policy, PATCH e DELETE alcançam zero linhas e o dado fica intacto; sem
   `client_id`, o mesmo PATCH altera a linha. `mcp_query_log` é a exceção.
 - Convenção registrada no CLAUDE.md: tabela nova com RLS precisa do mesmo trio.
+- Rota `/oauth/consent` no SPA, com a divulgação honesta do escopo (§4.6).
+- Correção no `/login`: o redirect pós-login preservava só o `pathname` e descartava
+  a query string — um deep link como `/oauth/consent?authorization_id=…` chegava
+  quebrado. Valia para qualquer deep link com parâmetro, não só este.
+- `_shared/mcp/http.ts`: o servidor MCP sobre HTTP como função `Request → Response`,
+  com descoberta RFC 9728, 401 com `WWW-Authenticate`, JSON-RPC (`initialize`,
+  `tools/list`, `tools/call`, `ping`) e trilha de uso. Verificação de token e fonte
+  de dados são **injetadas** — é o que mantém o mesmo código rodando em Edge
+  Function ou Worker, e testável por Vitest sem rede.
+
+**Bloqueado:**
+
+- ⚠️ **O CLI local (2.111.0, via brew) não conhece `[auth.oauth_server]`** — a chave
+  não existe no binário; qualquer valor derruba o `supabase start` com
+  `ProjectConfigParseError`. Testar o fluxo de consentimento ponta a ponta exige
+  atualizar para ≥ 2.116. Decisão do dono da máquina; o config foi deixado como
+  estava.
 
 **Falta:**
 
-- `[auth.oauth_server]` no config local e, depois, no dashboard do remoto.
-- Rota `/oauth/consent` no SPA (`getAuthorizationDetails` → empresas e módulos em
-  português claro → `approve`/`deny`).
-- Handler MCP sobre HTTP: `/.well-known/oauth-protected-resource`, 401 com
-  `WWW-Authenticate`, validação por JWKS. Escrito como função `Request → Response`,
-  independente de host.
+- Ligar o OAuth Server (local, após atualizar o CLI; depois no dashboard do remoto).
+- Entrypoint de runtime: verificador JWKS + client Supabase com o token do usuário.
 - `mcp_clients` (`client_id` → empresas e módulos), o escopo que falta no Supabase.
-- Escolha do host: Edge Function ou Cloudflare Worker (§4.5).
+- Escolha do host (§4.5).
+
+### 4.6 A tela de consentimento diz a verdade
+
+O `scope` que chega do Supabase é `openid email profile` — não diz nada sobre dado
+financeiro. Exibir aquilo cru seria consentimento de fachada.
+
+A tela mostra o escopo **real**: as empresas de `company_access`, os módulos de
+`visible_modules` e a garantia de somente-leitura, em uma frase antes da lista
+("Este aplicativo poderá LER, em seu nome, os dados de 2 empresas, nos módulos
+Financeiro e Impostos. Não poderá criar, alterar nem apagar nada."). A montagem
+dessa frase é função pura, testada — não markup.
 
 ### 4.5 Onde hospedar o resource server
 
