@@ -10,13 +10,14 @@
   // roda `bun run build` precisa tê-las no ambiente — é a diferença operacional em
   // relação ao Pages, que as injetava sozinho.
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "otm-dashboard",
+  "name": "finance-dashboard",
   "compatibility_date": "2026-08-01",
   "assets": {
     "directory": "../../dist",
-    // Rota desconhecida devolve index.html com 200 — o mesmo efeito do
-    // `public/_redirects`, que o Workers também respeita e fica valendo para o
-    // Pages enquanto ele existir.
+    // Rota desconhecida devolve index.html com 200. É ESTE campo que faz o
+    // roteamento do SPA — e é a única forma que funciona aqui: o Workers valida
+    // `_redirects` no deploy e REJEITA a regra `/* /index.html 200` do Pages como
+    // loop infinito (erro 100324). Por isso o arquivo foi removido do repositório.
     "not_found_handling": "single-page-application"
   },
   "observability": { "enabled": true }

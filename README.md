@@ -233,8 +233,14 @@ nomeando exatamente qual variável faltou.
 ### Roteamento do SPA
 
 `not_found_handling: "single-page-application"` na config faz rota desconhecida
-devolver `index.html` com 200. O `public/_redirects` continua no repo e também é
-respeitado pelo Workers — pode sair quando o projeto do Pages for desativado.
+devolver `index.html` com 200.
+
+⚠️ **O `public/_redirects` foi removido, e não pode voltar.** O Workers valida esse
+arquivo no deploy e **rejeita** a regra de fallback do Pages (`/* /index.html 200`)
+como loop infinito — erro `100324`, que derruba a publicação inteira. O `--dry-run`
+não detecta: a validação acontece do lado da API. Enquanto o projeto do Pages ainda
+existir, ele fica sem fallback de SPA (deep link dá 404 lá); é aceitável porque o
+tráfego real passa a ser o Worker.
 
 ### Domínio e previews
 
