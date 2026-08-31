@@ -20,8 +20,8 @@ function criar(overrides: Partial<HandlerConfig> = {}, registros: RegistroDeUso[
       Promise.resolve(t === "token-bom" ? { sub: "user-1", client_id: "cli_1" } : null),
     criarDataSource: () =>
       fakeDataSource({ query: { companies: [] }, rpc: { dre_by_company: [] } }),
-    registrarUso: (r) => {
-      registros.push(r);
+    registrarUso: (r, token) => {
+      registros.push({ ...r, tokenRecebido: token } as RegistroDeUso & { tokenRecebido: string });
       return Promise.resolve();
     },
     ...overrides,
@@ -78,6 +78,31 @@ describe("autorização", () => {
       new Request(`${BASE}/`, { method: "POST", headers: { Authorization: "token-bom" } }),
     );
     expect(r.status).toBe(401);
+  });
+});
+
+describe("autorização do conector", () => {
+  it("conector recusado recebe 403, não 401 — reautenticar não resolveria", async () => {
+    const handler = criar({
+      autorizarCliente: () => Promise.resolve("Conector não está na lista de permitidos."),
+    });
+    const r = await handler(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }));
+    expect(r.status).toBe(403);
+    const body = (await r.json()) as { error_description: string };
+    expect(body.error_description).toMatch(/lista de permitidos/);
+  });
+
+  it("conector permitido segue o fluxo normal", async () => {
+    const handler = criar({ autorizarCliente: () => Promise.resolve(null) });
+    const r = await handler(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }));
+    expect(r.status).toBe(200);
+  });
+
+  it("a checagem do conector roda depois do token — não se consulta lista com token inválido", async () => {
+    const autorizarCliente = vi.fn(() => Promise.resolve(null));
+    const handler = criar({ autorizarCliente });
+    await handler(rpc({ jsonrpc: "2.0", id: 1, method: "tools/list" }, "token-ruim"));
+    expect(autorizarCliente).not.toHaveBeenCalled();
   });
 });
 
@@ -177,10 +202,27 @@ describe("tools/call", () => {
     expect(registros).toHaveLength(1);
     expect(registros[0]).toMatchObject({
       userId: "user-1",
+      clientId: "cli_1",
       tool: "list_companies",
       params: { incluir_inativas: true },
       error: null,
     });
+  });
+
+  it("a trilha recebe o token, porque grava como o usuário e não há credencial de serviço", async () => {
+    const registros: RegistroDeUso[] = [];
+    const handler = criar({}, registros);
+    await handler(
+      rpc({
+        jsonrpc: "2.0",
+        id: 12,
+        method: "tools/call",
+        params: { name: "list_companies", arguments: {} },
+      }),
+    );
+    expect((registros[0] as RegistroDeUso & { tokenRecebido: string }).tokenRecebido).toBe(
+      "token-bom",
+    );
   });
 
   it("registra também a falha, com a mensagem", async () => {

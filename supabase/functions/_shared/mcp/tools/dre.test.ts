@@ -9,6 +9,8 @@ const ORG = "99999999-8888-7777-6666-555555555555";
 /** Receita com competência e caixa DIFERENTES — é o caso que separa os dois regimes. */
 const linhas = [
   {
+    account_id: "a-receita",
+    parent_id: null,
     code: "3.1",
     name: "Receita de serviços",
     kind: "revenue",
@@ -20,6 +22,8 @@ const linhas = [
     total_cash: "60000.00",
   },
   {
+    account_id: "a-aluguel",
+    parent_id: null,
     code: "4.1",
     name: "Aluguel",
     kind: "operating_expense",
@@ -31,6 +35,8 @@ const linhas = [
     total_cash: "-8000.00",
   },
   {
+    account_id: "a-zerada",
+    parent_id: null,
     code: "4.9",
     name: "Conta sem movimento",
     kind: "operating_expense",
@@ -42,6 +48,8 @@ const linhas = [
     total_cash: "0",
   },
   {
+    account_id: "a-resultado",
+    parent_id: null,
     code: "9.9",
     name: "= Resultado líquido",
     kind: "summary",
@@ -49,8 +57,8 @@ const linhas = [
     is_summary: true,
     below_the_line: false,
     sort_order: 9,
-    total: "92000.00",
-    total_cash: "52000.00",
+    total: "0",
+    total_cash: "0",
   },
 ];
 
@@ -105,6 +113,19 @@ describe("get_dre", () => {
 
   it("recusa período ausente em vez de assumir o mês corrente", async () => {
     await expect(getDre.run({ company_id: COMPANY }, ds())).rejects.toThrow(/"from" é obrigatório/);
+  });
+
+  it("calcula a linha totalizadora, que vem ZERADA da RPC", async () => {
+    const r = await getDre.run({ company_id: COMPANY, ...periodo }, ds());
+    const resultado = (r.dados as DreDados).linhas.find((l) => l.codigo === "9.9");
+    // 100.000 de receita - 8.000 de aluguel: o saldo corrente até a linha.
+    expect(resultado?.valor).toBe(92000);
+  });
+
+  it("a totalizadora segue o regime escolhido", async () => {
+    const r = await getDre.run({ company_id: COMPANY, ...periodo, regime: "caixa" }, ds());
+    const resultado = (r.dados as DreDados).linhas.find((l) => l.codigo === "9.9");
+    expect(resultado?.valor).toBe(52000);
   });
 
   it("formata o valor em BRL junto do número", async () => {

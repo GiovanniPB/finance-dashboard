@@ -7,12 +7,17 @@
  * (competência) ou `total_cash` (caixa) — e nunca deixar o regime implícito na
  * resposta.
  */
+import { computeDreTotals } from "../dre-totais.ts";
 import { brl, toNumber } from "../format.ts";
 import { asObject, optionalEnum, REGIMES, requireEscopo, requirePeriodo } from "../params.ts";
 import { proveniencia } from "../provenance.ts";
 import type { McpDataSource, McpTool, Regime, ToolResponse } from "../types.ts";
 
 interface DreRow {
+  /** `dre_by_company` devolve account_id; `dre_consolidated` devolve master_id. */
+  account_id?: string;
+  master_id?: string;
+  parent_id: string | null;
   code: string;
   name: string;
   kind: string;
@@ -72,9 +77,28 @@ export const getDre: McpTool = {
       p_end: periodo.to,
     });
 
-    const valorDe = (r: DreRow) => toNumber(regime === "caixa" ? r.total_cash : r.total);
+    // As linhas totalizadoras vêm ZERADAS da RPC — o valor delas é derivado da
+    // hierarquia e do saldo corrente. Sem este passo, "(=) Resultado líquido"
+    // responderia R$ 0,00 com toda a convicção. Mesma função que a tela usa.
+    const calculadas = computeDreTotals(
+      rows.map((r) => ({
+        account_id: r.account_id ?? r.master_id ?? r.code,
+        parent_id: r.parent_id,
+        is_summary: r.is_summary,
+        below_the_line: r.below_the_line,
+        sort_order: r.sort_order,
+        total: toNumber(r.total),
+        total_cash: toNumber(r.total_cash),
+        code: r.code,
+        name: r.name,
+        dre_section: r.dre_section,
+      })),
+    );
 
-    const linhas = rows
+    const valorDe = (r: { effective_total: number; effective_total_cash: number }) =>
+      regime === "caixa" ? r.effective_total_cash : r.effective_total;
+
+    const linhas = calculadas
       .filter((r) => incluirZerados || r.is_summary || valorDe(r) !== 0)
       .map((r) => ({
         codigo: r.code,
@@ -99,6 +123,7 @@ export const getDre: McpTool = {
         como_calculado:
           `Soma dos lançamentos por conta do plano de contas, com sinal (entrada positiva, saída negativa), ` +
           `usando a coluna ${regime === "caixa" ? "total_cash" : "total"} da RPC. ` +
+          "Linhas totalizadoras derivadas da hierarquia e do saldo corrente, pela mesma regra da tela. " +
           (incluirZerados
             ? "Inclui contas zeradas. "
             : "Contas zeradas omitidas (as totalizadoras sempre aparecem). "),

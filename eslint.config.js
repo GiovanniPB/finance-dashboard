@@ -140,11 +140,11 @@ export default tseslint.config(
   },
 
   // Tests: relax some rules
-  // Scripts de linha de comando (Bun/Node) que importam o núcleo Deno de
+  // Scripts de linha de comando e Workers que importam o núcleo Deno de
   // `supabase/functions/_shared`. Ficam fora do programa do tsc do app — como o
   // próprio `supabase/` já fica —, então aqui vale lint sem informação de tipo.
   {
-    files: ["scripts/**/*.ts"],
+    files: ["scripts/**/*.ts", "workers/**/*.ts"],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: {
       globals: { ...globals.node },

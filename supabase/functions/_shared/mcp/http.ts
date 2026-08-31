@@ -38,12 +38,29 @@ export interface HandlerConfig {
   verificarToken: (token: string) => Promise<TokenClaims | null>;
   /** Cria a fonte de dados já autenticada como o portador do token. */
   criarDataSource: (token: string, claims: TokenClaims) => McpDataSource;
-  /** Registra a chamada. Falha aqui nunca derruba a resposta. */
-  registrarUso?: (registro: RegistroDeUso) => Promise<void>;
+  /**
+   * Decide se ESTE conector pode usar o servidor, independente do token ser válido.
+   * Devolve o motivo da recusa, ou null para permitir.
+   *
+   * Separado de `verificarToken` de propósito: token inválido é 401 (autentique-se
+   * de novo); conector não autorizado é 403 (autenticar de novo não resolve — alguém
+   * precisa liberar o cliente). Confundir os dois faz o cliente entrar em laço de
+   * reautenticação sem nunca entender o problema.
+   */
+  autorizarCliente?: (claims: TokenClaims, token: string) => Promise<string | null>;
+  /**
+   * Registra a chamada. Recebe o token porque a trilha é gravada COMO O USUÁRIO
+   * (a RLS de `mcp_query_log` exige `user_id = auth.uid()`), e o servidor não tem
+   * — de propósito — nenhuma credencial de serviço para gravar por fora.
+   * Falha aqui nunca derruba a resposta.
+   */
+  registrarUso?: (registro: RegistroDeUso, token: string) => Promise<void>;
 }
 
 export interface RegistroDeUso {
   userId: string;
+  /** Qual conector fez a chamada. Ausente em token que não veio do OAuth. */
+  clientId: string | null;
   tool: string;
   params: unknown;
   rowCount: number | null;
@@ -121,6 +138,13 @@ export function criarHandlerMcp(config: HandlerConfig): (req: Request) => Promis
     const claims = await config.verificarToken(token);
     if (!claims) return naoAutorizado(config, "Token de acesso inválido ou expirado.");
 
+    if (config.autorizarCliente) {
+      const recusa = await config.autorizarCliente(claims, token);
+      if (recusa) {
+        return json({ error: "forbidden", error_description: recusa }, 403);
+      }
+    }
+
     let corpo: unknown;
     try {
       corpo = await req.json();
@@ -176,14 +200,18 @@ export function criarHandlerMcp(config: HandlerConfig): (req: Request) => Promis
 
         if (config.registrarUso) {
           try {
-            await config.registrarUso({
-              userId: claims.sub,
-              tool: name,
-              params: args ?? {},
-              rowCount: falhou ? null : resultado.meta.linhas,
-              durationMs: Date.now() - inicio,
-              error: falhou ? resultado.erro : null,
-            });
+            await config.registrarUso(
+              {
+                userId: claims.sub,
+                clientId: claims.client_id ?? null,
+                tool: name,
+                params: args ?? {},
+                rowCount: falhou ? null : resultado.meta.linhas,
+                durationMs: Date.now() - inicio,
+                error: falhou ? resultado.erro : null,
+              },
+              token,
+            );
           } catch {
             // Trilha de uso não pode derrubar a resposta ao usuário.
           }

@@ -422,24 +422,49 @@ tentar, dá 404 no Kong local. A documentação afirma que o hospedado serve as 
 **verificar no remoto antes do go-live**, porque é por aí que o cliente MCP descobre
 onde se autenticar.
 
-### 4.5 Onde hospedar o resource server
+### 4.5 Host: Cloudflare Worker · **decidido e implementado**
 
-Decidido deixar para o fim, porque o handler é uma função `Request → Response` e o
-entrypoint é casca fina nos dois casos.
+O resource server é um Worker em `workers/mcp/`, e o argumento que decidiu foi a
+descoberta: o cliente MCP lê `/.well-known/oauth-protected-resource` na **raiz** do
+host, que numa Edge Function não é nossa. Custo aceito: um hop a mais até o
+`sa-east-1` e um segundo deploy.
 
-|                      | Supabase Edge Function                                                                                                             | Cloudflare Worker                                  |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Descoberta OAuth     | não somos donos da raiz do host: `/.well-known/oauth-protected-resource` só chega ao cliente pelo header `WWW-Authenticate` do 401 | domínio próprio, a rota fica onde a RFC 9728 manda |
-| Latência ao Postgres | colado no `sa-east-1`                                                                                                              | um hop a mais, da borda mais próxima de quem chama |
-| Defesa de borda      | código nosso                                                                                                                       | WAF, rate limiting e analytics do Cloudflare       |
-| Operação             | mesmo deploy de todo o server-side de hoje                                                                                         | segundo runtime, segundos segredos, segundo log    |
+Propriedade que vale registrar: **o Worker não tem segredo nenhum**. URL e anon key
+são públicas, a verificação do token usa chave pública do JWKS, e não existe service
+role em lugar algum deste caminho. Se o Worker vazar inteiro, não vaza credencial.
 
-**Inclinação: Worker**, porque o alvo é cliente de IA de terceiros descobrindo o
-endpoint sozinho, e depender do header é uma aposta no comportamento de cada cliente.
+⚠️ O `wrangler.jsonc` vive em `workers/mcp/`, **nunca na raiz** — na raiz o build do
+Pages o lê e engole as variáveis do dashboard (README, quebra de 30/07/2026).
 
-⚠️ Restrição do repo: `wrangler.toml` na raiz é lido pelo build do Pages e engole as
-variáveis do dashboard (ver README, quebra de 30/07/2026). Um Worker aqui vive em
-subpasta com config próprio, nunca na raiz.
+Scripts: `mcp:worker:dev`, `mcp:worker:check` (build sem publicar), `mcp:worker:deploy`.
+O deploy é do dono do repo.
+
+### 4.7 Validação ponta a ponta do Worker (31/08/2026)
+
+Worker rodando local contra o Supabase local, chamado com um token OAuth **real**
+(emitido pelo fluxo completo, com consentimento):
+
+|                                                       |                                                     |
+| ----------------------------------------------------- | --------------------------------------------------- |
+| `GET /.well-known/oauth-protected-resource` sem token | 200, apontando o authorization server               |
+| `POST` sem token                                      | 401 com `WWW-Authenticate: … resource_metadata="…"` |
+| `initialize`                                          | protocolo 2025-06-18, 5 tools anunciadas            |
+| `tools/call list_companies`                           | só a empresa do escopo do usuário                   |
+| `tools/call get_dre`                                  | DRE completa, com as totalizadoras corretas         |
+| `tools/call sql_query`                                | jaula responde dentro do escopo                     |
+| `mcp_query_log`                                       | três chamadas gravadas, com `client_id`             |
+
+**Bug encontrado nessa validação — e é o bug que o projeto inteiro existe para
+impedir.** As linhas totalizadoras da DRE ("(=) Venda Líquida", "(=) Resultado")
+**não têm valor no banco**: a RPC devolve zero nelas, e quem monta o número é o
+`compute.ts` da tela. A tool `get_dre` respondia "R$ 0,00" para o lucro líquido, com
+toda a convicção, enquanto o SQL mostrava R$ 4,7M de receita.
+
+A correção não foi duplicar a regra: a implementação foi movida para
+`_shared/mcp/dre-totais.ts` e **a tela agora reexporta de lá**. Uma implementação,
+usada pelos dois — a direção do compartilhamento é essa porque o Deno não consegue
+importar de `src/`. Depois disso, `get_dre` pelo Worker devolve Venda Bruta
+R$ 394.798,26, Margem de Contribuição R$ 56.779,70, iguais à tela.
 
 ### Fase 5 — Operação · _pequena_
 
