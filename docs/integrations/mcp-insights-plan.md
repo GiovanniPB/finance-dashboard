@@ -269,8 +269,7 @@ Tudo por migration, testado com `db:reset` antes de `db:push`, seguindo
 5. **Blindagem de escrita**: predicado `and (select auth.jwt() ->> 'client_id') is null`
    em todas as policies de INSERT/UPDATE/DELETE (§4.4), com `mcp_query_log` como
    exceção deliberada e comentada.
-6. `mcp_clients` — `client_id` → empresas e módulos permitidos. O escopo que o
-   Supabase ainda não tem.
+6. `mcp_clients` — lista de BLOQUEIO de conectores (ver §4.8).
 7. Views de vendas, fiscal e folha agregada, para o SQL exploratório cobrir o
    escopo total decidido em D3.
 
@@ -438,6 +437,24 @@ Pages o lê e engole as variáveis do dashboard (README, quebra de 30/07/2026).
 
 Scripts: `mcp:worker:dev`, `mcp:worker:check` (build sem publicar), `mcp:worker:deploy`.
 O deploy é do dono do repo.
+
+### 4.8 Por que `mcp_clients` virou lista de bloqueio
+
+Nasceu como lista de permitidos: só o `client_id` cadastrado podia usar o servidor —
+"além do que o usuário aprova, a casa também autoriza". **Não sobrevive ao registro
+dinâmico**, que é obrigatório para o claude.ai se conectar: medido em produção, quatro
+tentativas de conexão geraram quatro `client_id` distintos em cinco minutos (16:09,
+16:10, 16:12, 16:14). Autorizar um id é autorizar algo que morre na tentativa seguinte,
+e o conector nunca conecta — foi exatamente o que aconteceu no go-live.
+
+A proteção também era menor do que parecia. Registrar um cliente, sozinho, não dá
+acesso a nada: para obter um token ainda são necessárias as credenciais da pessoa e o
+consentimento explícito dela. As defesas reais são o consentimento, a RLS e a blindagem
+de escrita — e nenhuma delas mudou.
+
+O que valia preservar era **revogar** um conector na hora, e uma lista de bloqueio faz
+isso igual, sem brigar com o protocolo: por padrão passa, barra quem foi desativado.
+Quem está em uso de fato aparece em `mcp_query_log.client_id`.
 
 ### 4.7 Validação ponta a ponta do Worker (31/08/2026)
 

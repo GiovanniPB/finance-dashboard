@@ -18,6 +18,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 
+import { decidirSobreConector } from "../../../supabase/functions/_shared/mcp/clientes.ts";
 import { supabaseDataSource } from "../../../supabase/functions/_shared/mcp/datasource.ts";
 import {
   criarHandlerMcp,
@@ -66,13 +67,12 @@ function obterHandler(env: Env, origem: string): (req: Request) => Promise<Respo
     verificarToken: verificadorCache,
     criarDataSource: (token) => supabaseDataSource(clientDoUsuario(env, token)),
 
-    // Lista do que a CASA autoriza, além do que o usuário aprova. Com registro
-    // dinâmico ligado, qualquer cliente MCP consegue se registrar no nosso
-    // authorization server; esta checagem é o que impede um desconhecido de ser
-    // atendido só porque conseguiu um consentimento.
+    // Lista de BLOQUEIO, não de permissão. Com registro dinâmico, cada conexão do
+    // Claude gera um client_id novo — uma lista de permitidos nunca ficaria
+    // satisfeita. Por padrão passa; barra só quem foi desativado. Ver clientes.ts.
     autorizarCliente: async (claims, token) => {
       const clientId = claims.client_id;
-      if (!clientId) return "Token sem client_id: este endpoint só atende conectores OAuth.";
+      if (!clientId) return decidirSobreConector(undefined, null);
 
       const { data, error } = await clientDoUsuario(env, token)
         .from("mcp_clients")
@@ -80,11 +80,15 @@ function obterHandler(env: Env, origem: string): (req: Request) => Promise<Respo
         .eq("client_id", clientId)
         .maybeSingle();
 
-      if (error) return "Não foi possível verificar o conector no momento.";
-      if (!data) return `Conector ${clientId} não está autorizado neste servidor.`;
-      if (!data.ativo) return `Conector "${data.nome}" está desativado.`;
-      return null;
+      // Falha ao consultar não vira porta fechada: as defesas que importam
+      // (consentimento, RLS, blindagem de escrita) seguem valendo sem esta checagem.
+      if (error) {
+        console.error("mcp_clients:", error.message);
+        return null;
+      }
+      return decidirSobreConector(clientId, data);
     },
+
     registrarUso: async (registro: RegistroDeUso, token: string) => {
       // Grava como o usuário: a RLS de mcp_query_log exige user_id = auth.uid().
       const { error } = await clientDoUsuario(env, token).from("mcp_query_log").insert({
