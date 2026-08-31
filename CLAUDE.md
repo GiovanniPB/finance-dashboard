@@ -200,6 +200,28 @@ fila por status na `invoice_jobs` + pg_cron + Vault + Storage); gestão pela UI 
 por webhook **ou** reconcile → XML/DANFSe no Storage), gerido pela UI. Remoto sincronizado.
 Pendências (não bloqueiam): UI de revisão de endereço, go-live de produção.
 
+## MCP de Insights — conversar com o financeiro por IA
+
+Servidor **MCP somente-leitura** que expõe o financeiro a qualquer IA (claude.ai,
+ChatGPT, Claude Code) em linguagem natural, autenticado pelo login de cada pessoa via
+o OAuth 2.1 Server do Supabase. Núcleo em `supabase/functions/_shared/mcp/`,
+transportes em `scripts/mcp-stdio.ts` (local) e `workers/mcp/` (Cloudflare Worker).
+
+> 📘 **Referência:** [`docs/integrations/mcp-insights-plan.md`](docs/integrations/mcp-insights-plan.md)
+> — arquitetura, decisões e estado. Go-live: [`mcp-go-live.md`](docs/integrations/mcp-go-live.md).
+
+**Invariantes que não podem ser violadas:**
+
+- **Nenhuma tool de escrita, nunca** — nem "só para marcar como conciliado".
+- **O servidor nunca usa service role no caminho de dados.** Toda leitura é com o JWT
+  do usuário e passa pela RLS.
+- **Token de OAuth não escreve** — policies restritivas com
+  `(select auth.jwt() ->> 'client_id') is null`. Tabela nova precisa do trio.
+- **Número contábil vem de RPC revisada**, não de SQL gerado por modelo. O `sql_query`
+  é exploração, dentro do schema `mcp_api`.
+- **Regra de negócio tem uma implementação só.** `dre-totais.ts` vive em `_shared/` e a
+  tela reexporta de lá — a IA e o dashboard não podem discordar sobre o lucro.
+
 ## Integração pagar.me — vendas e recebíveis no financeiro
 
 A **mesma conexão pagar.me** alimenta dois consumidores: a emissão de nota (acima) e o
