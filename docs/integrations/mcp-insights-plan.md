@@ -364,6 +364,21 @@ três reescritas.
 
 ---
 
+### Como rodar o servidor local hoje
+
+O transporte stdio já existe (`scripts/mcp-stdio.ts`, `bun run mcp:stdio`). Ele
+autentica com o **seu login da plataforma** — anon key + sessão de usuário, nunca
+service role — de modo que a RLS decide o que aparece. Registro no Claude Code:
+
+```sh
+claude mcp add otm-financeiro --env MCP_SUPABASE_URL=... --env MCP_SUPABASE_ANON_KEY=... --env MCP_SUPABASE_EMAIL=... --env MCP_SUPABASE_PASSWORD=... -- bun run /caminho/absoluto/scripts/mcp-stdio.ts
+```
+
+As credenciais ficam na configuração do cliente MCP, **nunca em arquivo do
+repositório**. O servidor sobe e anuncia as tools sem tocar na rede; o login só
+acontece na primeira chamada de tool, e uma falha de credencial volta como erro
+legível em vez de derrubar o processo.
+
 ## 9. Perguntas em aberto
 
 - **S1 — ~~O Supabase Auth virou authorization server OAuth 2.1?~~ RESOLVIDO em
