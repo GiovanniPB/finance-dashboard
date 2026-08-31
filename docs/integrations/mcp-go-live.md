@@ -21,7 +21,7 @@ bun run db:push           # aplica no remoto
 bun run db:types:local    # regenera src/types/database.ts se necessário
 ```
 
-Quatro migrations entram:
+Três migrations entram:
 
 | Migration                          | O que faz                                             |
 | ---------------------------------- | ----------------------------------------------------- |
