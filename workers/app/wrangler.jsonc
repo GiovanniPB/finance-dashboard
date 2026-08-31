@@ -1,0 +1,23 @@
+{
+  // Dashboard (SPA) servido por Worker com Static Assets, em lugar do Cloudflare Pages.
+  //
+  // ⚠️ Este arquivo NÃO pode subir para a raiz do repositório enquanto o projeto do
+  // Pages existir: na raiz, o build do Pages passa a lê-lo e ignora as variáveis de
+  // build do dashboard — foi o que quebrou o deploy em 30/07/2026 (ver README).
+  //
+  // Não há `main` nem `binding`: isto é 100% estático, sem código de Worker. As
+  // variáveis do app (VITE_*) são embutidas no bundle em tempo de BUILD, então quem
+  // roda `bun run build` precisa tê-las no ambiente — é a diferença operacional em
+  // relação ao Pages, que as injetava sozinho.
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "otm-dashboard",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "../../dist",
+    // Rota desconhecida devolve index.html com 200 — o mesmo efeito do
+    // `public/_redirects`, que o Workers também respeita e fica valendo para o
+    // Pages enquanto ele existir.
+    "not_found_handling": "single-page-application"
+  },
+  "observability": { "enabled": true }
+}
