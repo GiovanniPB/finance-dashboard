@@ -54,7 +54,8 @@ No dashboard: **Authentication → OAuth Server**.
 
 O que isso protege, já que registro dinâmico soa arriscado: um cliente registrado
 sozinho ainda precisa (a) do consentimento explícito do usuário na nossa tela e
-(b) estar em `mcp_clients`, senão o Worker devolve 403.
+(b) não estar bloqueado em `mcp_clients` — a lista de bloqueio, que existe para você
+revogar um conector na hora.
 
 **Como conferir:**
 
@@ -134,38 +135,34 @@ Deve devolver `resource` igual à sua URL e `authorization_servers` apontando pa
 
 ---
 
-## 5. Conectar o Claude e liberar o conector
+## 5. Conectar o Claude
 
-1. No claude.ai: **Settings → Connectors → Add custom connector**, com a URL do
-   Worker. O Claude descobre o authorization server sozinho e abre a nossa tela de
-   consentimento.
-2. A primeira tentativa **vai falhar com 403** — de propósito: o `client_id` que o
-   Claude registrou ainda não está autorizado. Pegue-o:
+Em **Settings → Connectors → Add custom connector**, com a URL do Worker do MCP. O
+Claude detecta sozinho que o servidor exige autenticação e que há registro dinâmico —
+as duas opções vêm marcadas como "Detectado". Não escolha a alternativa de metadados
+hospedados pela Anthropic (CIMD): o Supabase ainda não suporta.
+
+Ao conectar, o Claude registra um cliente, o Supabase te manda para a nossa tela de
+consentimento, e depois de aprovar o conector já funciona. **Nada a liberar.**
+
+⚠️ **Cada conexão registra um `client_id` NOVO.** É como o registro dinâmico funciona;
+quatro tentativas geram quatro clientes em `auth.oauth_clients`. Não tente autorizar
+um id específico — a lista de bloqueio existe para o caminho inverso, o de tirar
+acesso. Para saber quais conectores estão de fato em uso:
 
 ```sql
-select id, client_name, created_at from auth.oauth_clients order by created_at desc limit 5;
+select client_id, count(*), max(created_at)
+from public.mcp_query_log group by client_id order by 3 desc;
 ```
 
-3. Libere:
-
-```sql
-insert into public.mcp_clients (client_id, nome, observacao)
-values ('<id-do-passo-2>', 'Claude (claude.ai)', 'Connector dos sócios');
-```
-
-4. Reconecte. Agora vai.
-
-Para cada pessoa (sócio, contador), o acesso é o **login dela**: ela consente na
-nossa tela e enxerga exatamente o que enxergaria na interface — mesmas empresas,
-mesmos módulos, somente leitura.
-
----
+Cada pessoa entra com o próprio login e enxerga exatamente o que enxergaria na
+interface — mesmas empresas, mesmos módulos, somente leitura.
 
 ## 6. Depois de no ar
 
 - **Quem usou o quê:** `select * from public.mcp_query_log order by created_at desc;`
-- **Revogar um conector para todo mundo:** `update public.mcp_clients set ativo = false where client_id = '…';`
-  Efeito imediato: o Worker passa a devolver 403.
+- **Revogar um conector para todo mundo:** `insert into public.mcp_clients (client_id, nome, ativo) values ('…', 'Claude', false);`
+  (o id sai de `mcp_query_log`). Efeito imediato: o Worker passa a devolver 403.
 - **Revogar o acesso de uma pessoa:** ela remove o app em Settings do claude.ai, ou
   o super admin tira a empresa/módulo do usuário — a RLS faz o resto.
 - **Tirar tudo do ar:** desligar o OAuth Server no dashboard do Supabase derruba a
