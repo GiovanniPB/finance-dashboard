@@ -9,16 +9,77 @@ const COMPANY = "11111111-2222-3333-4444-555555555555";
 describe("listTools", () => {
   it("anuncia o catálogo com schema de entrada", () => {
     const tools = listTools();
+    // A lista é fixada de propósito: acrescentar tool ao catálogo é decisão
+    // revisada, e um import solto não deve conseguir expor dado por acidente.
+    // A ORDEM também é parte do contrato — é o roteiro que o cliente MCP mostra
+    // ao modelo: descoberta primeiro, SQL livre por último.
     expect(tools.map((t) => t.name)).toEqual([
       "list_companies",
+      "list_dimensions",
+      "monthly_briefing",
       "get_dre",
+      "compare_periods",
+      "get_kpis",
+      "expense_breakdown",
       "get_cashflow",
+      "get_bank_balances",
+      "get_account_ledger",
+      "forecast_cashflow",
+      "get_aging",
+      "list_open_bills",
+      "cost_center_analysis",
+      "counterparty_analysis",
+      "get_sales",
+      "get_receivables_schedule",
+      "list_tax_obligations",
+      "nfse_status",
+      "payroll_summary",
       "search_transactions",
       "sql_query",
     ]);
     for (const t of tools) {
       expect(t.inputSchema).toHaveProperty("type", "object");
       expect(t.description.length).toBeGreaterThan(40);
+      expect(t.title.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("não tem nome repetido", () => {
+    const nomes = listTools().map((t) => t.name);
+    expect(new Set(nomes).size).toBe(nomes.length);
+  });
+
+  it("o SQL exploratório é o último do catálogo", () => {
+    // Ordem é sinal para o modelo: a saída de emergência não pode aparecer antes
+    // das tools revisadas, ou ela vira o primeiro recurso em vez do último.
+    const nomes = listTools().map((t) => t.name);
+    expect(nomes[nomes.length - 1]).toBe("sql_query");
+  });
+
+  it("nenhuma tool tem nome de escrita — a invariante número um do servidor", () => {
+    const proibido = /^(create|update|delete|insert|set|post|mark|emit|approve|cancel|write)_/;
+    for (const t of listTools()) {
+      expect(t.name).not.toMatch(proibido);
+    }
+  });
+
+  it("toda tool com escopo por empresa aceita company_id ou organization_id", () => {
+    // Guarda contra a regressão mais provável do catálogo: tool nova que aceita
+    // período mas esquece o escopo, e responde sobre "a empresa" que a RLS
+    // devolver primeiro.
+    const semEscopoPorDesenho = new Set([
+      "list_companies",
+      "get_account_ledger", // escopo é a conta bancária
+      "get_sales", // escopo é a conta do pagar.me
+      "sql_query", // escopo vem no próprio SQL
+    ]);
+    for (const t of listTools()) {
+      if (semEscopoPorDesenho.has(t.name)) continue;
+      const props = (t.inputSchema as { properties?: Record<string, unknown> }).properties ?? {};
+      expect(
+        "company_id" in props || "organization_id" in props,
+        `${t.name} não aceita escopo por empresa`,
+      ).toBe(true);
     }
   });
 });

@@ -4,8 +4,11 @@ import {
   brDate,
   MAX_PERIODO_DIAS,
   McpParamError,
+  optionalDate,
   optionalLimit,
+  requireAno,
   requireEscopo,
+  requireMes,
   requirePeriodo,
   requireUuid,
 } from "./params.ts";
@@ -87,5 +90,64 @@ describe("optionalLimit", () => {
 describe("brDate", () => {
   it("converte sem passar por Date (imune a fuso)", () => {
     expect(brDate("2026-01-01")).toBe("01/01/2026");
+  });
+});
+
+describe("requireAno", () => {
+  it("aceita ano de quatro dígitos", () => {
+    expect(requireAno({ ano: 2026 })).toBe(2026);
+  });
+
+  it("recusa ano como texto", () => {
+    expect(() => requireAno({ ano: "2026" })).toThrow(/quatro dígitos/);
+  });
+
+  it("recusa ano fora da faixa plausível", () => {
+    expect(() => requireAno({ ano: 26 })).toThrow(/quatro dígitos/);
+  });
+});
+
+describe("requireMes", () => {
+  it("expande AAAA-MM no período do mês", () => {
+    expect(requireMes({ mes: "2026-07" })).toEqual({
+      mes: "2026-07",
+      from: "2026-07-01",
+      to: "2026-07-31",
+      rotulo: "07/2026",
+    });
+  });
+
+  it("acerta o último dia de fevereiro em ano comum", () => {
+    expect(requireMes({ mes: "2026-02" }).to).toBe("2026-02-28");
+  });
+
+  it("acerta o último dia de fevereiro em ano bissexto", () => {
+    expect(requireMes({ mes: "2024-02" }).to).toBe("2024-02-29");
+  });
+
+  it("acerta mês de 30 dias", () => {
+    expect(requireMes({ mes: "2026-04" }).to).toBe("2026-04-30");
+  });
+
+  it("recusa mês inexistente", () => {
+    expect(() => requireMes({ mes: "2026-13" })).toThrow(/mês inválido/);
+  });
+
+  it("recusa formato de data completa", () => {
+    expect(() => requireMes({ mes: "2026-07-01" })).toThrow(/AAAA-MM/);
+  });
+});
+
+describe("optionalDate", () => {
+  it("devolve undefined quando ausente", () => {
+    expect(optionalDate({}, "de")).toBeUndefined();
+  });
+
+  it("valida quando informada", () => {
+    expect(() => optionalDate({ de: "31/07/2026" }, "de")).toThrow(/AAAA-MM-DD/);
+  });
+
+  it("aceita data válida", () => {
+    expect(optionalDate({ de: "2026-07-31" }, "de")).toBe("2026-07-31");
   });
 });

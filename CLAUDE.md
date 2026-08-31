@@ -89,6 +89,31 @@ docs/
 
 Helpers existentes: `is_super_admin()`, `has_company_access(uuid)`, `is_financial_user()`.
 
+⚠️ **View nova sobre tabela com RLS precisa de `with (security_invoker = true)`.**
+Sem isso a view roda com os privilégios do DONO (`postgres`), que também é dono das
+tabelas e **bypassa a RLS** — `transactions` não tem `force row level security`. O
+resultado é uma view que devolve todas as empresas para qualquer usuário logado.
+
+Não é hipótese: `v_bills` e `v_bills_aging` nasceram assim e ficaram **15 meses** em
+produção furando a RLS. Um `viewer` com acesso a 1 de 4 empresas via 4 empresas e 2821
+títulos pela view, contra 1 empresa e 800 linhas pela tabela. A tela `/bills` mostrava
+título, contraparte e valor de empresa alheia sempre que o switcher estava em "todas as
+empresas", porque o filtro de empresa era só client-side. Corrigido em
+`…_v_bills_security_invoker`.
+
+Como conferir depois de criar view:
+
+```sql
+select relname, reloptions from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'v';
+-- toda linha deve mostrar {security_invoker=true}
+```
+
+`security_invoker` exige que `authenticated` tenha `select` nas tabelas de base (ver
+§Grants em `mcp-insights-system.md`): se a view devolver "permission denied" num banco
+reconstruído das migrations, é grant faltando, não a policy.
+
 ⚠️ **No caminho de LEITURA, nunca chame `has_company_access(company_id)` direto na
 policy.** Ela é `security definer` → o Postgres não faz inlining, e como o argumento
 depende da linha, a função roda **uma vez por linha varrida**. Numa tabela de 47k
@@ -206,6 +231,17 @@ Servidor **MCP somente-leitura** que expõe o financeiro a qualquer IA (claude.a
 ChatGPT, Claude Code) em linguagem natural, autenticado pelo login de cada pessoa via
 o OAuth 2.1 Server do Supabase. Núcleo em `supabase/functions/_shared/mcp/`,
 transportes em `scripts/mcp-stdio.ts` (local) e `workers/mcp/` (Cloudflare Worker).
+
+**22 tools**, do contexto (`list_companies`, `list_dimensions`) ao panorama composto
+(`monthly_briefing`), passando por resultado, caixa e bancos, títulos, análise por
+dimensão, vendas, fiscal, notas e folha — com `sql_query` como última saída. O catálogo
+e a ORDEM dele são fixados por teste em `registry.test.ts`: tool nova é decisão
+revisada, não import solto.
+
+⚠️ **O `tsc` do app cobre só `src/`.** O código de `supabase/functions/_shared/` é
+checado por `tsconfig.functions.json`, que entra no `bun run typecheck` — sem ele, erro
+de tipo nas Edge Functions só apareceria no deploy (o Vitest transpila com esbuild e
+apaga os tipos sem conferir).
 
 > 📘 **Referência técnica completa (leia primeiro):**
 > [`docs/integrations/mcp-insights-system.md`](docs/integrations/mcp-insights-system.md) —
