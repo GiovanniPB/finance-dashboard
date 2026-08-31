@@ -1,0 +1,44 @@
+{
+  // Checagem de tipos do código compartilhado das Edge Functions
+  // (`supabase/functions/_shared/`), que o `tsc -b` do app NÃO cobre: o programa
+  // dele é `src/` (tsconfig.app.json) mais o config do Vite (tsconfig.node.json).
+  //
+  // Sem este arquivo, a pasta era validada apenas por duas coisas insuficientes:
+  // o Vitest, que transpila com esbuild e portanto APAGA os tipos sem conferi-los,
+  // e o Deno no momento do deploy — ou seja, erro de tipo só aparecia em produção.
+  // Com o núcleo do MCP passando de ~1.700 para ~5.000 linhas, isso deixou de ser
+  // aceitável.
+  //
+  // Fora do `tsconfig.json` raiz (que é um solution file com project references)
+  // porque este programa tem `lib`, `types` e `paths` próprios: é código de
+  // runtime web/Deno, não de navegador com React.
+  "compilerOptions": {
+    "target": "ES2022",
+    // DOM entra pelos globais web que o runtime tem (fetch, Response, URL,
+    // URLSearchParams, btoa) — não por manipular documento.
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // As functions importam com extensão `.ts` explícita, como o Deno exige.
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    // `types: []` impede que @types/node entre por acaso e finja que APIs de Node
+    // existem no Deno.
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      // O especificador `npm:` do Deno não é resolvível pelo tsc; aponta para o
+      // mesmo pacote que está no node_modules para a checagem valer.
+      "npm:@supabase/supabase-js@2": ["node_modules/@supabase/supabase-js"]
+    }
+  },
+  "include": ["supabase/functions/_shared/**/*.ts"],
+  // Testes rodam no Vitest, com o ambiente dele; aqui interessa o código de runtime.
+  "exclude": ["supabase/functions/_shared/**/*.test.ts"]
+}
