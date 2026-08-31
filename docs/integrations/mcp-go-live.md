@@ -65,16 +65,10 @@ curl -s https://vbeevkjenvgvnattzszt.supabase.co/auth/v1/.well-known/oauth-autho
 Deve trazer `authorization_endpoint`, `token_endpoint`, `jwks_uri` e — por causa do
 registro dinâmico — `registration_endpoint`.
 
-⚠️ **Conferir também a forma com caminho inserido**, que é a que a RFC 8414 manda o
-cliente MCP tentar primeiro:
-
-```sh
-curl -si https://vbeevkjenvgvnattzszt.supabase.co/.well-known/oauth-authorization-server/auth/v1 | head -1
-```
-
-No stack local isso dá 404. Se der 404 no remoto também, o cliente depende de achar o
-caminho pelo header `WWW-Authenticate` do nosso 401 — que o Worker envia. O Claude
-segue esse header; outros clientes podem não seguir.
+✅ **Já conferido em produção (31/08/2026):** a forma com caminho inserido
+(`/.well-known/oauth-authorization-server/auth/v1`), que a RFC 8414 manda o cliente
+tentar primeiro, responde **200** no hospedado. O 404 que aparece no stack local é
+limitação do Kong de desenvolvimento, não do projeto.
 
 ---
 

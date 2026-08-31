@@ -415,12 +415,13 @@ três reescritas.
    intacto; a jaula de SQL responde (309 linhas no escopo); e o `INSERT` em
    `mcp_query_log` passa (201), como a exceção manda.
 
-⚠️ **Descoberta de metadados.** Local, o documento do AS está em
-`/auth/v1/.well-known/oauth-authorization-server`; a forma com caminho inserido
-(`/.well-known/oauth-authorization-server/auth/v1`), que a RFC 8414 manda o cliente
-tentar, dá 404 no Kong local. A documentação afirma que o hospedado serve as duas —
-**verificar no remoto antes do go-live**, porque é por aí que o cliente MCP descobre
-onde se autenticar.
+✅ **Descoberta de metadados — resolvido em 31/08/2026.** Local, o documento do AS só
+responde em `/auth/v1/.well-known/oauth-authorization-server`; a forma com caminho
+inserido (`/.well-known/oauth-authorization-server/auth/v1`), que a RFC 8414 manda o
+cliente tentar, dá 404 no Kong local. **No hospedado as duas respondem 200** —
+conferido no projeto de produção com o OAuth Server ligado. Um cliente MCP que siga a
+RFC ao pé da letra encontra o authorization server sozinho, sem depender do header
+`WWW-Authenticate` do nosso 401. A limitação era só do stack local.
 
 ### 4.5 Host: Cloudflare Worker · **decidido e implementado**
 
