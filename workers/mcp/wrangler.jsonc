@@ -9,11 +9,18 @@
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Valores de PRODUÇÃO, e nenhum é segredo: são as mesmas chaves públicas que o
+  // front embute no bundle. Ficam aqui, e não no dashboard, porque `wrangler deploy`
+  // sobrescreve as variáveis do dashboard com o que está neste arquivo — deixá-las
+  // só lá significa perdê-las no próximo deploy.
+  //
+  // Para rodar local, crie `workers/mcp/.dev.vars` (git-ignored) apontando para o
+  // stack local; ele tem precedência no `wrangler dev`. Ver `.dev.vars.example`.
+  //
+  // MCP_RESOURCE_URL não aparece aqui de propósito: o Worker usa a origem da própria
+  // requisição. Só defina para forçar outro valor.
   "vars": {
-    // Nenhum segredo aqui, de propósito: o Worker só usa chave pública.
-    // Sobrescreva no dashboard do Worker (ou em .dev.vars, que é git-ignored).
-    "SUPABASE_URL": "http://127.0.0.1:54321",
-    "SUPABASE_ANON_KEY": "",
-    "MCP_RESOURCE_URL": "http://127.0.0.1:8787"
+    "SUPABASE_URL": "https://vbeevkjenvgvnattzszt.supabase.co",
+    "SUPABASE_ANON_KEY": "sb_publishable_cle8GUgb1wIC_LkqBtoPhw_ZAO6ZQxB"
   }
 }

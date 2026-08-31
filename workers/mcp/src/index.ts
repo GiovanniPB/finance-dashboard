@@ -28,8 +28,17 @@ import { criarVerificadorDeToken } from "./auth.ts";
 interface Env {
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
-  /** URL pública deste Worker, como o cliente MCP a enxerga. */
-  MCP_RESOURCE_URL: string;
+  /**
+   * URL pública deste Worker. OPCIONAL: se ausente, usamos a origem da própria
+   * requisição, que é literalmente o endereço pelo qual o cliente chegou.
+   *
+   * Derivar em vez de configurar elimina a classe de bug mais chata aqui: um
+   * `MCP_RESOURCE_URL` que não bate com o host real faz o documento de descoberta
+   * anunciar um recurso diferente do que o cliente acessou, e a autenticação falha
+   * com uma mensagem que não ajuda ninguém. Só configure para forçar outro valor
+   * (ex.: atrás de um proxy que reescreve o host).
+   */
+  MCP_RESOURCE_URL?: string;
 }
 
 /** Client que fala com o PostgREST carregando o token do usuário. */
@@ -41,20 +50,20 @@ function clientDoUsuario(env: Env, token: string) {
 }
 
 /**
- * O handler é montado uma vez por isolate e reaproveitado: o `createRemoteJWKSet`
- * guarda o conjunto de chaves em memória, evitando um fetch por requisição.
+ * O verificador é caro (o `createRemoteJWKSet` guarda as chaves em memória) e vive
+ * pelo isolate inteiro. O handler em si é um fechamento barato, montado por origem —
+ * é o que permite derivar a URL do recurso da requisição sem perder o cache do JWKS.
  */
-let handlerCache: ((req: Request) => Promise<Response>) | null = null;
+let verificadorCache: ((token: string) => Promise<TokenClaims | null>) | null = null;
 
-function obterHandler(env: Env): (req: Request) => Promise<Response> {
-  if (handlerCache) return handlerCache;
-
+function obterHandler(env: Env, origem: string): (req: Request) => Promise<Response> {
   const issuer = `${env.SUPABASE_URL.replace(/\/$/, "")}/auth/v1`;
+  verificadorCache ??= criarVerificadorDeToken(issuer);
 
-  handlerCache = criarHandlerMcp({
-    resourceUrl: env.MCP_RESOURCE_URL.replace(/\/$/, ""),
+  return criarHandlerMcp({
+    resourceUrl: (env.MCP_RESOURCE_URL ?? origem).replace(/\/$/, ""),
     authorizationServer: issuer,
-    verificarToken: criarVerificadorDeToken(issuer),
+    verificarToken: verificadorCache,
     criarDataSource: (token) => supabaseDataSource(clientDoUsuario(env, token)),
 
     // Lista do que a CASA autoriza, além do que o usuário aprova. Com registro
@@ -90,18 +99,18 @@ function obterHandler(env: Env): (req: Request) => Promise<Response> {
       if (error) console.error("mcp_query_log:", error.message);
     },
   });
-
-  return handlerCache;
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY || !env.MCP_RESOURCE_URL) {
+    if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
       return new Response(
-        JSON.stringify({ error: "Worker mal configurado: faltam variáveis de ambiente." }),
+        JSON.stringify({
+          error: "Worker mal configurado: defina SUPABASE_URL e SUPABASE_ANON_KEY.",
+        }),
         { status: 500, headers: { "Content-Type": "application/json" } },
       );
     }
-    return obterHandler(env)(request);
+    return obterHandler(env, new URL(request.url).origin)(request);
   },
 };
