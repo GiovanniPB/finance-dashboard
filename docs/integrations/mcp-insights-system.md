@@ -12,7 +12,7 @@
 > - [`pagarme-system.md`](pagarme-system.md) e [`nfse-system.md`](nfse-system.md) — os
 >   dois maiores produtores do dado que o MCP lê.
 >
-> **Última atualização:** 31/08/2026. **Estado:** no ar, em uso.
+> **Última atualização:** 31/08/2026. **Estado:** no ar, em uso, com 22 tools.
 
 ---
 
@@ -77,7 +77,7 @@ cita é o mesmo número da tela**.
   └──────────────────────────────────────────────────────┘
         │
         │  supabase/functions/_shared/mcp/  (núcleo, agnóstico de transporte)
-        │  5 tools · adapter · proveniência · jaula de SQL
+        │  22 tools · adapter · proveniência · jaula de SQL
         ▼
      PostgREST com o **JWT do usuário** (anon key). Nunca service role.
         │
@@ -105,7 +105,7 @@ Fluxo de uma pergunta, do zero:
 
 ## 4. Banco de dados
 
-Quatro migrations, todas em `supabase/migrations/`:
+Cinco migrations, todas em `supabase/migrations/`:
 
 | Migration                         | O que faz                                                                          |
 | --------------------------------- | ---------------------------------------------------------------------------------- |
@@ -113,6 +113,7 @@ Quatro migrations, todas em `supabase/migrations/`:
 | `…_mcp_oauth_sem_escrita`         | as policies restritivas que impedem escrita por token de OAuth                     |
 | `…_mcp_clients`                   | tabela de conectores + `client_id` no log                                          |
 | `…_mcp_clients_lista_de_bloqueio` | inverte o significado da tabela (só comentários)                                   |
+| `…_v_bills_security_invoker`      | corrige a RLS de `v_bills` e `v_bills_aging` (§5.2)                                |
 
 ### 4.1 Schema `mcp_api`
 
@@ -207,13 +208,36 @@ nova não vaza por acidente) e limite acima de 2000.
 
 ### As tools
 
-| Tool                  | Responde                                              | Fonte                                      |
-| --------------------- | ----------------------------------------------------- | ------------------------------------------ |
-| `list_companies`      | quais empresas você enxerga, com os ids               | tabela `companies`                         |
-| `get_dre`             | DRE por empresa ou consolidada, nos dois regimes      | RPCs `dre_by_company` / `dre_consolidated` |
-| `get_cashflow`        | entradas, saídas e líquido realizados, por dia ou mês | RPC `cashflow_daily`                       |
-| `search_transactions` | lançamentos, agregados por conta ou detalhados        | tabela `transactions`                      |
-| `sql_query`           | SELECT livre nas views de `mcp_api`                   | `mcp_run_query`                            |
+**22 tools.** A ordem da tabela é a ordem do catálogo em `registry.ts`, e ela é
+funcional: a maioria dos clientes MCP apresenta o catálogo ao modelo nessa sequência, que
+funciona como roteiro — descoberta primeiro (sem `company_id` nada mais roda), depois
+resultado, caixa, títulos, análise, domínio, e o SQL livre por último, porque é a saída de
+emergência e não o primeiro recurso. `registry.test.ts` fixa a lista **e** a ordem.
+
+| Tool                       | Responde                                                              | Fonte                                                 |
+| -------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------- |
+| `list_companies`           | quais empresas você enxerga, com os ids                               | tabela `companies`                                    |
+| `list_dimensions`          | plano de contas, centros de custo, contrapartes, bancos, contas pgm   | tabelas de cadastro + `pagarme_gateway_accounts`      |
+| `monthly_briefing`         | panorama de um mês inteiro numa chamada                               | composta (DRE + caixa + saldo + aging)                |
+| `get_dre`                  | DRE por empresa ou consolidada, nos dois regimes                      | RPCs `dre_by_company` / `dre_consolidated`            |
+| `compare_periods`          | dois períodos lado a lado, com variação por linha                     | `dre_by_company`, duas chamadas                       |
+| `get_kpis`                 | margens, resultado e geração de caixa mês a mês, num ano              | `kpi_dashboard` / `kpi_dashboard_consolidated`        |
+| `expense_breakdown`        | maiores contas de despesa, com "Outros"                               | RPC `expense_breakdown`                               |
+| `get_cashflow`             | entradas, saídas e líquido realizados, por dia ou mês                 | RPC `cashflow_daily`                                  |
+| `get_bank_balances`        | saldo por conta bancária numa data                                    | RPC `bank_balances_multi`                             |
+| `get_account_ledger`       | extrato de uma conta com saldo corrente                               | `bank_account_period` + `bank_account_ledger`         |
+| `forecast_cashflow`        | previsão de entradas, saídas e saldo futuro                           | `forecast_cashflow_daily` + `forecast_pagarme_inflow` |
+| `get_aging`                | títulos em aberto por faixa de vencimento                             | view `v_bills_aging`                                  |
+| `list_open_bills`          | a lista dos títulos em aberto, com filtros                            | view `v_bills`                                        |
+| `cost_center_analysis`     | receita, despesa e margem por centro de custo                         | `cost_center_analysis` + `cost_center_monthly_series` |
+| `counterparty_analysis`    | maiores clientes/fornecedores e concentração                          | RPC `counterparty_analysis`                           |
+| `get_sales`                | vendas do pagar.me em 5 visões (resumo/série/quebra/clientes/recorr.) | RPCs `sales_*`                                        |
+| `get_receivables_schedule` | curva de recebíveis por mês de liquidação                             | RPC `receivables_schedule`                            |
+| `list_tax_obligations`     | impostos e obrigações, com situação                                   | tabela `tax_obligations`                              |
+| `nfse_status`              | estado da esteira de NFS-e e as falhas                                | tabela `invoice_jobs`                                 |
+| `payroll_summary`          | custo da folha por mês de referência (agregado)                       | tabela `payroll_runs`                                 |
+| `search_transactions`      | lançamentos, agregados por conta ou detalhados                        | tabela `transactions`                                 |
+| `sql_query`                | SELECT livre nas views de `mcp_api`                                   | `mcp_run_query`                                       |
 
 Três regras valem para todas:
 
@@ -224,6 +248,65 @@ Três regras valem para todas:
    pergunta, com uma mensagem escrita para o modelo se corrigir sozinho.
 3. **Agregado por padrão.** Devolver 500 linhas para o modelo somar é caro e convida ao
    erro de aritmética.
+
+**Nenhuma tool nova exigiu migration.** As ~20 RPCs que elas embrulham já eram
+`security invoker` e já tinham `grant execute` para `authenticated` — resultado da
+migration `permissions_rpcs_security_invoker`. A única mudança de banco do lote foi
+corrigir a RLS de `v_bills`/`v_bills_aging` (§5.2), que duas tools leem.
+
+#### 5.1 As divergências entre fontes, e por que elas viajam na proveniência
+
+O risco de um catálogo grande não é a tool errada — é **duas tools certas que discordam**,
+e a IA escolhendo uma sem avisar. As fontes do dashboard não concordam entre si, e cada
+desacordo está escrito no `avisos` da resposta:
+
+| Divergência                                                                                      | Onde aparece                              |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| **Saldo bancário conta só `settled`; fluxo de caixa conta `settled` + `reconciled`**             | `get_bank_balances`, `get_account_ledger` |
+| **KPIs não incluem `pending`; a DRE em competência inclui**                                      | `get_kpis`                                |
+| **`expense_breakdown` exclui a holding sempre**, mesmo quando ela é a empresa pedida             | `expense_breakdown`                       |
+| **`cost_center_analysis` inclui `pending`; `counterparty_analysis` não**                         | as duas                                   |
+| **As duas análises INCLUEM transferência entre contas**; `search_transactions` exclui por padrão | as duas                                   |
+| **`forecast_pagarme_inflow` é SUBCONJUNTO das entradas esperadas**, não parcela adicional        | `forecast_cashflow`                       |
+| **A abertura da previsão ignora `initial_balance_date`**, que o saldo bancário respeita          | `forecast_cashflow`                       |
+| **Folha não `posted` não está na DRE**                                                           | `payroll_summary`                         |
+| **"Cliente novo" é relativo ao início do ledger do pagar.me**, não à história real               | `get_sales` visão clientes                |
+| **Nota de homologação não tem valor fiscal**                                                     | `nfse_status`                             |
+
+A divergência `settled`/`reconciled` é hoje **latente**: o remoto não tem nenhuma linha
+`reconciled` nem `pending` (conferido em 31/08/2026). Ela está documentada porque no dia
+em que a conciliação passar a ser usada, saldo e fluxo vão discordar exatamente pelo
+volume conciliado — e ninguém vai lembrar por quê.
+
+#### 5.2 O bug de RLS que o lote destapou
+
+`get_aging` e `list_open_bills` leem `v_bills` e `v_bills_aging`. Ao conferir as fontes,
+descobriu-se que as duas views foram criadas **sem `security_invoker`** em
+`20260514194441_ap_ar_views_and_rpcs` — `v_transactions` havia sido corrigida em
+`15_fix_security_advisors`, e as de títulos vieram depois e ficaram de fora.
+
+Como o dono é `postgres`, dono também de `transactions`, e a tabela não tem
+`force row level security`, a view rodava a consulta de base com os privilégios do dono e
+**a RLS não se aplicava**. Medido no remoto, impersonando um `viewer` com acesso a 1 de 4
+empresas:
+
+| Fonte           | Empresas | Linhas |
+| --------------- | -------- | ------ |
+| `transactions`  | 1        | 800    |
+| `v_bills`       | **4**    | 2821   |
+| `v_bills_aging` | **4**    | 18     |
+
+Não era um problema do MCP: `fetchBills` e `fetchAging` (`src/features/bills/api.ts`) só
+filtram `company_id` quando há empresa selecionada, então a tela `/bills` com o switcher
+em "todas as empresas" exibia título, contraparte e valor de empresa alheia. Bastavam
+login no app e a anon key. Ficou assim ~15 meses.
+
+Corrigido em `…_v_bills_security_invoker` (duas linhas de `alter view`). Verificação com
+controle, no banco local reconstruído das migrations: com a correção, um uid sem
+`company_access` vê **0** títulos; desligando `security_invoker` na mesma transação, vê
+**487**. Custo medido no remoto: 3,4ms para a agregação com RLS, contra o
+`statement_timeout` de 8s do papel `authenticated`. A regra foi para o CLAUDE.md, na
+convenção de RLS.
 
 ### `dre-totais.ts` — uma implementação só
 
@@ -405,7 +488,12 @@ Verificado em 31/08/2026:
 - descoberta RFC 8414 respondendo nas duas formas;
 - `mcp.jimmycarvalho.com.br` servindo o MCP; `finance.jimmycarvalho.com.br` servindo o
   dashboard, ambos por Worker com domínio próprio;
-- conector do claude.ai conectado e em uso, latência de 209–443ms por chamada.
+- conector do claude.ai conectado e em uso, latência de 209–443ms por chamada;
+- as ~20 RPCs que o catálogo novo embrulha conferidas uma a uma: todas `security invoker`,
+  `stable` e com `execute` para `authenticated`;
+- **a migration `…_v_bills_security_invoker` ainda NÃO foi aplicada no remoto** — assim
+  como `…_mcp_clients_lista_de_bloqueio`, que ficou pendente do PR anterior. Enquanto o
+  push não acontecer, as duas views seguem furando a RLS em produção (§5.2).
 
 ---
 
@@ -414,13 +502,19 @@ Verificado em 31/08/2026:
 - **Escopo por conector** — `mcp_clients.company_ids` e `.modules` existem mas não são
   impostos: um conector enxerga o que o usuário enxerga. Impor exige policy restritiva de
   SELECT em toda tabela company-scoped, com o cuidado de InitPlan da convenção.
-- **Cobertura do escopo total (D3)** — as views de `mcp_api` cobrem o núcleo financeiro;
-  faltam vendas, fiscal e folha agregada para o SQL exploratório alcançar tudo.
-- **Catálogo** — aging, cronograma de recebíveis, vendas do pagar.me, obrigações fiscais,
-  folha e um `monthly_briefing` composto continuam no plano, à espera do que o uso real
-  pedir.
+- **Cobertura do escopo total (D3) no SQL exploratório** — as views de `mcp_api` cobrem o
+  núcleo financeiro; vendas, fiscal, folha, bancos e títulos agora têm **tool dedicada**,
+  mas continuam fora das views, então o `sql_query` não os alcança. Só importa para
+  cruzamento incomum que nenhuma tool cubra.
+- **Catálogo** — entregue (§5). Fora dele, de propósito: `monthly_briefing` só aceita uma
+  empresa (as RPCs de caixa e previsão são por empresa, e um consolidado exigiria N
+  chamadas de cada com agregação de saldo e aging no servidor — mais superfície para
+  divergir da tela do que valor); e `resources`/`prompts` do MCP (glossário, prompts
+  prontos) seguem no plano.
 - **Agregação em memória** — o modo agregado do `search_transactions` soma no servidor,
   sobre no máximo 2000 linhas, com aviso quando trunca. Deveria ser agregação no banco.
+  Mesmo caso em `nfse_status` (agrega até 2000 jobs) e em `get_receivables_schedule`
+  consolidado (uma chamada de RPC por empresa, somadas no servidor).
 - **Retenção do log** — `mcp_query_log` cresce sem política de expurgo.
 - **Drift de privilégios** — um banco reconstruído só das migrations sobe com
   `authenticated` sem `select` na maioria das tabelas; o remoto tem os privilégios por
@@ -440,13 +534,19 @@ supabase/functions/_shared/mcp/     núcleo agnóstico de transporte
 ├── params.ts         validação sem default silencioso
 ├── provenance.ts     status por regime + explicação
 ├── format.ts         BRL determinístico, mascaramento
+├── escopo.ts         company_id | organization_id -> lista de empresas (RLS-filtrada)
 ├── dre-totais.ts     regra dos totalizadores (a tela reexporta daqui)
+├── dre-fonte.ts      carregar DRE + aplicar totalizadores (3 tools compartilham)
 ├── clientes.ts       decisão sobre o conector (lista de bloqueio)
 ├── datasource.ts     adapter do Supabase — último portão antes do banco
 ├── http.ts           servidor MCP sobre HTTP, Request → Response
-├── registry.ts       catálogo; o transporte só conhece este arquivo
+├── registry.ts       catálogo e ORDEM dele; o transporte só conhece este arquivo
 ├── fixtures.ts       fake de McpDataSource para os testes
-└── tools/            companies · dre · cashflow · transactions · sql
+└── tools/            companies · dimensions · briefing · dre · comparison · kpis ·
+                      expenses · cashflow · banks · forecast · bills · analysis ·
+                      sales · taxes · nfse · payroll · transactions · sql
+
+tsconfig.functions.json             checagem de tipos de _shared/ (entra no typecheck)
 
 scripts/mcp-stdio.ts                transporte stdio (local)
 workers/mcp/                        Worker `finance-mcp` (remoto)
@@ -458,6 +558,7 @@ workers/app/wrangler.jsonc          Worker `finance-dashboard` (o SPA)
 src/routes/oauth.consent.tsx        tela de consentimento
 src/features/mcp/consent.ts         o que o acesso concede, em português
 supabase/migrations/*mcp*           4 migrations
+supabase/migrations/*v_bills_security_invoker*   a correção de RLS (§5.2)
 ```
 
 ---
@@ -471,3 +572,5 @@ supabase/migrations/*mcp*           4 migrations
 | [#71](https://github.com/GiovanniPB/finance-dashboard/pull/71) | nome do Worker alinhado com a conta; comandos do Workers Builds                          |
 | [#72](https://github.com/GiovanniPB/finance-dashboard/pull/72) | descoberta RFC 8414 confirmada no hospedado                                              |
 | [#73](https://github.com/GiovanniPB/finance-dashboard/pull/73) | `mcp_clients` vira lista de bloqueio                                                     |
+| [#74](https://github.com/GiovanniPB/finance-dashboard/pull/74) | esta referência técnica                                                                  |
+| _(esta branch)_                                                | catálogo de 5 → 22 tools; correção da RLS de `v_bills`; typecheck de `_shared/`          |

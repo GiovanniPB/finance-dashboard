@@ -91,6 +91,64 @@ export function brDate(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+/** Data opcional, mesmo formato de `requireDate`. */
+export function optionalDate(params: Record<string, unknown>, key: string): string | undefined {
+  const value = params[key];
+  if (value === undefined || value === null) return undefined;
+  return requireDate(params, key);
+}
+
+/**
+ * Ano civil de quatro dígitos. As RPCs de KPI trabalham por ano fechado, não por
+ * janela livre — o parâmetro reflete a RPC em vez de fingir flexibilidade.
+ */
+export function requireAno(params: Record<string, unknown>, key = "ano"): number {
+  const value = params[key];
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 2000 || value > 2100) {
+    throw new McpParamError(
+      `Parâmetro "${key}" é obrigatório e deve ser um ano com quatro dígitos (ex.: 2026).`,
+    );
+  }
+  return value;
+}
+
+export interface Mes {
+  /** AAAA-MM, como veio. */
+  mes: string;
+  /** Primeiro dia, AAAA-MM-DD. */
+  from: string;
+  /** Último dia, AAAA-MM-DD. */
+  to: string;
+  /** Rótulo para a proveniência: "07/2026". */
+  rotulo: string;
+}
+
+/**
+ * Mês de referência no formato AAAA-MM, já expandido em período.
+ *
+ * O último dia sai de `Date.UTC(ano, mes, 0)` — dia 0 do mês seguinte é o último
+ * do mês pedido, e resolve fevereiro e ano bissexto sem tabela.
+ */
+export function requireMes(params: Record<string, unknown>, key = "mes"): Mes {
+  const value = params[key];
+  if (typeof value !== "string" || !/^\d{4}-\d{2}$/.test(value)) {
+    throw new McpParamError(`Parâmetro "${key}" é obrigatório no formato AAAA-MM (ex.: 2026-07).`);
+  }
+  const [ano, mes] = value.split("-").map(Number);
+  if (mes < 1 || mes > 12) {
+    throw new McpParamError(`Parâmetro "${key}" tem mês inválido: ${value}.`);
+  }
+  const ultimoDia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+  const dd = String(ultimoDia).padStart(2, "0");
+  const mm = String(mes).padStart(2, "0");
+  return {
+    mes: value,
+    from: `${value}-01`,
+    to: `${value}-${dd}`,
+    rotulo: `${mm}/${ano}`,
+  };
+}
+
 export function requireEnum<T extends string>(
   params: Record<string, unknown>,
   key: string,

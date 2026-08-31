@@ -4,16 +4,74 @@
  * O transporte (Edge Function ou stdio) só conhece este arquivo: pede a lista para
  * anunciar ao cliente, e chama `callTool` quando o modelo escolhe uma. Toda a
  * semântica fica nas tools; o transporte não decide nada.
+ *
+ * A ORDEM importa. É nela que a maioria dos clientes MCP apresenta o catálogo ao
+ * modelo, e a ordem funciona como um roteiro: descoberta primeiro (sem `company_id`
+ * nada mais roda), depois resultado, caixa, títulos, análise, domínio, e o SQL livre
+ * por último — ele é a saída de emergência, não o primeiro recurso.
  */
 import { McpParamError } from "./params.ts";
+import { costCenterAnalysis, counterpartyAnalysis } from "./tools/analysis.ts";
+import { getAccountLedger, getBankBalances } from "./tools/banks.ts";
+import { getAging, listOpenBills } from "./tools/bills.ts";
+import { monthlyBriefing } from "./tools/briefing.ts";
 import { getCashflow } from "./tools/cashflow.ts";
 import { listCompanies } from "./tools/companies.ts";
+import { comparePeriods } from "./tools/comparison.ts";
+import { listDimensions } from "./tools/dimensions.ts";
 import { getDre } from "./tools/dre.ts";
+import { expenseBreakdown } from "./tools/expenses.ts";
+import { forecastCashflow } from "./tools/forecast.ts";
+import { getKpis } from "./tools/kpis.ts";
+import { nfseStatus } from "./tools/nfse.ts";
+import { payrollSummary } from "./tools/payroll.ts";
+import { getReceivablesSchedule, getSales } from "./tools/sales.ts";
 import { sqlQuery } from "./tools/sql.ts";
+import { listTaxObligations } from "./tools/taxes.ts";
 import { searchTransactions } from "./tools/transactions.ts";
 import type { JsonSchema, McpDataSource, McpTool, ToolResponse } from "./types.ts";
 
-export const TOOLS: McpTool[] = [listCompanies, getDre, getCashflow, searchTransactions, sqlQuery];
+export const TOOLS: McpTool[] = [
+  // Descoberta — sem estas, nenhuma outra tool tem como ser chamada.
+  listCompanies,
+  listDimensions,
+
+  // Panorama composto — atende a pergunta ampla numa chamada.
+  monthlyBriefing,
+
+  // Resultado.
+  getDre,
+  comparePeriods,
+  getKpis,
+  expenseBreakdown,
+
+  // Caixa e bancos.
+  getCashflow,
+  getBankBalances,
+  getAccountLedger,
+  forecastCashflow,
+
+  // Contas a pagar e a receber.
+  getAging,
+  listOpenBills,
+
+  // Análise por dimensão.
+  costCenterAnalysis,
+  counterpartyAnalysis,
+
+  // Vendas e recebíveis (pagar.me).
+  getSales,
+  getReceivablesSchedule,
+
+  // Fiscal, notas e folha — recortados por módulo na RLS.
+  listTaxObligations,
+  nfseStatus,
+  payrollSummary,
+
+  // Investigação e exploração.
+  searchTransactions,
+  sqlQuery,
+];
 
 export interface ToolDescriptor {
   name: string;
