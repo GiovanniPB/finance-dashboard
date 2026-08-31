@@ -212,6 +212,45 @@ bun run app:worker:deploy   # build + deploy (dispare você)
 O `deploy` roda `bun run build` antes, de propósito: não existe caminho para publicar
 um `dist/` velho.
 
+### Configuração do Workers Builds
+
+Cada Worker tem seu próprio projeto de build, os dois apontando para este repositório.
+São **três** comandos por projeto, e confundi-los é o erro fácil aqui — o comando de
+build não deve publicar nada:
+
+**Worker `finance-dashboard`**
+
+| Campo                  | Valor                                                              |
+| ---------------------- | ------------------------------------------------------------------ |
+| Comando da build       | `bun install --frozen-lockfile && bun run build`                   |
+| Comando de implantação | `npx wrangler deploy --config workers/app/wrangler.jsonc`          |
+| Comando da versão      | `npx wrangler versions upload --config workers/app/wrangler.jsonc` |
+
+**Worker `finance-mcp`**
+
+| Campo                  | Valor                                                              |
+| ---------------------- | ------------------------------------------------------------------ |
+| Comando da build       | `bun install --frozen-lockfile`                                    |
+| Comando de implantação | `npx wrangler deploy --config workers/mcp/wrangler.jsonc`          |
+| Comando da versão      | `npx wrangler versions upload --config workers/mcp/wrangler.jsonc` |
+
+O MCP não roda `bun run build`: aquilo compila o SPA, e o wrangler empacota o
+TypeScript do Worker sozinho.
+
+Sem o `--config`, os comandos rodam na raiz do repositório — onde não existe (nem pode
+existir, por causa do Pages) um wrangler config — e falham com
+`Missing entry-point to Worker script or to assets directory`.
+
+⚠️ **Branch de não-produção sobe versão, não publica.** Com "compilações para
+ramificações de não produção" ligado, um push numa branch roda o _comando da versão_:
+a versão aparece no painel, mas o que está no ar não muda. Só o merge na branch de
+produção (`main`) dispara o comando de implantação. Se uma correção parece não ter
+surtido efeito, é quase sempre isto.
+
+Os scripts `app:worker:deploy` e `mcp:worker:deploy` do `package.json` fazem build e
+deploy juntos porque existem para o **deploy manual da sua máquina** — não use nenhum
+deles como comando de build.
+
 ### As variáveis de build agora são responsabilidade de quem builda
 
 Esta é **a única diferença operacional real** em relação ao Pages, e a que mais
