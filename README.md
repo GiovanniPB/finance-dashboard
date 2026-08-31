@@ -198,6 +198,11 @@ pelo Cloudflare Pages. Dois Workers convivem neste repo, deployados separadament
 | `otm-dashboard` | `workers/app/wrangler.jsonc` | o SPA (estático, sem código de Worker) |
 | `otm-mcp`       | `workers/mcp/wrangler.jsonc` | o servidor MCP de insights             |
 
+As variáveis do Worker do MCP ficam em `workers/mcp/wrangler.jsonc` (públicas, nenhuma
+é segredo) e **não** no dashboard: `wrangler deploy` sobrescreve o dashboard com o que
+está no arquivo. Para rodar local, copie `workers/mcp/.dev.vars.example` para
+`.dev.vars`.
+
 ```sh
 bun run app:worker:dev      # serve o dist local em :8787
 bun run app:worker:check    # valida a config sem publicar
@@ -228,8 +233,14 @@ nomeando exatamente qual variável faltou.
 ### Roteamento do SPA
 
 `not_found_handling: "single-page-application"` na config faz rota desconhecida
-devolver `index.html` com 200. O `public/_redirects` continua no repo e também é
-respeitado pelo Workers — pode sair quando o projeto do Pages for desativado.
+devolver `index.html` com 200.
+
+⚠️ **O `public/_redirects` foi removido, e não pode voltar.** O Workers valida esse
+arquivo no deploy e **rejeita** a regra de fallback do Pages (`/* /index.html 200`)
+como loop infinito — erro `100324`, que derruba a publicação inteira. O `--dry-run`
+não detecta: a validação acontece do lado da API. Enquanto o projeto do Pages ainda
+existir, ele fica sem fallback de SPA (deep link dá 404 lá); é aceitável porque o
+tráfego real passa a ser o Worker.
 
 ### Domínio e previews
 
