@@ -188,55 +188,89 @@ com tabular figures), suporte light/dark.
 Todos os tokens em [src/styles/tokens.css](src/styles/tokens.css). Bridge para
 Tailwind em [src/styles/globals.css](src/styles/globals.css) via `@theme inline`.
 
-## Deploy (Cloudflare Pages)
+## Deploy (Cloudflare Workers)
 
-Configuração no dashboard do Pages (a build é estática, sem Pages Functions):
+O dashboard é servido por um **Worker com Static Assets** (`workers/app/`), não mais
+pelo Cloudflare Pages. Dois Workers convivem neste repo, deployados separadamente:
 
-1. Build command: `bun install --frozen-lockfile && bun run build`
-2. Build output: `dist`
-3. Env vars (Production **e** Preview):
-   - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-   - `BUN_VERSION` = a mesma versão do dev/CI (hoje `1.3.13`)
-   - `SKIP_DEPENDENCY_INSTALL` = `1`
-4. SPA fallback já configurado em [public/\_redirects](public/_redirects)
+| Worker          | Config                       | O que serve                            |
+| --------------- | ---------------------------- | -------------------------------------- |
+| `otm-dashboard` | `workers/app/wrangler.jsonc` | o SPA (estático, sem código de Worker) |
+| `otm-mcp`       | `workers/mcp/wrangler.jsonc` | o servidor MCP de insights             |
 
-### ⚠️ Não adicione `wrangler.toml` a este projeto
+```sh
+bun run app:worker:dev      # serve o dist local em :8787
+bun run app:worker:check    # valida a config sem publicar
+bun run app:worker:deploy   # build + deploy (dispare você)
+```
 
-Com um Wrangler config no repo, **o arquivo passa a ser a fonte da verdade** e a
-configuração do dashboard vira somente-leitura — inclusive as variáveis de
-build. O log do Pages mostra o efeito:
+O `deploy` roda `bun run build` antes, de propósito: não existe caminho para publicar
+um `dist/` velho.
+
+### As variáveis de build agora são responsabilidade de quem builda
+
+Esta é **a única diferença operacional real** em relação ao Pages, e a que mais
+morde. `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` são embutidas no bundle em
+tempo de build. O Pages as injetava a partir do dashboard; um Worker não — quem roda
+`bun run build` precisa tê-las no ambiente.
+
+Duas formas, escolha uma:
+
+- **Deploy local:** um `.env` na raiz (git-ignored) com as duas variáveis. É o que o
+  `.env.example` já descreve.
+- **Workers Builds** (CI da Cloudflare, conectado ao repo): configure as variáveis na
+  seção de **build** do Worker — no Workers elas **não** são compartilhadas entre
+  build e runtime como eram no Pages.
+
+Se faltarem, o app não quebra em silêncio: `src/lib/supabase.ts` lança um erro
+nomeando exatamente qual variável faltou.
+
+### Roteamento do SPA
+
+`not_found_handling: "single-page-application"` na config faz rota desconhecida
+devolver `index.html` com 200. O `public/_redirects` continua no repo e também é
+respeitado pelo Workers — pode sair quando o projeto do Pages for desativado.
+
+### Domínio e previews
+
+- **Domínio custom** exige o domínio nos nameservers da Cloudflare (o Pages aceitava
+  CNAME externo; o Workers não).
+- **Preview URLs** vêm por padrão; para preview por branch/PR, ligue builds de branch
+  não-produção no Workers Builds.
+
+### ⚠️ Não mova nenhum `wrangler` config para a raiz
+
+Enquanto o projeto do Pages existir, um wrangler config **na raiz** volta a ser lido
+pelo build do Pages, que então ignora as variáveis do dashboard. O log mostrava:
 
 ```
 Found wrangler.toml file. Reading build configuration...
 Build environment variables: (none found)
 ```
 
-As variáveis salvas no dashboard param de chegar ao build. Como este projeto é
-SPA estática (sem `functions/`), o `wrangler.toml` só declarava
-`pages_build_output_dir`, que o dashboard já tem — e em troca engolia as
-variáveis. Foi removido em 30/07/2026.
+Foi assim que o deploy quebrou em 30/07/2026. É por isso que os dois configs vivem em
+`workers/app/` e `workers/mcp/`, e não na raiz.
 
-Se algum dia entrarem Pages Functions e o arquivo voltar, as variáveis de build
-têm de ir para dentro dele; o dashboard deixará de valer.
+### Desativando o Pages
 
-### Por que `SKIP_DEPENDENCY_INSTALL`
+Mantenha o projeto do Pages no ar até o Worker estar estável em produção. Depois:
+desative o build automático, aponte o domínio para o Worker e só então remova o
+projeto. Enquanto os dois coexistirem, o aviso acima continua valendo.
 
-O Pages detecta o gerenciador de pacotes pelo lockfile e **não reconhece o
-`bun.lock` em texto** (bun ≥ 1.2) — só o antigo `bun.lockb`. Sem isso ele roda
-`npm install` **antes** do build command, com o npm que vem no Node da imagem —
-o build command com bun nem chega a executar. Em 30/07/2026 esse fallback
-quebrou o deploy: `npm error Cannot read properties of null (reading
-'edgesOut')` — bug do arborist do npm 10.9.2, que não acontece no npm 11 nem no
-bun, com o mesmo `package.json`. Nada havia mudado no repo; o npm apenas passou
-a engasgar com a árvore de dependências.
+<details>
+<summary>Histórico: por que o Pages exigia <code>SKIP_DEPENDENCY_INSTALL</code></summary>
 
-`SKIP_DEPENDENCY_INSTALL=1` desliga a instalação automática; quem instala é o
-build command, com bun e o mesmo lockfile do CI e do dev. Uma só cadeia de
-dependências nos três lugares — o npm sai do circuito.
+O Pages detecta o gerenciador de pacotes pelo lockfile e **não reconhecia o
+`bun.lock` em texto** (bun ≥ 1.2) — só o antigo `bun.lockb`. Sem a flag ele rodava
+`npm install` **antes** do build command, com o npm da imagem, e o build com bun nem
+chegava a executar. Em 30/07/2026 esse fallback quebrou o deploy:
+`npm error Cannot read properties of null (reading 'edgesOut')` — bug do arborist do
+npm 10.9.2, que não acontecia no npm 11 nem no bun, com o mesmo `package.json`.
 
-Se alguém remover essa variável, o fallback npm volta e o deploy quebra de
-novo. O paliativo, nesse caso, é `NODE_VERSION` ≥ 24 (que traz npm 11); a
-correção é recolocar o `SKIP_DEPENDENCY_INSTALL`.
+Essa classe de problema **desaparece** com o Worker: o build acontece onde você
+controla (local ou Workers Builds), com o mesmo bun e o mesmo lockfile do CI.
+
+</details>
 
 ## Roadmap
 

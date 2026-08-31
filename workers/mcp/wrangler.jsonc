@@ -1,0 +1,19 @@
+{
+  // ⚠️ Este arquivo NÃO pode subir para a raiz do repositório. O build do Cloudflare
+  // Pages (que serve o SPA) lê um wrangler config na raiz e passa a ignorar as
+  // variáveis de build do dashboard — foi o que quebrou o deploy em 30/07/2026.
+  // Ver README, seção "Não adicione wrangler.toml a este projeto".
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "otm-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "vars": {
+    // Nenhum segredo aqui, de propósito: o Worker só usa chave pública.
+    // Sobrescreva no dashboard do Worker (ou em .dev.vars, que é git-ignored).
+    "SUPABASE_URL": "http://127.0.0.1:54321",
+    "SUPABASE_ANON_KEY": "",
+    "MCP_RESOURCE_URL": "http://127.0.0.1:8787"
+  }
+}

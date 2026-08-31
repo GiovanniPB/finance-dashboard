@@ -50,6 +50,7 @@ const CompanyFiscalRedirect = lazy(() => import("@/routes/companies.fiscal"));
 const UsersPage = lazy(() => import("@/routes/users"));
 const ProfilePage = lazy(() => import("@/routes/profile"));
 const ResetPasswordPage = lazy(() => import("@/routes/reset-password"));
+const OauthConsentPage = lazy(() => import("@/routes/oauth.consent"));
 
 function RouteFallback() {
   return (
@@ -72,6 +73,17 @@ export default function App() {
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+                  {/* Consentimento do OAuth 2.1 Server: exige login, mas fica fora
+                      do AppShell — quem chega aqui vem de um cliente externo. */}
+                  <Route
+                    path="/oauth/consent"
+                    element={
+                      <ProtectedRoute>
+                        <OauthConsentPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   <Route
                     element={

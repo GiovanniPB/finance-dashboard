@@ -8,6 +8,13 @@
     "dev:host": "vite --host",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "app:worker:dev": "wrangler dev --config workers/app/wrangler.jsonc",
+    "app:worker:check": "wrangler deploy --dry-run --config workers/app/wrangler.jsonc",
+    "app:worker:deploy": "bun run build && wrangler deploy --config workers/app/wrangler.jsonc",
+    "mcp:stdio": "bun run scripts/mcp-stdio.ts",
+    "mcp:worker:dev": "wrangler dev --config workers/mcp/wrangler.jsonc",
+    "mcp:worker:check": "wrangler deploy --dry-run --config workers/mcp/wrangler.jsonc",
+    "mcp:worker:deploy": "wrangler deploy --config workers/mcp/wrangler.jsonc",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css,yml,yaml}\"",
@@ -60,6 +67,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dinero.js": "2.0.0-alpha.14",
+    "jose": "^6.2.10",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "jszip": "^3.10.1",
@@ -78,8 +86,10 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260831.1",
     "@eslint/js": "^9.17.0",
     "@ianvs/prettier-plugin-sort-imports": "4.7.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
@@ -112,6 +122,7 @@
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.19.0",
     "vite": "^6.0.7",
-    "vitest": "4.1.6"
+    "vitest": "4.1.6",
+    "wrangler": "^4.127.1"
   }
 }
