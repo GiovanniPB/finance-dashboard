@@ -198,6 +198,11 @@ pelo Cloudflare Pages. Dois Workers convivem neste repo, deployados separadament
 | `otm-dashboard` | `workers/app/wrangler.jsonc` | o SPA (estático, sem código de Worker) |
 | `otm-mcp`       | `workers/mcp/wrangler.jsonc` | o servidor MCP de insights             |
 
+As variáveis do Worker do MCP ficam em `workers/mcp/wrangler.jsonc` (públicas, nenhuma
+é segredo) e **não** no dashboard: `wrangler deploy` sobrescreve o dashboard com o que
+está no arquivo. Para rodar local, copie `workers/mcp/.dev.vars.example` para
+`.dev.vars`.
+
 ```sh
 bun run app:worker:dev      # serve o dist local em :8787
 bun run app:worker:check    # valida a config sem publicar

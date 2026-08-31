@@ -94,17 +94,29 @@ bun run mcp:worker:check    # compila sem publicar
 bun run mcp:worker:deploy   # publica
 ```
 
-Depois, no dashboard do Worker (**Settings → Variables**), definir:
+### Variáveis
 
-| Variável            | Valor                                        |
-| ------------------- | -------------------------------------------- |
-| `SUPABASE_URL`      | `https://vbeevkjenvgvnattzszt.supabase.co`   |
-| `SUPABASE_ANON_KEY` | a anon key do projeto                        |
-| `MCP_RESOURCE_URL`  | a URL pública do Worker (ver domínio abaixo) |
+Elas vivem em `workers/mcp/wrangler.jsonc`, **não no dashboard** — `wrangler deploy`
+sobrescreve as variáveis do dashboard com o que está no arquivo, então deixá-las só lá
+significa perdê-las no próximo deploy.
 
-**Nenhuma delas é segredo** — são as mesmas chaves públicas que o front usa. O Worker
-não tem service role, de propósito. Se alguém pedir para você colocar uma chave
-secreta aqui, algo está errado no desenho.
+| Variável            | Onde             | Valor                                                        |
+| ------------------- | ---------------- | ------------------------------------------------------------ |
+| `SUPABASE_URL`      | `wrangler.jsonc` | `https://vbeevkjenvgvnattzszt.supabase.co`                   |
+| `SUPABASE_ANON_KEY` | `wrangler.jsonc` | a publishable key do projeto                                 |
+| `MCP_RESOURCE_URL`  | —                | **não precisa**: o Worker usa a origem da própria requisição |
+
+**Nenhuma é segredo** — são as mesmas chaves públicas que o front embute no bundle. O
+Worker não tem service role, de propósito. Se parecer que falta uma chave secreta aqui,
+algo está errado no desenho.
+
+`MCP_RESOURCE_URL` existe como escape (proxy que reescreve o host), mas deixá-la
+indefinida é melhor: uma URL configurada que não bate com o host real faz o documento
+de descoberta anunciar um recurso diferente do que o cliente acessou, e a autenticação
+falha com uma mensagem que não ajuda ninguém.
+
+Para rodar local, copie `workers/mcp/.dev.vars.example` para `.dev.vars` (git-ignored)
+apontando para o stack local — no `wrangler dev` ele tem precedência.
 
 ### Domínio próprio (importante)
 
