@@ -202,7 +202,6 @@ export function TransactionForm({
             render={({ field }) => (
               <CostCenterSelect
                 id="costCenterId"
-                companyId={companyId}
                 value={field.value ?? null}
                 onChange={field.onChange}
               />

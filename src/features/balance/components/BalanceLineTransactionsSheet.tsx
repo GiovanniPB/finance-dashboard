@@ -29,7 +29,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   line: BalanceMatrixLine | null;
-  companyId: string;
+  companyIds: string[] | null;
   from: string;
   to: string;
   basis: AccountingBasis;
@@ -60,14 +60,14 @@ export function BalanceLineTransactionsSheet({
   open,
   onOpenChange,
   line,
-  companyId,
+  companyIds,
   from,
   to,
   basis,
   periodLabel,
 }: Props) {
   const drilldown = line?.drilldown ?? null;
-  const query = useLineTransactions(companyId, from, to, open ? drilldown : null, basis);
+  const query = useLineTransactions(companyIds, from, to, open ? drilldown : null, basis);
 
   const rows = query.data?.rows ?? [];
   const totalCount = query.data?.totalCount ?? 0;

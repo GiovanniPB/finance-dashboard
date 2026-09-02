@@ -41,6 +41,7 @@ import {
   type FormulaTerm,
 } from "../schema";
 
+/** A central de custos é global, então uma opção é um centro e ponto. */
 interface CostCenterOption {
   id: string;
   name: string;
@@ -245,7 +246,7 @@ export function BalanceLineEditor({
                 <legend className="text-sm font-medium">Centros de custo</legend>
                 {costCenters.length === 0 ? (
                   <p className="text-2xs text-text-muted">
-                    Nenhum centro de custo ativo na empresa.
+                    Nenhum centro de custo ativo no escopo.
                   </p>
                 ) : (
                   <div className="max-h-64 space-y-1 overflow-y-auto rounded-[var(--radius-md)] border border-border p-2">

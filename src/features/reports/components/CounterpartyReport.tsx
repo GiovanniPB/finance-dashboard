@@ -19,7 +19,7 @@ import type { CounterpartyKindFilter, CounterpartyRow } from "../api";
 import { useCounterpartyAnalysis } from "../hooks";
 
 interface Props {
-  companyId: string;
+  companyIds: string[] | null;
   from: string;
   to: string;
   kind: CounterpartyKindFilter;
@@ -35,8 +35,8 @@ const KIND_LABEL: Record<string, string> = {
   other: "Outros",
 };
 
-export function CounterpartyReport({ companyId, from, to, kind, onKindChange }: Props) {
-  const { data = [], isLoading } = useCounterpartyAnalysis(companyId, from, to, kind, 30);
+export function CounterpartyReport({ companyIds, from, to, kind, onKindChange }: Props) {
+  const { data = [], isLoading } = useCounterpartyAnalysis(companyIds, from, to, kind, 30);
 
   return (
     <div className="space-y-3">

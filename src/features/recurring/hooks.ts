@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { scopeQueryKey } from "@/features/companies/scopeQueryKey";
+
 import {
   approveRecurringTemplate,
   createRecurringTemplate,
@@ -12,8 +14,7 @@ import {
 } from "./api";
 
 export const recurringKeys = {
-  list: (companyIds: string[] | null) =>
-    ["recurring", companyIds ? [...companyIds].sort().join(",") : "all"] as const,
+  list: (companyIds: string[] | null) => ["recurring", scopeQueryKey(companyIds)] as const,
 };
 
 export function useRecurringTemplates(companyIds: string[] | null) {

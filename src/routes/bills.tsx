@@ -37,6 +37,7 @@ import type {
   BillWithRelations,
 } from "@/features/bills/types";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { scopeQueryKey } from "@/features/companies/scopeQueryKey";
 import { ReceivablesDetailSheet } from "@/features/sales/components/ReceivablesDetailSheet";
 import { cn } from "@/lib/cn";
 import { formatBRL } from "@/lib/format";
@@ -92,7 +93,7 @@ export default function BillsPage() {
     dueHorizon,
     origin,
     search.trim(),
-    companyIds ? [...companyIds].sort().join(",") : "all",
+    scopeQueryKey(companyIds),
   ].join("|");
   const lastFilterKey = React.useRef(filterKey);
   React.useEffect(() => {

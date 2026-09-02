@@ -252,7 +252,6 @@ export function BillDrawer({ open, onOpenChange, bill, companyId, direction }: P
                 render={({ field }) => (
                   <CostCenterSelect
                     id="costCenterId"
-                    companyId={companyId}
                     value={field.value}
                     onChange={field.onChange}
                   />

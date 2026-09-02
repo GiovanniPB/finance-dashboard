@@ -99,17 +99,72 @@ de DRE/KPI. Com recorte, respeitam o que o grupo pede.
 ## Comportamento por tela
 
 **Agregam** o recorte: dashboard, `/dre`, lançamentos, títulos, contas, impostos, vendas,
-recorrências, fluxo de caixa, forecast, NF-e/NFS-e, paleta de comandos.
+recorrências, fluxo de caixa, forecast, NF-e/NFS-e, paleta de comandos e **os quatro
+relatórios gerenciais** (ver a seção seguinte).
 
 **Operam numa empresa** com o seletor limitado ao escopo (hook
 [`useSingleCompanyPicker`](../../src/features/companies/useSingleCompanyPicker.ts)):
-importação, folha (colaboradores/rodadas/config), contas bancárias, centros de custo,
-conciliação, relatórios gerenciais. Nessas, agregar não faria sentido — a linha do extrato
-pertence a uma conta, que pertence a uma empresa; o regime tributário é de cada CNPJ.
+importação, folha (colaboradores/rodadas/config), contas bancárias, cadastro de centros de
+custo, conciliação. Nessas, agregar não faria sentido — a linha do extrato pertence a uma
+conta, que pertence a uma empresa; o regime tributário é de cada CNPJ.
 
-**Construtor de relatórios**: grupo entra como o consolidado **restrito** (mesmo `mode`,
-com `scope.companyIds`). O catálogo de blocos não mudou — bloco que só existe por empresa
-continua só por empresa.
+## Relatórios gerenciais consolidados
+
+Cada aba de `/relatorios` consolida de um jeito diferente, e a diferença não é detalhe:
+
+| Aba                | Como consolida                                                               |
+| ------------------ | ---------------------------------------------------------------------------- |
+| Contraparte        | soma direto — `counterparties` é da organização, o cliente é uma entidade só |
+| Comparativo de DRE | agrega pelo plano-mestre (`dre_comparison_multi` = `dre_consolidated` 2×)    |
+| Centro de custo    | agrupa pela **chave de consolidação** (nome normalizado, ou grupo de fusão)  |
+| Balanço gerencial  | modelo de linhas **por escopo**: empresa, grupo, ou consolidado              |
+
+### Centro de custo: a central é GLOBAL
+
+`cost_centers` **não tem `company_id`**: é uma lista da organização, usada por qualquer
+empresa. Com isso o `cost_center_id` já é a identidade compartilhada, e o relatório
+consolidado agrega com o próprio `group by` — não existe chave de consolidação, casamento
+por nome nem grupo de fusão.
+
+A primeira versão disto (em `…_relatorios_consolidados`) manteve o centro por empresa e
+pôs em cima uma camada de casamento por nome, com um "nome de consolidação" reversível.
+Resolvia o número e errava o produto: a tela de cadastro continuava pedindo uma empresa e
+passavam a existir dois conceitos para uma coisa que é uma. `…_central_de_custos_global`
+desfez isso — os 42 centros por empresa viraram um por nome distinto, com as 2.572
+referências de lançamento, 43 recorrências, 33 colaboradores e o `lines` dos modelos de
+balanço remapeados.
+
+**Duplicata se resolve fundindo**, em `/configuracoes/centros-de-custo`: marca-se os
+centros, escolhe-se qual fica, e a RPC `merge_cost_centers` repõe todas as referências no
+escolhido e apaga os outros. É **permanente** — organiza-se uma vez, depois é só usar.
+
+Fundir é atômico em cinco tabelas e por isso vive no banco: uma falha no meio deixaria
+referência apontando para centro apagado, e como a FK é `on delete set null` o efeito
+seria lançamento perdendo a classificação em silêncio. A função é `security definer` com
+portão de papel no topo pelo mesmo motivo — com `invoker`, a RLS de `transactions`
+filtraria as linhas de empresa que o usuário não pode escrever, o UPDATE passaria sobre
+menos linhas do que devia e o delete seguinte anularia justamente essas.
+
+**O que a central global expõe:** o NOME dos centros passa a ser visível a qualquer pessoa
+com acesso a alguma empresa da organização — inclusive de centros usados só por empresas a
+que ela não tem acesso. Nome, nunca valor: os números seguem presos à RLS de
+`transactions`.
+
+### Balanço: modelo de linhas por escopo
+
+As linhas do modelo referenciam `costCenterIds` (`uuid[]`), e isso já suportava vários
+centros por linha — então um modelo de grupo simplesmente lista os centros das empresas do
+grupo na mesma linha. O editor oferece a central de custos inteira, igual em qualquer
+escopo — o que muda por escopo é o MODELO de linhas, não as opções.
+
+Os três escopos são modelos independentes de propósito (`company_id`, `company_group_id`,
+ou ambos nulos = consolidado, com unique parcial por escopo). Herdar o modelo de uma
+empresa deixaria as outras fora do balanço sem aviso, porque as linhas apontam para centros
+específicos.
+
+**Construtor de relatórios (PDF)**: grupo entra como o consolidado **restrito** (mesmo
+`mode`, com `scope.companyIds`). O catálogo de blocos não mudou — bloco que só existe por
+empresa continua só por empresa, mesmo onde a RPC já suportaria agregar.
 
 ### Consertos que vieram de brinde
 

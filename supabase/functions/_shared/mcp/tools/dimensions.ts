@@ -52,7 +52,9 @@ export const LIMITE_MAX = 500;
  */
 const ESCOPO_POR_DIMENSAO: Record<Dimensao, "empresa" | "organizacao"> = {
   contas: "empresa",
-  centros_de_custo: "empresa",
+  // A central de custos é da organização: o mesmo centro vale para qualquer empresa
+  // do grupo (ver ..._central_de_custos_global).
+  centros_de_custo: "organizacao",
   contrapartes: "organizacao",
   contas_bancarias: "empresa",
   contas_pagarme: "empresa",
@@ -236,11 +238,7 @@ export const listDimensions: McpTool = {
       const rows = await ds.query<CentroRow>({
         table: "cost_centers",
         columns: "id,name,description,is_active",
-        filters: [
-          { column: "company_id", op: "eq", value: companyId },
-          ...filtroAtivo("is_active"),
-          ...filtroBusca("name"),
-        ],
+        filters: [...filtroAtivo("is_active"), ...filtroBusca("name")],
         order: { column: "name", ascending: true },
         limit: limite,
       });
@@ -255,10 +253,11 @@ export const listDimensions: McpTool = {
         },
         meta: proveniencia({
           fonte: "tabela cost_centers",
-          escopo: `empresa ${companyId}`,
+          escopo: "organização (a central de custos é global)",
           linhas: rows.length,
           como_calculado:
-            "Centros de custo da empresa. 'cost_center_id' é o valor aceito em search_transactions.cost_center_id. " +
+            "Central de custos da organização — o mesmo centro vale para qualquer empresa do grupo. " +
+            "'cost_center_id' é o valor aceito em search_transactions.cost_center_id. " +
             "Lançamento sem centro de custo existe e aparece como 'Sem centro de custo' em cost_center_analysis.",
           avisos: avisoTruncamento(rows.length, limite),
         }),

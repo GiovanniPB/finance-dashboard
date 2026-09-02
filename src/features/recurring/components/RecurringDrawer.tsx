@@ -105,7 +105,7 @@ export function RecurringDrawer({ open, onOpenChange, template, companyId }: Pro
   const { companies } = useCompanyScope();
   const organizationId = companies[0]?.organization_id ?? "";
   const { data: bankAccounts = [] } = useBankAccounts(watchedCompanyId);
-  const { data: costCenters = [] } = useCostCenters(watchedCompanyId);
+  const { data: costCenters = [] } = useCostCenters();
   const { data: counterparties = [] } = useCounterparties({ organizationId });
 
   const onSubmit = handleSubmit((values) => {

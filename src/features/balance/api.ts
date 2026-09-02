@@ -9,15 +9,21 @@ import {
   type AccountingBasis,
 } from "./drilldown";
 import { parseBalanceLines, type BalanceLine } from "./schema";
+import type { BalanceScope } from "./scope";
 
+/**
+ * Série mensal do escopo. Continua por `cost_center_id` (não pela chave de
+ * consolidação) porque as linhas do modelo referenciam centros específicos — é isso
+ * que permite uma linha somar o "Capex" de três empresas.
+ */
 export async function fetchMonthlySeries(
-  companyId: string,
+  companyIds: string[] | null,
   from: string,
   to: string,
   basis: AccountingBasis,
 ): Promise<MonthlySeriesRow[]> {
-  const { data, error } = await supabase.rpc("cost_center_monthly_series", {
-    p_company_id: companyId,
+  const { data, error } = await supabase.rpc("cost_center_monthly_series_multi", {
+    p_company_ids: companyIds ?? undefined,
     p_from: from,
     p_to: to,
     p_basis: basis,
@@ -31,24 +37,73 @@ export async function fetchMonthlySeries(
   }));
 }
 
-/** Modelo da empresa. Empresa sem modelo ainda devolve lista vazia, não erro. */
-export async function fetchBalanceModel(companyId: string): Promise<BalanceLine[]> {
-  const { data, error } = await supabase
-    .from("balance_report_models")
-    .select("lines")
-    .eq("company_id", companyId)
-    .maybeSingle();
+/** Filtro que isola a linha do escopo. Consolidado é "sem empresa e sem grupo". */
+function scopeFilter<T extends { eq: (c: string, v: string) => T; is: (c: string, v: null) => T }>(
+  query: T,
+  scope: BalanceScope,
+  organizationId: string,
+): T {
+  if (scope.kind === "company") return query.eq("company_id", scope.companyId);
+  if (scope.kind === "group") return query.eq("company_group_id", scope.groupId);
+  return query
+    .eq("organization_id", organizationId)
+    .is("company_id", null)
+    .is("company_group_id", null);
+}
+
+/** Modelo do escopo. Escopo sem modelo ainda devolve lista vazia, não erro. */
+export async function fetchBalanceModel(
+  scope: BalanceScope,
+  organizationId: string,
+): Promise<BalanceLine[]> {
+  const { data, error } = await scopeFilter(
+    supabase.from("balance_report_models").select("lines"),
+    scope,
+    organizationId,
+  ).maybeSingle();
   if (error) throw error;
   return parseBalanceLines(data?.lines);
 }
 
+/**
+ * Grava o modelo do escopo.
+ *
+ * Lê-então-escreve em vez de `upsert`: os únicos do escopo são índices PARCIAIS
+ * (`where company_id is not null`, etc.), e inferência de conflito com índice parcial
+ * é frágil. Duas idas ao banco num salvamento de configuração não custam nada, e o
+ * caminho fica explícito.
+ */
 export async function saveBalanceModel(
-  companyId: string,
+  scope: BalanceScope,
+  organizationId: string,
   lines: BalanceLine[],
 ): Promise<BalanceLine[]> {
+  const { data: existing, error: findError } = await scopeFilter(
+    supabase.from("balance_report_models").select("id"),
+    scope,
+    organizationId,
+  ).maybeSingle();
+  if (findError) throw findError;
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from("balance_report_models")
+      .update({ lines })
+      .eq("id", existing.id)
+      .select("lines")
+      .single();
+    if (error) throw error;
+    return parseBalanceLines(data.lines);
+  }
+
   const { data, error } = await supabase
     .from("balance_report_models")
-    .upsert({ company_id: companyId, lines }, { onConflict: "company_id" })
+    .insert({
+      organization_id: organizationId,
+      company_id: scope.kind === "company" ? scope.companyId : null,
+      company_group_id: scope.kind === "group" ? scope.groupId : null,
+      lines,
+    })
     .select("lines")
     .single();
   if (error) throw error;
@@ -92,13 +147,13 @@ export interface LineTransactionsResult {
 }
 
 export async function fetchLineTransactions(params: {
-  companyId: string;
+  companyIds: string[] | null;
   from: string;
   to: string;
   drilldown: BalanceDrilldown;
   basis: AccountingBasis;
 }): Promise<LineTransactionsResult> {
-  const { companyId, from, to, drilldown, basis } = params;
+  const { companyIds, from, to, drilldown, basis } = params;
 
   // A data e os status vêm do regime: a lista precisa dos mesmos filtros da
   // série, senão ela não soma o número da célula que foi clicada.
@@ -108,10 +163,11 @@ export async function fetchLineTransactions(params: {
     .from("transactions")
     .select(LINE_TX_SELECT, { count: "exact" })
     .is("deleted_at", null)
-    .eq("company_id", companyId)
     .gte(dateColumn, from)
     .lte(dateColumn, to)
     .in("status", [...STATUSES_BY_BASIS[basis]]);
+
+  if (companyIds) query = query.in("company_id", companyIds);
 
   if (drilldown.kind === "cost_centers") {
     // Sem centro nenhum a linha vale zero; `in.()` vazio seria erro de sintaxe.

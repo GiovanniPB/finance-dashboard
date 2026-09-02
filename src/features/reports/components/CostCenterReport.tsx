@@ -10,13 +10,13 @@ import type { CostCenterRow } from "../api";
 import { useCostCenterAnalysis } from "../hooks";
 
 interface Props {
-  companyId: string;
+  companyIds: string[] | null;
   from: string;
   to: string;
 }
 
-export function CostCenterReport({ companyId, from, to }: Props) {
-  const { data = [], isLoading } = useCostCenterAnalysis(companyId, from, to);
+export function CostCenterReport({ companyIds, from, to }: Props) {
+  const { data = [], isLoading } = useCostCenterAnalysis(companyIds, from, to);
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
@@ -81,8 +81,17 @@ export function CostCenterReport({ companyId, from, to }: Props) {
           </thead>
           <tbody className="divide-y divide-border">
             {data.map((r) => (
-              <tr key={r.costCenterId ?? "none"} className="hover:bg-surface-2/60">
-                <td className="px-3 py-2 text-sm">{r.name}</td>
+              <tr key={r.costCenterId ?? "sem-centro"} className="hover:bg-surface-2/60">
+                <td className="px-3 py-2 text-sm">
+                  {r.name}
+                  {/* Sem isto, uma linha somando três empresas é indistinguível de
+                      uma linha de empresa única — e o leitor não saberia que é soma. */}
+                  {r.companiesCount > 1 && (
+                    <span className="text-2xs ml-2 text-text-subtle">
+                      {r.companiesCount} empresas
+                    </span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-right font-mono text-xs text-income">
                   {r.revenue > 0 ? formatBRL(r.revenue) : "—"}
                 </td>

@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { scopeQueryKey } from "@/features/companies/scopeQueryKey";
+
 import { fetchDreByCompany, fetchDreConsolidated } from "./api";
 import { computeDreTotals } from "./compute";
 
@@ -29,7 +31,7 @@ export function useDreConsolidated(
   to: string,
   companyIds: string[] | null = null,
 ) {
-  const scopeKey = companyIds ? [...companyIds].sort().join(",") : "all";
+  const scopeKey = scopeQueryKey(companyIds);
   const query = useQuery({
     queryKey: [...dreKeys.consolidated(organizationId ?? "", from, to), scopeKey],
     queryFn: () => fetchDreConsolidated(organizationId ?? "", from, to, companyIds),

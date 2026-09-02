@@ -253,9 +253,22 @@ RPC nova que agregue empresa segue o padrão `p_company_ids uuid[] default null`
 empresa, a implementação passa a ser a multi e a de uma empresa vira **wrapper** dela —
 o número do grupo e o da empresa não podem divergir.
 
+⚠️ **A central de custos é GLOBAL.** `cost_centers` não tem `company_id`: é uma lista da
+organização, usada por qualquer empresa (`…_central_de_custos_global`). Logo
+`cost_center_id` já é identidade compartilhada e agregação por centro de custo é o próprio
+`group by` — não existe casamento por nome. Duplicata se resolve fundindo, via
+`merge_cost_centers`, que é **permanente**: repõe lançamentos, recorrências,
+colaboradores, mapeamentos de folha e as linhas do balanço no centro escolhido e apaga os
+outros.
+
+⚠️ **Uuid de centro de custo também vive dentro de jsonb.** `balance_report_models.lines`
+guarda `costCenterIds`; qualquer remap ou fusão que esqueça esse jsonb deixa linha de
+balanço apontando para centro apagado, somando zero em silêncio.
+
 > 📘 **Referência técnica completa:**
 > [`docs/features/grupos-de-agregacao.md`](docs/features/grupos-de-agregacao.md) —
-> modelo, banco, RLS tudo-ou-nada, RPCs, comportamento por tela e invariantes.
+> modelo, banco, RLS tudo-ou-nada, RPCs, relatórios consolidados, fusão de centros de
+> custo, balanço por escopo, comportamento por tela e invariantes.
 
 ## Integração NFS-e (pagar.me × Focus)
 

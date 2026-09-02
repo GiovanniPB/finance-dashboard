@@ -14,6 +14,7 @@ import { analyzeModel } from "../compute";
 import { LINE_KIND_LABELS, MEASURE_LABELS, type BalanceLine } from "../schema";
 import { BalanceLineEditor } from "./BalanceLineEditor";
 
+/** A central de custos é global, então uma opção é um centro e ponto. */
 interface CostCenterOption {
   id: string;
   name: string;

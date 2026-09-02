@@ -21,18 +21,24 @@ import { buildBalanceCsv } from "../csv";
 import { BASIS_LABELS } from "../drilldown";
 import { useBalanceModel, useMonthlySeries, useSaveBalanceModel } from "../hooks";
 import { linesFromCostCenters, type BalanceLine } from "../schema";
+import { balanceScopeLabel, type BalanceScope } from "../scope";
 import { BalanceMatrix } from "./BalanceMatrix";
 import { BalanceModelPanel } from "./BalanceModelPanel";
 
 const BASES = ["accrual", "cash"] as const;
 
 interface Props {
-  companyId: string;
+  /** Escopo do MODELO de linhas: empresa, grupo, ou consolidado. */
+  scope: BalanceScope;
+  organizationId: string;
+  /** Recorte de empresas do escopo — nulo em consolidado. */
+  companyIds: string[] | null;
+  groupName?: string;
   from: string;
   to: string;
 }
 
-export function BalanceReport({ companyId, from, to }: Props) {
+export function BalanceReport({ scope, organizationId, companyIds, groupName, from, to }: Props) {
   const [draft, setDraft] = React.useState<BalanceLine[] | null>(null);
   const [editing, setEditing] = React.useState(false);
   // Na URL junto com aba e período: o link reproduz a tela como ela está.
@@ -45,10 +51,13 @@ export function BalanceReport({ companyId, from, to }: Props) {
     parseAsStringLiteral(BASES).withDefault("accrual"),
   );
 
-  const seriesQuery = useMonthlySeries(companyId, from, to, basis);
-  const modelQuery = useBalanceModel(companyId);
-  const costCentersQuery = useCostCenters(companyId);
-  const save = useSaveBalanceModel(companyId);
+  const seriesQuery = useMonthlySeries(companyIds, from, to, basis);
+  const modelQuery = useBalanceModel(scope, organizationId);
+  const save = useSaveBalanceModel(scope, organizationId);
+
+  // A central de custos é global: a mesma lista serve empresa, grupo e consolidado. O
+  // que muda por escopo é o MODELO de linhas, não as opções.
+  const costCentersQuery = useCostCenters();
 
   const saved = React.useMemo(() => modelQuery.data ?? [], [modelQuery.data]);
   const lines = draft ?? saved;
@@ -58,6 +67,8 @@ export function BalanceReport({ companyId, from, to }: Props) {
     () => (costCentersQuery.data ?? []).filter((cc) => cc.is_active),
     [costCentersQuery.data],
   );
+
+  const scopeLabel = balanceScopeLabel(scope, { groupName });
 
   const matrix = React.useMemo(
     () => buildBalanceMatrix({ from, to, series: seriesQuery.data ?? [], lines }),
@@ -113,7 +124,7 @@ export function BalanceReport({ companyId, from, to }: Props) {
     return (
       <div className="space-y-4">
         <div className="rounded-[var(--radius-lg)] border border-dashed border-border bg-surface p-12 text-center">
-          <h3 className="text-sm font-semibold">Monte o balanço desta empresa</h3>
+          <h3 className="text-sm font-semibold">Monte o balanço {scopeLabel}</h3>
           <p className="mx-auto mt-1 max-w-md text-sm text-text-muted">
             Cada linha da matriz é um item: um grupo de centros de custo, uma fórmula sobre outros
             itens (Ebitda, Lucro Líquido) ou um percentual (Margem).
@@ -223,7 +234,7 @@ export function BalanceReport({ companyId, from, to }: Props) {
         matrix={matrix}
         showVariation={showVariation}
         basis={basis}
-        companyId={companyId}
+        companyIds={companyIds}
         from={from}
         to={to}
       />
@@ -231,7 +242,7 @@ export function BalanceReport({ companyId, from, to }: Props) {
       {matrix.lines.some((l) => l.kind === "unclassified") && (
         <p className="text-2xs text-text-muted">
           A linha <strong>Não classificado</strong> é o que nenhum item captura — inclusive
-          lançamento sem centro de custo. Ela existe para o relatório fechar com o total da empresa;
+          lançamento sem centro de custo. Ela existe para o relatório fechar com o total do escopo;
           some quando o modelo cobre tudo.
         </p>
       )}

@@ -1,5 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { scopeQueryKey } from "@/features/companies/scopeQueryKey";
+
 import {
   createBill,
   createInstallments,
@@ -33,7 +35,7 @@ export function useBills(filters: BillFilters) {
 
 export function useBillsAging(companyIds: string[] | null, direction: BillFilters["direction"]) {
   return useQuery({
-    queryKey: billKeys.aging(companyIds ? [...companyIds].sort().join(",") : null, direction),
+    queryKey: billKeys.aging(scopeQueryKey(companyIds), direction),
     queryFn: () => fetchAging(companyIds, direction),
   });
 }

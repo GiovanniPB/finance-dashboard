@@ -49,7 +49,7 @@ export function EmployeeDrawer({ open, onOpenChange, employee, companyId }: Prop
   const create = useCreateEmployee();
   const update = useUpdateEmployee();
   const pending = create.isPending || update.isPending;
-  const { data: costCenters = [] } = useCostCenters(companyId);
+  const { data: costCenters = [] } = useCostCenters();
 
   const initialValues = React.useMemo<EmployeeFormValues>(() => {
     if (employee) {
