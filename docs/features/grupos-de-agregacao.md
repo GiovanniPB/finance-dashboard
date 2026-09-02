@@ -119,45 +119,43 @@ Cada aba de `/relatorios` consolida de um jeito diferente, e a diferença não �
 | Centro de custo    | agrupa pela **chave de consolidação** (nome normalizado, ou grupo de fusão)  |
 | Balanço gerencial  | modelo de linhas **por escopo**: empresa, grupo, ou consolidado              |
 
-### Centro de custo: por que existe fusão manual
+### Centro de custo: a central é GLOBAL
 
-`cost_centers` é por empresa e o `code` foi removido em `…_cost_centers_sem_codigo`, então
-não há identidade compartilhada entre empresas. Nos dados reais do grupo, 40 centros ativos
-têm 22 nomes distintos, e a OTM Corretora nomeia os dela com prefixo próprio:
+`cost_centers` **não tem `company_id`**: é uma lista da organização, usada por qualquer
+empresa. Com isso o `cost_center_id` já é a identidade compartilhada, e o relatório
+consolidado agrega com o próprio `group by` — não existe chave de consolidação, casamento
+por nome nem grupo de fusão.
 
-| Conceito      | Assessoria / RCO / Jimmy | OTM Corretora                 |
-| ------------- | ------------------------ | ----------------------------- |
-| Capex         | `capex`                  | `otm corretora - capex`       |
-| Opex          | `opex`                   | `otm corretora - opex`        |
-| Área de apoio | `área de apoio`          | `otm corretora area de apoio` |
+A primeira versão disto (em `…_relatorios_consolidados`) manteve o centro por empresa e
+pôs em cima uma camada de casamento por nome, com um "nome de consolidação" reversível.
+Resolvia o número e errava o produto: a tela de cadastro continuava pedindo uma empresa e
+passavam a existir dois conceitos para uma coisa que é uma. `…_central_de_custos_global`
+desfez isso — os 42 centros por empresa viraram um por nome distinto, com as 2.572
+referências de lançamento, 43 recorrências, 33 colaboradores e o `lines` dos modelos de
+balanço remapeados.
 
-Casar só por nome fundiria 10 e deixaria 12 separados — "Capex" e "otm corretora - capex"
-como duas linhas, a fusão pela metade. A decisão foi: **casar por nome normalizado, o que
-não casar fica distinto, e existir fusão manual** para os divergentes.
+**Duplicata se resolve fundindo**, em `/configuracoes/centros-de-custo`: marca-se os
+centros, escolhe-se qual fica, e a RPC `merge_cost_centers` repõe todas as referências no
+escolhido e apaga os outros. É **permanente** — organiza-se uma vez, depois é só usar.
 
-Fundir = dar ao centro um **nome de consolidação** (`cost_center_merge_groups` +
-`cost_centers.merge_group_id`). Pôr `otm corretora - capex` num grupo chamado "Capex" faz
-ele casar com os `capex` das outras empresas automaticamente, porque a chave passa a ser o
-nome do grupo. É a mesma regra de sempre com o nome corrigido — não uma segunda regra de
-casamento. Fundir **não** renomeia o centro na empresa nem toca lançamento, e apagar o
-grupo de fusão desfaz a união sem apagar centro.
+Fundir é atômico em cinco tabelas e por isso vive no banco: uma falha no meio deixaria
+referência apontando para centro apagado, e como a FK é `on delete set null` o efeito
+seria lançamento perdendo a classificação em silêncio. A função é `security definer` com
+portão de papel no topo pelo mesmo motivo — com `invoker`, a RLS de `transactions`
+filtraria as linhas de empresa que o usuário não pode escrever, o UPDATE passaria sobre
+menos linhas do que devia e o delete seguinte anularia justamente essas.
 
-A normalização é `lower(btrim(...))`, a mesma do índice
-`cost_centers_company_name_active_uniq` — que já garante nome único por empresa, então a
-chave dá no máximo uma linha por empresa.
-
-A chave vive num lugar só, a view `v_cost_centers_consolidated`, e o agrupamento do cliente
-(`groupByConsolidationKey`) é coberto por teste justamente porque é o espelho do `group by`
-que o banco faz: se os dois discordarem, a tela de fusão mostra um agrupamento e o
-relatório soma outro.
+**O que a central global expõe:** o NOME dos centros passa a ser visível a qualquer pessoa
+com acesso a alguma empresa da organização — inclusive de centros usados só por empresas a
+que ela não tem acesso. Nome, nunca valor: os números seguem presos à RLS de
+`transactions`.
 
 ### Balanço: modelo de linhas por escopo
 
 As linhas do modelo referenciam `costCenterIds` (`uuid[]`), e isso já suportava vários
 centros por linha — então um modelo de grupo simplesmente lista os centros das empresas do
-grupo na mesma linha. No escopo com várias empresas, o editor oferece as **chaves de
-consolidação** em vez de centros individuais: escolher "Capex" inclui o Capex das N
-empresas de uma vez.
+grupo na mesma linha. O editor oferece a central de custos inteira, igual em qualquer
+escopo — o que muda por escopo é o MODELO de linhas, não as opções.
 
 Os três escopos são modelos independentes de propósito (`company_id`, `company_group_id`,
 ou ambos nulos = consolidado, com unique parcial por escopo). Herdar o modelo de uma

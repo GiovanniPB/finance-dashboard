@@ -58,7 +58,7 @@ export function BulkEditDrawer({ open, onOpenChange, ids, companyId, onApplied }
 
   const { data: accounts = [] } = useAccountsByCompany(companyId);
   const { data: bankAccounts = [] } = useBankAccounts(companyId);
-  const { data: costCenters = [] } = useCostCenters(companyId);
+  const { data: costCenters = [] } = useCostCenters();
   const { data: counterparties = [] } = useCounterparties({ organizationId });
   const bulk = useBulkUpdateTransactions();
 

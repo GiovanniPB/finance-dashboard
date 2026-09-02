@@ -81,7 +81,7 @@ export function CostCenterReport({ companyIds, from, to }: Props) {
           </thead>
           <tbody className="divide-y divide-border">
             {data.map((r) => (
-              <tr key={r.key} className="hover:bg-surface-2/60">
+              <tr key={r.costCenterId ?? "sem-centro"} className="hover:bg-surface-2/60">
                 <td className="px-3 py-2 text-sm">
                   {r.name}
                   {/* Sem isto, uma linha somando três empresas é indistinguível de

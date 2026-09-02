@@ -9,7 +9,6 @@ import {
 import { useCostCenters } from "./hooks";
 
 interface Props {
-  companyId: string | null;
   value: string | null;
   onChange: (id: string | null) => void;
   id?: string;
@@ -19,20 +18,20 @@ interface Props {
 const NONE = "__none__";
 
 export function CostCenterSelect({
-  companyId,
   value,
   onChange,
   id,
   placeholder = "Sem centro de custo",
 }: Props) {
-  const { data: costCenters = [], isLoading } = useCostCenters(companyId);
+  // A central é global: as opções não dependem da empresa do lançamento.
+  const { data: costCenters = [], isLoading } = useCostCenters();
   const active = costCenters.filter((c) => c.is_active);
 
   return (
     <Select
       value={value ?? NONE}
       onValueChange={(v) => onChange(v === NONE ? null : v)}
-      disabled={isLoading || !companyId}
+      disabled={isLoading}
     >
       <SelectTrigger id={id}>
         <SelectValue placeholder={placeholder} />

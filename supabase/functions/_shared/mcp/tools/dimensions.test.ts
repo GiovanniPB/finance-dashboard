@@ -206,3 +206,53 @@ describe("list_dimensions — contrato geral", () => {
     expect(r.meta.avisos?.join(" ")).toMatch(/truncado/i);
   });
 });
+
+describe("list_dimensions — centros de custo", () => {
+  const centros = [
+    { id: "cc1", name: "Comercial", description: null, is_active: true },
+    { id: "cc2", name: "Administrativo", description: "Apoio", is_active: true },
+  ];
+
+  it("NÃO filtra por empresa: a central de custos é da organização", async () => {
+    // Antes de ..._central_de_custos_global esta tool filtrava `company_id`. Com a
+    // central global, filtrar por empresa esconderia centro que a empresa usa.
+    const ds = fakeDataSource({ query: { cost_centers: centros } });
+
+    await listDimensions.run({ tipo: "centros_de_custo", organization_id: ORG }, ds);
+
+    expect(filtroDe(ds.queries[0], "company_id")).toBeUndefined();
+  });
+
+  it("não exige company_id", async () => {
+    const ds = fakeDataSource({ query: { cost_centers: centros } });
+
+    const r = await listDimensions.run({ tipo: "centros_de_custo", organization_id: ORG }, ds);
+
+    expect(dados(r).centros_de_custo).toHaveLength(2);
+  });
+
+  it("devolve o cost_center_id que search_transactions aceita", async () => {
+    const ds = fakeDataSource({ query: { cost_centers: centros } });
+
+    const r = await listDimensions.run({ tipo: "centros_de_custo", company_id: EMPRESA }, ds);
+
+    expect(dados(r).centros_de_custo[0]).toMatchObject({
+      cost_center_id: "cc1",
+      nome: "Comercial",
+      ativo: true,
+    });
+  });
+
+  it("só ativos por padrão, e inclui inativos quando pedido", async () => {
+    const ds = fakeDataSource({ query: { cost_centers: centros } });
+    await listDimensions.run({ tipo: "centros_de_custo", organization_id: ORG }, ds);
+    expect(filtroDe(ds.queries[0], "is_active", "eq")?.value).toBe(true);
+
+    const ds2 = fakeDataSource({ query: { cost_centers: centros } });
+    await listDimensions.run(
+      { tipo: "centros_de_custo", organization_id: ORG, apenas_ativos: false },
+      ds2,
+    );
+    expect(filtroDe(ds2.queries[0], "is_active")).toBeUndefined();
+  });
+});

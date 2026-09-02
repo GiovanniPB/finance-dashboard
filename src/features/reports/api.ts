@@ -1,15 +1,9 @@
 import { supabase } from "@/lib/supabase";
 
 export interface CostCenterRow {
-  /**
-   * Chave de consolidação (nome do grupo de fusão, ou o próprio nome, normalizado).
-   * Substituiu `costCenterId` porque num escopo com várias empresas a linha soma N
-   * centros — não existe "o" id dela.
-   */
-  key: string;
+  /** Nulo = lançamento sem centro de custo atribuído. */
+  costCenterId: string | null;
   name: string;
-  /** Centros que entraram na linha, na ordem que o banco devolveu. */
-  costCenterIds: string[];
   /** De quantas empresas o total veio. Acima de 1, a linha é uma soma. */
   companiesCount: number;
   revenue: number;
@@ -23,9 +17,8 @@ export interface CostCenterRow {
  * Resultado por centro de custo do escopo. `companyIds` nulo = todas as operacionais
  * acessíveis; array = recorte.
  *
- * A agregação é do banco (`cost_center_analysis_multi`) porque a chave de consolidação
- * depende dos grupos de fusão — decidir isso no cliente daria uma segunda regra de
- * casamento, livre de divergir da que o resto do sistema usa.
+ * A central de custos é global, então o `cost_center_id` já é a identidade compartilhada
+ * entre empresas: agregar é o próprio `group by`, sem casar nome nenhum.
  */
 export async function fetchCostCenterAnalysis(
   companyIds: string[] | null,
@@ -39,9 +32,8 @@ export async function fetchCostCenterAnalysis(
   });
   if (error) throw error;
   return (data ?? []).map((r) => ({
-    key: r.consolidation_key,
+    costCenterId: r.cost_center_id,
     name: r.cost_center_name,
-    costCenterIds: r.cost_center_ids ?? [],
     companiesCount: r.companies_count,
     revenue: r.revenue,
     expense: r.expense,

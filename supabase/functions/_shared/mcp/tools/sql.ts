@@ -20,7 +20,7 @@ const ESQUEMA = `Views disponíveis (schema mcp_api, use o nome sem qualificar):
 
 - empresas(company_id, organization_id, nome, razao_social, cnpj, regime_tributario, holding, ativa)
 - contas(account_id, company_id, codigo, conta, tipo, secao_dre, totalizadora, abaixo_da_linha, parent_id, ativa)
-- centros_de_custo(cost_center_id, company_id, nome, ativo)
+- centros_de_custo(cost_center_id, organization_id, nome, ativo)  -- global, não por empresa
 - contrapartes(counterparty_id, organization_id, nome, tipo, documento, ativa)
 - transacoes(transaction_id, company_id, empresa, data_competencia, data_caixa, vencimento,
     valor, valor_bruto, direcao, status, entra_em_competencia, entra_em_caixa,

@@ -29,7 +29,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-import type { CostCenterOption } from "../costCenterOptions";
 import {
   BALANCE_MEASURES,
   balanceLineSchema,
@@ -41,6 +40,12 @@ import {
   type BalanceMeasure,
   type FormulaTerm,
 } from "../schema";
+
+/** A central de custos é global, então uma opção é um centro e ponto. */
+interface CostCenterOption {
+  id: string;
+  name: string;
+}
 
 interface Props {
   open: boolean;
@@ -246,47 +251,23 @@ export function BalanceLineEditor({
                 ) : (
                   <div className="max-h-64 space-y-1 overflow-y-auto rounded-[var(--radius-md)] border border-border p-2">
                     {costCenters.map((cc) => {
-                      // A opção pode representar VÁRIOS centros (a mesma conceituação em
-                      // empresas diferentes), então marcar/desmarcar move todos juntos.
-                      const checked = cc.costCenterIds.every((id) =>
-                        draft.costCenterIds.includes(id),
-                      );
+                      const checked = draft.costCenterIds.includes(cc.id);
                       return (
                         <label
                           key={cc.id}
-                          className="flex cursor-pointer items-start gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm hover:bg-surface-2"
+                          className="flex cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-sm hover:bg-surface-2"
                         >
                           <Checkbox
-                            className="mt-0.5"
                             checked={checked}
                             onCheckedChange={(next) =>
                               patch({
                                 costCenterIds: next
-                                  ? [
-                                      ...draft.costCenterIds,
-                                      ...cc.costCenterIds.filter(
-                                        (id) => !draft.costCenterIds.includes(id),
-                                      ),
-                                    ]
-                                  : draft.costCenterIds.filter(
-                                      (id) => !cc.costCenterIds.includes(id),
-                                    ),
+                                  ? [...draft.costCenterIds, cc.id]
+                                  : draft.costCenterIds.filter((id) => id !== cc.id),
                               })
                             }
                           />
-                          <span className="flex-1">
-                            {cc.name}
-                            {cc.companiesCount > 1 && (
-                              <span className="text-2xs ml-1.5 text-text-subtle">
-                                {cc.companiesCount} empresas
-                              </span>
-                            )}
-                            {cc.memberNames.length > 0 && (
-                              <span className="text-2xs block text-text-subtle">
-                                inclui: {cc.memberNames.join(", ")}
-                              </span>
-                            )}
-                          </span>
+                          {cc.name}
                         </label>
                       );
                     })}

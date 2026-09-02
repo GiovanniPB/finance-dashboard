@@ -12,12 +12,11 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useConsolidatedCostCenters, useCostCenters } from "@/features/cost-centers/hooks";
+import { useCostCenters } from "@/features/cost-centers/hooks";
 import { cn } from "@/lib/cn";
 import { downloadCsv } from "@/lib/csv";
 
 import { buildBalanceMatrix } from "../compute";
-import { optionsFromConsolidated, optionsFromCostCenters } from "../costCenterOptions";
 import { buildBalanceCsv } from "../csv";
 import { BASIS_LABELS } from "../drilldown";
 import { useBalanceModel, useMonthlySeries, useSaveBalanceModel } from "../hooks";
@@ -34,22 +33,12 @@ interface Props {
   organizationId: string;
   /** Recorte de empresas do escopo — nulo em consolidado. */
   companyIds: string[] | null;
-  /** Empresa única do escopo, quando houver (nulo em consolidado e em grupo). */
-  companyId: string | null;
   groupName?: string;
   from: string;
   to: string;
 }
 
-export function BalanceReport({
-  scope,
-  organizationId,
-  companyIds,
-  companyId,
-  groupName,
-  from,
-  to,
-}: Props) {
+export function BalanceReport({ scope, organizationId, companyIds, groupName, from, to }: Props) {
   const [draft, setDraft] = React.useState<BalanceLine[] | null>(null);
   const [editing, setEditing] = React.useState(false);
   // Na URL junto com aba e período: o link reproduz a tela como ela está.
@@ -66,21 +55,18 @@ export function BalanceReport({
   const modelQuery = useBalanceModel(scope, organizationId);
   const save = useSaveBalanceModel(scope, organizationId);
 
-  // Escopo de UMA empresa oferece os centros dela; escopo com várias oferece as CHAVES
-  // de consolidação, para uma linha somar o mesmo conceito nas N empresas de uma vez.
-  const singleCompanyQuery = useCostCenters(scope.kind === "company" ? companyId : null);
-  const consolidatedQuery = useConsolidatedCostCenters(scope.kind === "company" ? [] : companyIds);
+  // A central de custos é global: a mesma lista serve empresa, grupo e consolidado. O
+  // que muda por escopo é o MODELO de linhas, não as opções.
+  const costCentersQuery = useCostCenters();
 
   const saved = React.useMemo(() => modelQuery.data ?? [], [modelQuery.data]);
   const lines = draft ?? saved;
   const isDirty = draft != null && JSON.stringify(draft) !== JSON.stringify(saved);
 
-  const activeCostCenters = React.useMemo(() => {
-    if (scope.kind === "company") {
-      return optionsFromCostCenters((singleCompanyQuery.data ?? []).filter((cc) => cc.is_active));
-    }
-    return optionsFromConsolidated(consolidatedQuery.data ?? []);
-  }, [scope.kind, singleCompanyQuery.data, consolidatedQuery.data]);
+  const activeCostCenters = React.useMemo(
+    () => (costCentersQuery.data ?? []).filter((cc) => cc.is_active),
+    [costCentersQuery.data],
+  );
 
   const scopeLabel = balanceScopeLabel(scope, { groupName });
 
@@ -89,19 +75,13 @@ export function BalanceReport({
     [from, to, seriesQuery.data, lines],
   );
 
-  const isLoading =
-    seriesQuery.isLoading ||
-    modelQuery.isLoading ||
-    (scope.kind === "company" ? singleCompanyQuery.isLoading : consolidatedQuery.isLoading);
+  const isLoading = seriesQuery.isLoading || modelQuery.isLoading || costCentersQuery.isLoading;
   if (isLoading) return <Skeleton className="h-72 w-full" />;
 
   // Consulta que falha NÃO pode virar matriz vazia: sem dado, toda linha calcula
   // zero e a tela fica idêntica a "não houve movimento no período" — um erro de
   // banco passa por resultado legítimo e ninguém percebe.
-  const failure =
-    seriesQuery.error ??
-    modelQuery.error ??
-    (scope.kind === "company" ? singleCompanyQuery.error : consolidatedQuery.error);
+  const failure = seriesQuery.error ?? modelQuery.error ?? costCentersQuery.error;
   if (failure) {
     return (
       <div className="space-y-3 rounded-[var(--radius-lg)] border border-expense/40 bg-expense/5 p-6">
@@ -120,9 +100,7 @@ export function BalanceReport({
           onClick={() => {
             void seriesQuery.refetch();
             void modelQuery.refetch();
-            void (scope.kind === "company"
-              ? singleCompanyQuery.refetch()
-              : consolidatedQuery.refetch());
+            void costCentersQuery.refetch();
           }}
         >
           Tentar de novo
@@ -159,10 +137,7 @@ export function BalanceReport({
               setEditing(true);
             }}
           >
-            <Sparkles className="size-4" />{" "}
-            {scope.kind === "company"
-              ? "Começar com um item por centro de custo"
-              : "Começar com um item por centro de custo consolidado"}
+            <Sparkles className="size-4" /> Começar com um item por centro de custo
           </Button>
           {activeCostCenters.length === 0 && (
             <p className="text-2xs mt-3 text-text-muted">

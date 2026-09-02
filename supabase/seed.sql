@@ -146,27 +146,36 @@ where c.id in (
 on conflict (group_id, company_id) do nothing;
 
 -- -----------------------------------------------------------------------------
--- Centros de custo nos lançamentos + um nome divergente de propósito.
+-- Centros de custo nos lançamentos + um duplicado de propósito.
 --
--- Sem isto o relatório de centro de custo local mostra só "Sem centro de custo", e
--- a consolidação (que casa por nome) não tem o que exercitar. A OTM Corretora recebe
--- um nome fora do padrão para reproduzir localmente o caso real do grupo: nome
--- divergente separa a linha, e a fusão manual reune.
+-- Sem isto o relatório de centro de custo local mostra só "Sem centro de custo". A
+-- central é GLOBAL, então a distribuição não olha empresa: qualquer lançamento pode
+-- usar qualquer centro.
 -- -----------------------------------------------------------------------------
 update public.transactions t
 set cost_center_id = escolhido.id
 from (
-  select cc.company_id, cc.id,
-         row_number() over (partition by cc.company_id order by cc.name) - 1 as pos
+  select cc.id, row_number() over (order by cc.name) - 1 as pos
   from public.cost_centers cc
   where cc.is_active
 ) escolhido
-where escolhido.company_id = t.company_id
-  and escolhido.pos = abs(hashtext(t.id::text)) % 3
+where escolhido.pos =
+        abs(hashtext(t.id::text)) % greatest((select count(*) from public.cost_centers where is_active), 1)
   and t.cost_center_id is null
   and t.deleted_at is null;
 
-update public.cost_centers cc
-set name = 'OTM Corretora - Administrativo'
-where cc.company_id = '00000000-0000-0000-0000-000000000012'
-  and lower(btrim(cc.name)) = 'administrativo';
+-- Um centro duplicado, para exercitar a FUSÃO na central global: nasce separado de
+-- "Administrativo" e é o candidato natural a ser fundido nele.
+insert into public.cost_centers (organization_id, name, description)
+select '00000000-0000-0000-0000-000000000001', 'OTM Corretora - Administrativo',
+       'Nome divergente de propósito: candidato a fusão com Administrativo'
+on conflict do nothing;
+
+update public.transactions t
+set cost_center_id = (
+  select cc.id from public.cost_centers cc
+  where lower(btrim(cc.name)) = 'otm corretora - administrativo' limit 1
+)
+where t.company_id = '00000000-0000-0000-0000-000000000012'
+  and t.deleted_at is null
+  and abs(hashtext(t.id::text)) % 3 = 0;

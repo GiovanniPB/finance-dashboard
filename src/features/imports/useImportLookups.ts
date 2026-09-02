@@ -24,18 +24,18 @@ export function useImportLookups(companyId: string | null) {
     enabled: Boolean(companyId),
   });
 
+  // A central de custos é global: o CSV pode citar qualquer centro, independente da
+  // empresa de destino da importação.
   const costCenters = useQuery({
-    queryKey: ["import-lookups", "cost-centers", companyId],
+    queryKey: ["import-lookups", "cost-centers"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cost_centers")
         .select("id, name")
-        .eq("company_id", companyId ?? "")
         .eq("is_active", true);
       if (error) throw error;
       return data ?? [];
     },
-    enabled: Boolean(companyId),
   });
 
   const bankAccounts = useQuery({

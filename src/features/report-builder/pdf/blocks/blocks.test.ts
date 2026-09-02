@@ -143,8 +143,7 @@ function cashflowFixture(): CashflowPeriod[] {
 
 function costCentersFixture(): CostCenterRow[] {
   return Array.from({ length: 5 }, (_, i) => ({
-    key: `centro ${i}`,
-    costCenterIds: [`cc${i}`],
+    costCenterId: `cc${i}`,
     companiesCount: 1,
     name: `Centro ${i}`,
     revenue: 200_000 - i * 20_000,
@@ -327,8 +326,7 @@ describe("renderers de bloco", () => {
       },
       costCenters: [
         {
-          key: "zerado",
-          costCenterIds: ["c"],
+          costCenterId: "c",
           companiesCount: 1,
           name: "Zerado",
           revenue: 0,

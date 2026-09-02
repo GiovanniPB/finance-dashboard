@@ -33,10 +33,11 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   costCenter: CostCenter | null;
-  companyId: string;
+  /** Organização da central — o centro é global, não de uma empresa. */
+  organizationId: string;
 }
 
-export function CostCenterDrawer({ open, onOpenChange, costCenter, companyId }: Props) {
+export function CostCenterDrawer({ open, onOpenChange, costCenter, organizationId }: Props) {
   const isEditing = Boolean(costCenter);
   const create = useCreateCostCenter();
   const update = useUpdateCostCenter();
@@ -45,14 +46,13 @@ export function CostCenterDrawer({ open, onOpenChange, costCenter, companyId }: 
   const initialValues = React.useMemo<CostCenterFormValues>(() => {
     if (costCenter) {
       return {
-        companyId: costCenter.company_id,
         name: costCenter.name,
         description: costCenter.description,
         isActive: costCenter.is_active,
       };
     }
-    return emptyCostCenterForm(companyId);
-  }, [costCenter, companyId]);
+    return emptyCostCenterForm();
+  }, [costCenter]);
 
   const {
     register,
@@ -73,7 +73,7 @@ export function CostCenterDrawer({ open, onOpenChange, costCenter, companyId }: 
 
   const onSubmit = handleSubmit((values) => {
     const payload = {
-      company_id: values.companyId,
+      organization_id: organizationId,
       name: values.name,
       description: values.description,
       is_active: values.isActive,

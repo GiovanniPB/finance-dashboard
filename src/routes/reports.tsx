@@ -162,7 +162,6 @@ export default function ReportsPage() {
           scope={balanceScope}
           organizationId={organizationId}
           companyIds={companyIds}
-          companyId={selectedCompanyId}
           groupName={selectedGroup?.name}
           from={range.from}
           to={range.to}

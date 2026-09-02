@@ -687,88 +687,40 @@ export type Database = {
           },
         ]
       }
-      cost_center_merge_groups: {
+      cost_centers: {
         Row: {
           created_at: string
-          created_by: string | null
+          description: string | null
           id: string
-          metadata: Json
+          is_active: boolean
           name: string
           organization_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
-          created_by?: string | null
+          description?: string | null
           id?: string
-          metadata?: Json
+          is_active?: boolean
           name: string
           organization_id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
-          created_by?: string | null
+          description?: string | null
           id?: string
-          metadata?: Json
+          is_active?: boolean
           name?: string
           organization_id?: string
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "cost_center_merge_groups_organization_id_fkey"
+            foreignKeyName: "cost_centers_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cost_centers: {
-        Row: {
-          company_id: string
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean
-          merge_group_id: string | null
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          merge_group_id?: string | null
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          merge_group_id?: string | null
-          name?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cost_centers_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cost_centers_merge_group_id_fkey"
-            columns: ["merge_group_id"]
-            isOneToOne: false
-            referencedRelation: "cost_center_merge_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -900,13 +852,6 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "employees_cost_center_id_fkey"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "v_cost_centers_consolidated"
             referencedColumns: ["id"]
           },
         ]
@@ -2427,13 +2372,6 @@ export type Database = {
             referencedRelation: "cost_centers"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "payroll_account_mappings_cost_center_id_fkey"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "v_cost_centers_consolidated"
-            referencedColumns: ["id"]
-          },
         ]
       }
       payroll_items: {
@@ -2731,13 +2669,6 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recurring_templates_cost_center_id_fkey"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "v_cost_centers_consolidated"
             referencedColumns: ["id"]
           },
           {
@@ -3220,13 +3151,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transactions_cost_center_id_fkey"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "v_cost_centers_consolidated"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "transactions_counterparty_id_fkey"
             columns: ["counterparty_id"]
             isOneToOne: false
@@ -3393,13 +3317,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transactions_cost_center_id_fkey"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "v_cost_centers_consolidated"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "transactions_counterparty_id_fkey"
             columns: ["counterparty_id"]
             isOneToOne: false
@@ -3450,33 +3367,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_cost_centers_consolidated: {
-        Row: {
-          company_id: string | null
-          consolidated_name: string | null
-          consolidation_key: string | null
-          id: string | null
-          is_active: boolean | null
-          merge_group_id: string | null
-          name: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cost_centers_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cost_centers_merge_group_id_fkey"
-            columns: ["merge_group_id"]
-            isOneToOne: false
-            referencedRelation: "cost_center_merge_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -3649,13 +3539,6 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_cost_center_id_fkey"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "v_cost_centers_consolidated"
             referencedColumns: ["id"]
           },
           {
@@ -3856,13 +3739,6 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_cost_center_id_fkey"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "v_cost_centers_consolidated"
             referencedColumns: ["id"]
           },
           {
@@ -4196,8 +4072,7 @@ export type Database = {
         Args: { p_company_ids?: string[]; p_from: string; p_to: string }
         Returns: {
           companies_count: number
-          consolidation_key: string
-          cost_center_ids: string[]
+          cost_center_id: string
           cost_center_name: string
           expense: number
           margin_pct: number
@@ -4730,6 +4605,10 @@ export type Database = {
       mcp_run_query: {
         Args: { p_limit?: number; p_sql: string }
         Returns: Json
+      }
+      merge_cost_centers: {
+        Args: { p_source_ids: string[]; p_target_id: string }
+        Returns: number
       }
       nfse_backfill_cron_invoke: { Args: never; Returns: undefined }
       nfse_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }

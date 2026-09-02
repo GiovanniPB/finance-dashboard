@@ -253,12 +253,17 @@ RPC nova que agregue empresa segue o padrão `p_company_ids uuid[] default null`
 empresa, a implementação passa a ser a multi e a de uma empresa vira **wrapper** dela —
 o número do grupo e o da empresa não podem divergir.
 
-⚠️ **Centro de custo consolidado casa por NOME normalizado** (`lower(btrim(...))`), não por
-id — `cost_centers` é por empresa e não tem identidade compartilhada. Nome divergente fica
-em linha separada de propósito, e a correção é a **fusão manual**
-(`cost_center_merge_groups` + `cost_centers.merge_group_id`), que dá aos centros um nome de
-consolidação comum. A chave vive na view `v_cost_centers_consolidated`; qualquer agregação
-nova por centro de custo deve ler dela, não reimplementar o agrupamento.
+⚠️ **A central de custos é GLOBAL.** `cost_centers` não tem `company_id`: é uma lista da
+organização, usada por qualquer empresa (`…_central_de_custos_global`). Logo
+`cost_center_id` já é identidade compartilhada e agregação por centro de custo é o próprio
+`group by` — não existe casamento por nome. Duplicata se resolve fundindo, via
+`merge_cost_centers`, que é **permanente**: repõe lançamentos, recorrências,
+colaboradores, mapeamentos de folha e as linhas do balanço no centro escolhido e apaga os
+outros.
+
+⚠️ **Uuid de centro de custo também vive dentro de jsonb.** `balance_report_models.lines`
+guarda `costCenterIds`; qualquer remap ou fusão que esqueça esse jsonb deixa linha de
+balanço apontando para centro apagado, somando zero em silêncio.
 
 > 📘 **Referência técnica completa:**
 > [`docs/features/grupos-de-agregacao.md`](docs/features/grupos-de-agregacao.md) —
