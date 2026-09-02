@@ -25,11 +25,11 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function AccountsPage() {
-  const { selectedCompanyId, isConsolidated } = useCompanyScope();
+  const { selectedCompanyId, companyIds, isMultiCompany, scopeKind } = useCompanyScope();
   const today = isoDate(new Date());
 
-  // Consolidado busca todas as empresas acessíveis (a RLS faz o recorte).
-  const companyIds = isConsolidated ? null : selectedCompanyId ? [selectedCompanyId] : null;
+  // `companyIds` já vem pronto do escopo: nulo em consolidado (quem recorta é a RLS),
+  // as empresas do grupo num grupo de agregação, uma só quando há empresa selecionada.
   const { data, isLoading } = useBalancesMulti(today, companyIds);
   const unassigned = useUnassignedCount(companyIds);
   const [transferOpen, setTransferOpen] = React.useState(false);
@@ -48,7 +48,7 @@ export default function AccountsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-2xs flex items-center gap-2 font-medium tracking-wide text-text-subtle uppercase">
-            {isConsolidated ? <Globe2 className="size-3 text-accent" /> : null}
+            {isMultiCompany ? <Globe2 className="size-3 text-accent" /> : null}
             Contas
           </div>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
@@ -56,8 +56,12 @@ export default function AccountsPage() {
           </h1>
           <p className="mt-1 text-sm text-text-muted">
             Saldo de cada conta hoje,{" "}
-            {isConsolidated ? "somando todas as empresas" : "nesta empresa"}. Clique numa conta para
-            ver o extrato.
+            {scopeKind === "consolidated"
+              ? "somando todas as empresas"
+              : scopeKind === "group"
+                ? "somando as empresas do grupo"
+                : "nesta empresa"}
+            . Clique numa conta para ver o extrato.
           </p>
         </div>
         <div className="flex items-end gap-4">
@@ -77,7 +81,7 @@ export default function AccountsPage() {
             </div>
           )}
           {/* Transferir exige uma empresa definida: as duas contas têm que ser dela. */}
-          {!isConsolidated && selectedCompanyId && (
+          {!isMultiCompany && selectedCompanyId && (
             <Button onClick={() => setTransferOpen(true)}>
               <ArrowLeftRight className="size-4" /> Transferir
             </Button>
@@ -126,7 +130,7 @@ export default function AccountsPage() {
       ) : (
         Array.from(groups.entries()).map(([companyName, accounts]) => (
           <section key={companyName} className="space-y-3">
-            {isConsolidated && (
+            {isMultiCompany && (
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold tracking-tight">{companyName}</h2>
                 <span className="font-mono text-xs text-text-subtle tabular-nums">
@@ -192,7 +196,7 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {!isConsolidated && selectedCompanyId && (
+      {!isMultiCompany && selectedCompanyId && (
         <TransferDrawer
           open={transferOpen}
           onOpenChange={setTransferOpen}

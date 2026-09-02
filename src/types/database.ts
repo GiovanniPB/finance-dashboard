@@ -584,6 +584,89 @@ export type Database = {
           },
         ]
       }
+      company_group_members: {
+        Row: {
+          company_id: string
+          created_at: string
+          group_id: string
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          group_id: string
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_group_members_company_fk"
+            columns: ["company_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "company_group_members_group_fk"
+            columns: ["group_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "company_groups"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      company_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          metadata: Json
+          name: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json
+          name: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json
+          name?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_centers: {
         Row: {
           company_id: string
@@ -1296,6 +1379,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      mcp_clients: {
+        Row: {
+          ativo: boolean
+          client_id: string
+          company_ids: string[] | null
+          created_at: string
+          created_by: string | null
+          modules: Database["public"]["Enums"]["data_module"][] | null
+          nome: string
+          observacao: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          client_id: string
+          company_ids?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          modules?: Database["public"]["Enums"]["data_module"][] | null
+          nome: string
+          observacao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          client_id?: string
+          company_ids?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          modules?: Database["public"]["Enums"]["data_module"][] | null
+          nome?: string
+          observacao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mcp_query_log: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          id: string
+          params: Json
+          row_count: number | null
+          tool: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          params?: Json
+          row_count?: number | null
+          tool: string
+          user_id?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          params?: Json
+          row_count?: number | null
+          tool?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       organizations: {
         Row: {
@@ -3741,8 +3896,26 @@ export type Database = {
           outflow: number
         }[]
       }
+      cashflow_daily_multi: {
+        Args: { p_company_ids?: string[]; p_end: string; p_start: string }
+        Returns: {
+          day: string
+          inflow: number
+          net: number
+          outflow: number
+        }[]
+      }
       cashflow_monthly: {
         Args: { p_company_id: string; p_year: number }
+        Returns: {
+          inflow: number
+          month_start: string
+          net: number
+          outflow: number
+        }[]
+      }
+      cashflow_monthly_multi: {
+        Args: { p_company_ids?: string[]; p_year: number }
         Returns: {
           inflow: number
           month_start: string
@@ -4079,7 +4252,12 @@ export type Database = {
         }[]
       }
       dre_consolidated: {
-        Args: { p_end: string; p_organization_id: string; p_start: string }
+        Args: {
+          p_company_ids?: string[]
+          p_end: string
+          p_organization_id: string
+          p_start: string
+        }
         Returns: {
           below_the_line: boolean
           code: string
@@ -4098,6 +4276,7 @@ export type Database = {
       expense_breakdown: {
         Args: {
           p_company_id?: string
+          p_company_ids?: string[]
           p_end?: string
           p_limit?: number
           p_organization_id?: string
@@ -4123,8 +4302,24 @@ export type Database = {
           running_balance: number
         }[]
       }
+      forecast_cashflow_daily_multi: {
+        Args: { p_company_ids?: string[]; p_from: string; p_to: string }
+        Returns: {
+          day: string
+          inflow_expected: number
+          inflow_recurring: number
+          outflow_expected: number
+          outflow_recurring: number
+          running_balance: number
+        }[]
+      }
       forecast_pagarme_inflow: {
-        Args: { p_company_id: string; p_from: string; p_to: string }
+        Args: {
+          p_company_id?: string
+          p_company_ids?: string[]
+          p_from: string
+          p_to: string
+        }
         Returns: {
           day: string
           fees_pagarme: number
@@ -4235,7 +4430,11 @@ export type Database = {
         }[]
       }
       kpi_dashboard_consolidated: {
-        Args: { p_organization_id: string; p_year: number }
+        Args: {
+          p_company_ids?: string[]
+          p_organization_id: string
+          p_year: number
+        }
         Returns: {
           cash_generation: number
           cogs: number
@@ -4326,6 +4525,10 @@ export type Database = {
       materialize_recurring_occurrence: {
         Args: { p_template_id: string }
         Returns: string
+      }
+      mcp_run_query: {
+        Args: { p_limit?: number; p_sql: string }
+        Returns: Json
       }
       nfse_backfill_cron_invoke: { Args: never; Returns: undefined }
       nfse_cron_invoke: { Args: { p_mode?: string }; Returns: undefined }
@@ -4459,7 +4662,12 @@ export type Database = {
         }[]
       }
       receivables_schedule: {
-        Args: { p_company_id?: string; p_from: string; p_to: string }
+        Args: {
+          p_company_id?: string
+          p_company_ids?: string[]
+          p_from: string
+          p_to: string
+        }
         Returns: {
           fees: number
           gross: number
@@ -4685,6 +4893,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      visible_company_group_ids: { Args: never; Returns: string[] }
     }
     Enums: {
       account_kind:

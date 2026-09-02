@@ -4,7 +4,6 @@ import { parseAsInteger, useQueryStates } from "nuqs";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -47,7 +46,7 @@ type Tab = BillDirection;
 const DEFAULT_STATUS: BillEffectiveStatus[] = ["open", "partial", "overdue"];
 
 export default function BillsPage() {
-  const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
+  const { companyIds, selectedCompanyId, scopeKind, scopeLabel } = useCompanyScope();
   const { canEdit } = usePermissions();
   const [tab, setTab] = React.useState<Tab>("outflow");
   const [search, setSearch] = React.useState("");
@@ -74,7 +73,7 @@ export default function BillsPage() {
   }, [statusFilter]);
 
   const { data, isLoading } = useBills({
-    companyId: selectedCompanyId,
+    companyIds,
     direction: tab,
     status: effectiveStatuses,
     search: search.trim() || null,
@@ -87,9 +86,14 @@ export default function BillsPage() {
   // Mudar qualquer filtro muda o conjunto, e a página antiga deixa de fazer
   // sentido — na melhor hipótese mostra outra coisa, na pior cai fora do fim e
   // fica vazia. O ref preserva a página que veio na URL na primeira renderização.
-  const filterKey = [tab, statusFilter, dueHorizon, origin, search.trim(), selectedCompanyId].join(
-    "|",
-  );
+  const filterKey = [
+    tab,
+    statusFilter,
+    dueHorizon,
+    origin,
+    search.trim(),
+    companyIds ? [...companyIds].sort().join(",") : "all",
+  ].join("|");
   const lastFilterKey = React.useRef(filterKey);
   React.useEffect(() => {
     if (lastFilterKey.current === filterKey) return;
@@ -108,24 +112,10 @@ export default function BillsPage() {
 
   // O total vem do agregado, não da página: somar as linhas carregadas daria o
   // total da página e passaria por total da empresa.
-  const { data: aging = [] } = useBillsAging(selectedCompanyId, tab);
+  const { data: aging = [] } = useBillsAging(companyIds, tab);
   const totalOpen = aging.reduce((acc, bucket) => acc + (bucket.total ?? 0), 0);
 
   const deleteMutation = useDeleteBill();
-
-  if (isConsolidated || !selectedCompanyId) {
-    return (
-      <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-        <Header isConsolidated />
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-text-muted">
-            Selecione uma empresa específica no seletor superior para gerenciar contas a pagar e a
-            receber.
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   const directionLabel = tab === "outflow" ? "A Pagar" : "A Receber";
   const rows = data?.rows ?? [];
@@ -133,14 +123,20 @@ export default function BillsPage() {
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
       <Header
-        companyName={selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—"}
+        scopeName={scopeKind === "consolidated" ? "Consolidado" : scopeLabel}
+        scopeCompanyCount={companyIds?.length ?? null}
         directionLabel={directionLabel}
         totalOpen={totalOpen}
         canEdit={canEdit}
-        onCreate={() => {
-          setEditing(null);
-          setDrawerOpen(true);
-        }}
+        // Criar título é ato de UMA empresa: só com empresa única no escopo.
+        onCreate={
+          selectedCompanyId
+            ? () => {
+                setEditing(null);
+                setDrawerOpen(true);
+              }
+            : undefined
+        }
       />
 
       {/* Tabs */}
@@ -153,7 +149,7 @@ export default function BillsPage() {
         </TabButton>
       </div>
 
-      <BillsAgingCard companyId={selectedCompanyId} direction={tab} />
+      <BillsAgingCard companyIds={companyIds} direction={tab} />
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
@@ -239,13 +235,15 @@ export default function BillsPage() {
       {/* Status summary */}
       {!isLoading && rows.length > 0 && <StatusSummary rows={rows} />}
 
-      <BillDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        bill={editing}
-        companyId={selectedCompanyId}
-        direction={tab}
-      />
+      {selectedCompanyId && (
+        <BillDrawer
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          bill={editing}
+          companyId={selectedCompanyId}
+          direction={tab}
+        />
+      )}
 
       <PaymentDialog bill={paying} onOpenChange={(open) => !open && setPaying(null)} />
 
@@ -277,8 +275,9 @@ export default function BillsPage() {
 }
 
 interface HeaderProps {
-  isConsolidated?: boolean;
-  companyName?: string;
+  scopeName: string;
+  /** Nº de empresas somadas; `null` = todas as acessíveis (consolidado). */
+  scopeCompanyCount: number | null;
   directionLabel?: string;
   totalOpen?: number;
   canEdit?: boolean;
@@ -286,8 +285,8 @@ interface HeaderProps {
 }
 
 function Header({
-  isConsolidated,
-  companyName,
+  scopeName,
+  scopeCompanyCount,
   directionLabel,
   totalOpen,
   canEdit,
@@ -299,21 +298,27 @@ function Header({
         <div className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
           Contas {directionLabel ?? "a Pagar / a Receber"}
         </div>
-        <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
-          {isConsolidated ? "Consolidado" : companyName}
-        </h1>
-        {!isConsolidated && totalOpen !== undefined && (
+        <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">{scopeName}</h1>
+        {totalOpen !== undefined && (
           <p className="mt-1 text-sm text-text-muted">
             Total em aberto:{" "}
             <span className="font-mono font-semibold text-text">{formatBRL(totalOpen)}</span>
+            {scopeCompanyCount !== null && scopeCompanyCount > 1 && (
+              <span className="text-text-subtle"> · {scopeCompanyCount} empresas somadas</span>
+            )}
           </p>
         )}
       </div>
-      {canEdit && onCreate && (
-        <Button onClick={onCreate} size="sm">
-          <Plus className="size-4" /> Novo título
-        </Button>
-      )}
+      {canEdit &&
+        (onCreate ? (
+          <Button onClick={onCreate} size="sm">
+            <Plus className="size-4" /> Novo título
+          </Button>
+        ) : (
+          <p className="text-2xs max-w-[220px] text-right text-text-subtle">
+            Escolha uma empresa no seletor para lançar um título novo.
+          </p>
+        ))}
     </div>
   );
 }

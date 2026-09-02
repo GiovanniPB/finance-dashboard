@@ -64,7 +64,7 @@ const MONTH_LABELS = [
  *    split. No grupo isso importa: a RCO recebe dentro da conta da Jimmy.
  */
 export default function VendasPage() {
-  const { selectedCompanyId, selectedCompany, isConsolidated } = useCompanyScope();
+  const { companyIds, scopeKind, scopeLabel } = useCompanyScope();
   const [filters, setFilters] = useSalesFilters();
   const { year, month, grain, account } = filters;
 
@@ -99,11 +99,7 @@ export default function VendasPage() {
   // Recebíveis olham para FRENTE: a janela é do início do período até 18 meses à
   // frente, porque é aí que está o dinheiro contratado (venda em 12x).
   const receivablesTo = `${year + 1}-12-31`;
-  const receivables = useReceivablesSchedule(
-    range.start,
-    receivablesTo,
-    isConsolidated ? null : selectedCompanyId,
-  );
+  const receivables = useReceivablesSchedule(range.start, receivablesTo, companyIds);
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
@@ -123,10 +119,7 @@ export default function VendasPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="accent">
-            Recebíveis por empresa:{" "}
-            {isConsolidated
-              ? "consolidado"
-              : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—")}
+            Recebíveis por empresa: {scopeKind === "consolidated" ? "consolidado" : scopeLabel}
           </Badge>
           {/* esta tela só LÊ; carga histórica e projeção vivem na integração */}
           <Button variant="outline" size="sm" asChild>

@@ -84,6 +84,7 @@ export async function fetchReportData(input: FetchReportDataInput): Promise<Repo
       fetchExpenseBreakdown({
         companyId: isConsolidated ? null : companyId,
         organizationId: isConsolidated ? config.scope.organizationId : null,
+        companyIds: isConsolidated ? config.scope.companyIds : null,
         from: period.from,
         to: period.to,
         limit,
@@ -115,7 +116,7 @@ export async function fetchReportData(input: FetchReportDataInput): Promise<Repo
   if (types.has("forecast") && companyId != null) {
     const to = addDays(input.issuedAt, FORECAST_HORIZON_DAYS);
     tasks.push(
-      fetchForecast(companyId, input.issuedAt, to).then((rows) => {
+      fetchForecast([companyId], input.issuedAt, to).then((rows) => {
         data.forecast = rows;
       }),
     );
@@ -160,7 +161,12 @@ export async function fetchReportData(input: FetchReportDataInput): Promise<Repo
 async function fetchDre(config: ReportConfig, period: ResolvedPeriod) {
   const rows =
     config.scope.mode === "consolidated"
-      ? await fetchDreConsolidated(config.scope.organizationId, period.from, period.to)
+      ? await fetchDreConsolidated(
+          config.scope.organizationId,
+          period.from,
+          period.to,
+          config.scope.companyIds,
+        )
       : await fetchDreByCompany(config.scope.companyId ?? "", period.from, period.to);
   return computeDreTotals(rows);
 }
@@ -175,7 +181,11 @@ async function fetchKpis(config: ReportConfig, period: ResolvedPeriod) {
 
   const load = (targetYear: number) =>
     isConsolidated
-      ? fetchKpiDashboardConsolidated(config.scope.organizationId, targetYear)
+      ? fetchKpiDashboardConsolidated(
+          config.scope.organizationId,
+          targetYear,
+          config.scope.companyIds,
+        )
       : fetchKpiDashboard(config.scope.companyId ?? "", targetYear);
 
   const [current, previous] = await Promise.all([load(year), load(year - 1)]);
@@ -188,9 +198,9 @@ function fetchCashflow(
   granularity: "daily" | "monthly",
 ) {
   if (granularity === "daily") {
-    return fetchCashflowDaily(companyId, period.from, period.to);
+    return fetchCashflowDaily([companyId], period.from, period.to);
   }
-  return fetchCashflowMonthly(companyId, Number(period.to.slice(0, 4)));
+  return fetchCashflowMonthly([companyId], Number(period.to.slice(0, 4)));
 }
 
 /**

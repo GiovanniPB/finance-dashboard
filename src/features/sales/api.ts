@@ -210,12 +210,12 @@ export interface ReceivablesMonth {
 export async function fetchReceivablesSchedule(
   from: string,
   to: string,
-  companyId: string | null,
+  companyIds: string[] | null,
 ): Promise<ReceivablesMonth[]> {
   const { data, error } = await supabase.rpc("receivables_schedule", {
     p_from: from,
     p_to: to,
-    p_company_id: companyId ?? undefined,
+    p_company_ids: companyIds ?? undefined,
   });
   if (error) throw error;
   return (data ?? []).map((r) => ({
@@ -309,12 +309,12 @@ export interface PagarmeForecastDay {
 
 /** Série diária das entradas do pagar.me já projetadas, para destacar no forecast. */
 export async function fetchPagarmeForecast(
-  companyId: string,
+  companyIds: string[] | null,
   from: string,
   to: string,
 ): Promise<PagarmeForecastDay[]> {
   const { data, error } = await supabase.rpc("forecast_pagarme_inflow", {
-    p_company_id: companyId,
+    p_company_ids: companyIds ?? undefined,
     p_from: from,
     p_to: to,
   });

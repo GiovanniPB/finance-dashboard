@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { useSingleCompanyPicker } from "@/features/companies/useSingleCompanyPicker";
 import { type Employee } from "@/features/employees/api";
 import { EmployeeDrawer } from "@/features/employees/components/EmployeeDrawer";
 import { useDeleteEmployee, useEmployees } from "@/features/employees/hooks";
@@ -31,17 +31,14 @@ import { formatBRL } from "@/lib/format";
 const STATUS_LABELS = Object.fromEntries(EMPLOYEE_STATUSES.map((s) => [s.value, s.label]));
 
 export default function PayrollEmployeesPage() {
-  const { companies, selectedCompanyId, isConsolidated } = useCompanyScope();
-  const operational = companies.filter((c) => !c.is_holding);
-
-  const [pickedCompanyId, setPickedCompanyId] = React.useState<string | null>(
-    isConsolidated ? (operational[0]?.id ?? null) : selectedCompanyId,
-  );
-  React.useEffect(() => {
-    if (!isConsolidated) setPickedCompanyId(selectedCompanyId);
-  }, [isConsolidated, selectedCompanyId]);
-
-  const companyId = pickedCompanyId;
+  // Tela que OPERA numa empresa: num escopo com várias (consolidado ou grupo de
+  // agregação), escolhe-se qual — sempre entre as empresas do escopo.
+  const {
+    companyId,
+    setCompanyId,
+    options: scopeCompanies,
+    needsPicker,
+  } = useSingleCompanyPicker();
 
   const [statusFilter, setStatusFilter] = React.useState<string>("active");
   const [search, setSearch] = React.useState("");
@@ -89,13 +86,13 @@ export default function PayrollEmployeesPage() {
           </p>
         </div>
         <div className="flex items-end gap-2">
-          {isConsolidated && operational.length > 0 && (
-            <Select value={companyId ?? undefined} onValueChange={(v) => setPickedCompanyId(v)}>
+          {needsPicker && (
+            <Select value={companyId ?? undefined} onValueChange={(v) => setCompanyId(v)}>
               <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>
-                {operational.map((c) => (
+                {scopeCompanies.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.trade_name ?? c.legal_name}
                   </SelectItem>

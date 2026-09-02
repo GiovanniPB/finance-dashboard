@@ -210,6 +210,33 @@ Webhooks e orquestração server-side (ex.: esteira NFS-e) vivem em `supabase/fu
 - **Não** colocar dado de seed em migration nem segredo no frontend.
 - **Não** mutar dados de migrations já aplicadas.
 
+## Escopo de empresa & grupos de agregação
+
+O seletor superior tem **três** formas de escopo, não duas: uma empresa, `Consolidado`
+(todas as operacionais) e **grupo de agregação** — um recorte nomeado e compartilhado
+(ex.: "OTM sem Jimmy"). O contrato único é `companyIds` do `useCompanyScope()`:
+`null` = sem recorte (limita a RLS), array = exatamente estas empresas.
+
+⚠️ **Não existe `isConsolidated`.** Use `isMultiCompany` ("é mais de uma empresa?") ou
+`scopeKind` (`company` | `consolidated` | `group`). O booleano foi removido de propósito:
+com três formas, ele faria cada tela adivinhar de que lado o grupo cai, e o erro
+silencioso — 4 empresas somadas sob o rótulo de um recorte de 2 — é o pior defeito
+possível num sistema contábil.
+
+⚠️ **Recorte vazio nunca vira "todas as empresas".** Hook novo que aceite `companyIds`
+precisa de `enabled: companyIds === null || companyIds.length > 0`. Um grupo ainda
+carregando expõe `[]`; tratá-lo como `null` mostraria o total do grupo inteiro sob o
+rótulo do recorte.
+
+RPC nova que agregue empresa segue o padrão `p_company_ids uuid[] default null`
+(`null` = comportamento anterior), `security invoker`. Quando já existir a versão de uma
+empresa, a implementação passa a ser a multi e a de uma empresa vira **wrapper** dela —
+o número do grupo e o da empresa não podem divergir.
+
+> 📘 **Referência técnica completa:**
+> [`docs/features/grupos-de-agregacao.md`](docs/features/grupos-de-agregacao.md) —
+> modelo, banco, RLS tudo-ou-nada, RPCs, comportamento por tela e invariantes.
+
 ## Integração NFS-e (pagar.me × Focus)
 
 Emissão de NFS-e municipal (Barueri) a partir das vendas do pagar.me, com **split** e

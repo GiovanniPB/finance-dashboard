@@ -16,15 +16,26 @@ export async function fetchDreByCompany(
   return (data ?? []) as unknown as DreRow[];
 }
 
+/**
+ * DRE agregada pelo plano-mestre. `companyIds` nulo = organização inteira
+ * (consolidado); array = recorte de um grupo de agregação.
+ *
+ * A agregação é do banco de propósito: somar DREs de empresa no cliente erraria
+ * sempre que duas empresas têm planos de contas diferentes — é justamente o
+ * `master_account_id` que faz "Aluguel" da Corretora e da Assessoria virarem a
+ * mesma linha.
+ */
 export async function fetchDreConsolidated(
   organizationId: string,
   from: string,
   to: string,
+  companyIds: string[] | null,
 ): Promise<DreRow[]> {
   const { data, error } = await supabase.rpc("dre_consolidated", {
     p_organization_id: organizationId,
     p_start: from,
     p_end: to,
+    p_company_ids: companyIds ?? undefined,
   });
   if (error) throw error;
   return (data ?? []).map((r) => ({

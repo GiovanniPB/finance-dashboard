@@ -27,11 +27,14 @@ export function useKpiDashboard(companyId: string | null | undefined, year: numb
 export function useKpiDashboardConsolidated(
   organizationId: string | null | undefined,
   year: number,
+  companyIds: string[] | null = null,
 ) {
+  const scopeKey = companyIds ? [...companyIds].sort().join(",") : "all";
   return useQuery({
-    queryKey: kpiKeys.consolidated(organizationId, year),
-    queryFn: () => fetchKpiDashboardConsolidated(organizationId ?? "", year),
-    enabled: Boolean(organizationId),
+    queryKey: [...kpiKeys.consolidated(organizationId, year), scopeKey],
+    queryFn: () => fetchKpiDashboardConsolidated(organizationId ?? "", year, companyIds),
+    // Recorte vazio não deve virar "todas as empresas": não busca.
+    enabled: Boolean(organizationId) && (companyIds === null || companyIds.length > 0),
   });
 }
 
@@ -49,21 +52,26 @@ export function useKpiYoY(opts: {
   companyId: string | null | undefined;
   organizationId: string | null | undefined;
   year: number;
-  consolidated: boolean;
+  /** Escopo com mais de uma empresa: consolidado ou grupo de agregação. */
+  aggregated: boolean;
+  /** Recorte quando `aggregated`: nulo = organização inteira; array = só estas. */
+  companyIds: string[] | null;
 }): YoYKpis {
-  const currentSingle = useKpiDashboard(opts.consolidated ? null : opts.companyId, opts.year);
-  const previousSingle = useKpiDashboard(opts.consolidated ? null : opts.companyId, opts.year - 1);
-  const currentConsolidated = useKpiDashboardConsolidated(
-    opts.consolidated ? opts.organizationId : null,
+  const currentSingle = useKpiDashboard(opts.aggregated ? null : opts.companyId, opts.year);
+  const previousSingle = useKpiDashboard(opts.aggregated ? null : opts.companyId, opts.year - 1);
+  const currentAggregated = useKpiDashboardConsolidated(
+    opts.aggregated ? opts.organizationId : null,
     opts.year,
+    opts.companyIds,
   );
-  const previousConsolidated = useKpiDashboardConsolidated(
-    opts.consolidated ? opts.organizationId : null,
+  const previousAggregated = useKpiDashboardConsolidated(
+    opts.aggregated ? opts.organizationId : null,
     opts.year - 1,
+    opts.companyIds,
   );
 
-  const current = opts.consolidated ? currentConsolidated : currentSingle;
-  const previous = opts.consolidated ? previousConsolidated : previousSingle;
+  const current = opts.aggregated ? currentAggregated : currentSingle;
+  const previous = opts.aggregated ? previousAggregated : previousSingle;
 
   return {
     current: current.data,
@@ -75,15 +83,21 @@ export function useKpiYoY(opts: {
 export function useExpenseBreakdown(opts: {
   companyId: string | null;
   organizationId: string | null;
+  companyIds?: string[] | null;
   from: string;
   to: string;
 }) {
+  const scopeKey = opts.companyIds ? [...opts.companyIds].sort().join(",") : "all";
   return useQuery({
-    queryKey: kpiKeys.expenses(opts.companyId, opts.organizationId, opts.from, opts.to),
+    queryKey: [
+      ...kpiKeys.expenses(opts.companyId, opts.organizationId, opts.from, opts.to),
+      scopeKey,
+    ],
     queryFn: () =>
       fetchExpenseBreakdown({
         companyId: opts.companyId,
         organizationId: opts.organizationId,
+        companyIds: opts.companyIds ?? null,
         from: opts.from,
         to: opts.to,
       }),

@@ -8,7 +8,7 @@ import { NO_DUE_DATE_BUCKET, OVERDUE_BUCKETS, UPCOMING_BUCKETS, type AgingTone }
 import type { AgingBucketRow, BillDirection } from "../types";
 
 interface Props {
-  companyId: string | null;
+  companyIds: string[] | null;
   direction: BillDirection;
 }
 
@@ -26,8 +26,8 @@ interface Bucket {
  * caixas de atraso zeradas, e "sem vencimento" só faz sentido quando existe
  * título nessa situação — do contrário é ruído permanente para uma exceção.
  */
-export function BillsAgingCard({ companyId, direction }: Props) {
-  const { data = [], isLoading } = useBillsAging(companyId, direction);
+export function BillsAgingCard({ companyIds, direction }: Props) {
+  const { data = [], isLoading } = useBillsAging(companyIds, direction);
 
   const byBucket = new Map(data.map((r) => [r.bucket, r]));
   const grandTotal = data.reduce((acc, r) => acc + (r.total ?? 0), 0);

@@ -32,7 +32,7 @@ export async function fetchBills(filters: BillFilters): Promise<BillsListResult>
     .select(SELECT_WITH_RELATIONS, { count: "exact" })
     .eq("direction", filters.direction);
 
-  if (filters.companyId) query = query.eq("company_id", filters.companyId);
+  if (filters.companyIds) query = query.in("company_id", filters.companyIds);
   // Origem: a chave da projeção é o discriminador. Não-nula = veio dos recebíveis
   // do pagar.me; nula = lançamento humano.
   if (filters.origin === "pagarme") {
@@ -60,15 +60,51 @@ export async function fetchBills(filters: BillFilters): Promise<BillsListResult>
   return { rows, totalCount, pageCount };
 }
 
+/**
+ * Aging do escopo. A view agrupa por (empresa, direção, faixa); com mais de uma empresa
+ * no recorte vêm várias linhas por faixa, então a soma acontece aqui — num lugar só, em
+ * vez de cada consumidor somar do seu jeito e o card discordar do total do cabeçalho.
+ */
 export async function fetchAging(
-  companyId: string | null,
+  companyIds: string[] | null,
   direction: BillFilters["direction"],
 ): Promise<AgingBucketRow[]> {
   let query = supabase.from("v_bills_aging").select("*").eq("direction", direction);
-  if (companyId) query = query.eq("company_id", companyId);
+  if (companyIds) query = query.in("company_id", companyIds);
   const { data, error } = await query;
   if (error) throw error;
-  return data ?? [];
+
+  return aggregateAgingByBucket(data ?? [], companyIds);
+}
+
+/**
+ * Soma as linhas do aging por faixa. Exportada para teste porque é aqui que o total do
+ * cabeçalho e o card de faixas precisam concordar: se cada um somasse do seu jeito, a
+ * tela mostraria dois totais em aberto diferentes para o mesmo escopo.
+ */
+export function aggregateAgingByBucket(
+  rows: AgingBucketRow[],
+  companyIds: string[] | null,
+): AgingBucketRow[] {
+  const byBucket = new Map<string, AgingBucketRow>();
+  for (const row of rows) {
+    const key = row.bucket ?? "";
+    const acc = byBucket.get(key);
+    if (!acc) {
+      // company_id perde sentido ao somar mais de uma empresa: fica nulo de propósito.
+      byBucket.set(key, {
+        ...row,
+        company_id: companyIds?.length === 1 ? row.company_id : null,
+      });
+      continue;
+    }
+    byBucket.set(key, {
+      ...acc,
+      count: (acc.count ?? 0) + (row.count ?? 0),
+      total: (acc.total ?? 0) + (row.total ?? 0),
+    });
+  }
+  return [...byBucket.values()];
 }
 
 export async function createBill(payload: TransactionInsert): Promise<TransactionRow> {

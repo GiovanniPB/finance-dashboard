@@ -106,10 +106,10 @@ export function useSalesRecurrence(from: string, to: string, accountId: string |
   });
 }
 
-export function useReceivablesSchedule(from: string, to: string, companyId: string | null) {
+export function useReceivablesSchedule(from: string, to: string, companyIds: string[] | null) {
   return useQuery({
-    queryKey: salesKeys.receivables(from, to, companyId),
-    queryFn: () => fetchReceivablesSchedule(from, to, companyId),
+    queryKey: salesKeys.receivables(from, to, companyIds ? [...companyIds].sort().join(",") : null),
+    queryFn: () => fetchReceivablesSchedule(from, to, companyIds),
     ...FILTRAVEL,
   });
 }
@@ -139,11 +139,11 @@ export function useReceivablesOfTransaction(transactionId: string | null) {
   });
 }
 
-export function usePagarmeForecast(companyId: string | null, from: string, to: string) {
+export function usePagarmeForecast(companyIds: string[] | null, from: string, to: string) {
   return useQuery({
-    queryKey: ledgerKeys.forecast(companyId, from, to),
-    queryFn: () => fetchPagarmeForecast(companyId ?? "", from, to),
-    enabled: Boolean(companyId),
+    queryKey: ledgerKeys.forecast(companyIds ? [...companyIds].sort().join(",") : null, from, to),
+    queryFn: () => fetchPagarmeForecast(companyIds, from, to),
+    enabled: companyIds === null || companyIds.length > 0,
   });
 }
 

@@ -29,7 +29,12 @@ export interface TransactionWithRelations extends TransactionRow {
 export const NO_BANK_ACCOUNT = "__none__";
 
 export interface TransactionFilters {
-  companyId?: string | null;
+  /**
+   * Recorte de empresas: `null`/ausente = sem filtro (quem limita é a RLS); array =
+   * exatamente estas. Um array vazio filtra tudo fora de propósito — é o que um grupo
+   * de agregação ainda não resolvido deve somar (nada), nunca "todas".
+   */
+  companyIds?: string[] | null;
   from?: string | null;
   to?: string | null;
   status?: TransactionStatus[];

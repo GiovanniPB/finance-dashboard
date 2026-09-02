@@ -29,7 +29,8 @@ export interface BillWithRelations extends BillRow {
 export type BillOrigin = "all" | "pagarme" | "manual";
 
 export interface BillFilters {
-  companyId?: string | null;
+  /** `null`/ausente = sem recorte (limita a RLS); array = exatamente estas empresas. */
+  companyIds?: string[] | null;
   direction: BillDirection;
   /** Recorte por origem do título. Ausente = todas. */
   origin?: BillOrigin;

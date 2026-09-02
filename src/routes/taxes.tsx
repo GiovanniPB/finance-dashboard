@@ -32,7 +32,15 @@ import { formatBRL, formatPercent } from "@/lib/format";
 type Filter = "open" | "paid" | "all";
 
 export default function TaxesPage() {
-  const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
+  const {
+    companies,
+    companyIds,
+    selectedCompany,
+    selectedCompanyId,
+    isMultiCompany,
+    scopeKind,
+    scopeLabel,
+  } = useCompanyScope();
   const [filter, setFilter] = React.useState<Filter>("open");
   const [paying, setPaying] = React.useState<TaxObligation | null>(null);
   const [confirmDelete, setConfirmDelete] = React.useState<TaxObligation | null>(null);
@@ -46,8 +54,14 @@ export default function TaxesPage() {
     return ["pending", "overdue"];
   }, [filter]);
 
-  const { data: obligations = [], isLoading } = useTaxObligations(
-    selectedCompanyId ? { companyId: selectedCompanyId, status: statusFilter } : null,
+  const { data: obligations = [], isLoading } = useTaxObligations({
+    companyIds,
+    status: statusFilter,
+  });
+
+  const companyNameById = React.useMemo(
+    () => new Map(companies.map((c) => [c.id, c.trade_name ?? c.legal_name])),
+    [companies],
   );
 
   const generateMutation = useGenerateTaxObligations();
@@ -62,21 +76,10 @@ export default function TaxesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompanyId]);
 
-  if (isConsolidated || !selectedCompanyId) {
-    return (
-      <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-        <Header isConsolidated />
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-text-muted">
-            Selecione uma empresa específica no seletor superior para gerenciar obrigações fiscais.
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const companyName = selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—";
-  const regime = selectedCompany?.tax_regime ?? "—";
+  // O regime tributário é de cada empresa (Simples x Presumido), então só existe
+  // regime a exibir — e obrigação a gerar — quando o escopo é uma empresa.
+  const scopeName = scopeKind === "consolidated" ? "Todas as empresas" : scopeLabel;
+  const regime = selectedCompany?.tax_regime ?? null;
 
   const totalDue = obligations
     .filter((o) => o.status === "pending" || o.status === "overdue")
@@ -91,7 +94,7 @@ export default function TaxesPage() {
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-      <Header companyName={companyName} regime={regime} />
+      <Header scopeName={scopeName} regime={regime} />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Kpi label="Total em aberto" value={formatBRL(totalDue)} tone="warning" />
@@ -112,16 +115,25 @@ export default function TaxesPage() {
           <div className="text-2xs font-semibold tracking-wide text-text-subtle uppercase">
             Geração de obrigações
           </div>
-          <p className="mt-1 text-sm text-text-muted">
-            Gera as obrigações típicas para <strong>{formatMonthYear(referencePeriod)}</strong>{" "}
-            baseadas no regime tributário ({regime}). A operação é idempotente — re-executar
-            atualiza valores das obrigações pendentes sem duplicar.
-          </p>
+          {!selectedCompanyId && (
+            <p className="mt-1 text-sm text-text-muted">
+              A obrigação nasce do regime tributário de UMA empresa — escolha uma no seletor
+              superior para gerar. A lista abaixo continua somando o escopo inteiro.
+            </p>
+          )}
+          {selectedCompanyId && (
+            <p className="mt-1 text-sm text-text-muted">
+              Gera as obrigações típicas para <strong>{formatMonthYear(referencePeriod)}</strong>{" "}
+              baseadas no regime tributário ({regime}). A operação é idempotente — re-executar
+              atualiza valores das obrigações pendentes sem duplicar.
+            </p>
+          )}
         </div>
         <Button
           size="sm"
-          disabled={generateMutation.isPending}
+          disabled={generateMutation.isPending || !selectedCompanyId}
           onClick={() => {
+            if (!selectedCompanyId) return;
             generateMutation.mutate(
               { companyId: selectedCompanyId, referencePeriod },
               {
@@ -187,6 +199,7 @@ export default function TaxesPage() {
             <thead className="bg-surface-2">
               <tr className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
                 <th className="px-3 py-2.5 text-left">Imposto</th>
+                {isMultiCompany && <th className="px-3 py-2.5 text-left">Empresa</th>}
                 <th className="px-3 py-2.5 text-left">Competência</th>
                 <th className="px-3 py-2.5 text-left">Vencimento</th>
                 <th className="px-3 py-2.5 text-right">Base</th>
@@ -207,6 +220,13 @@ export default function TaxesPage() {
                       <div className="text-sm font-medium">{kind.label}</div>
                       <div className="text-2xs text-text-subtle">{kind.description}</div>
                     </td>
+                    {/* Sem esta coluna, duas linhas "DAS · mesma competência" de empresas
+                        diferentes ficariam indistinguíveis na soma do escopo. */}
+                    {isMultiCompany && (
+                      <td className="px-3 py-2.5 text-xs text-text-muted">
+                        {companyNameById.get(o.company_id) ?? "—"}
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">
                       {formatMonthYear(o.reference_period)}
                     </td>
@@ -317,15 +337,7 @@ function Kpi({
   );
 }
 
-function Header({
-  isConsolidated,
-  companyName,
-  regime,
-}: {
-  isConsolidated?: boolean;
-  companyName?: string;
-  regime?: string;
-}) {
+function Header({ scopeName, regime }: { scopeName: string; regime?: string | null }) {
   const regimeLabel: Record<string, string> = {
     simples: "Simples Nacional",
     lucro_presumido: "Lucro Presumido",
@@ -337,10 +349,8 @@ function Header({
       <div className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
         Impostos & Obrigações
       </div>
-      <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
-        {isConsolidated ? "Consolidado" : companyName}
-      </h1>
-      {!isConsolidated && regime && (
+      <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">{scopeName}</h1>
+      {regime && (
         <p className="mt-1 text-sm text-text-muted">
           Regime tributário:{" "}
           <Badge tone="info" className="ml-1">

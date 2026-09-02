@@ -11,7 +11,7 @@ export interface RecurringTemplateWithJoins extends RecurringTemplate {
 }
 
 export async function fetchRecurringTemplates(
-  companyId: string | null,
+  companyIds: string[] | null,
 ): Promise<RecurringTemplateWithJoins[]> {
   let query = supabase
     .from("recurring_templates")
@@ -22,7 +22,7 @@ export async function fetchRecurringTemplates(
     )
     .order("next_run_date", { ascending: true });
 
-  if (companyId) query = query.eq("company_id", companyId);
+  if (companyIds) query = query.in("company_id", companyIds);
 
   const { data, error } = await query;
   if (error) throw error;

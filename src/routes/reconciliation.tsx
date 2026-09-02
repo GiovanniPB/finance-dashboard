@@ -15,7 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/features/auth/usePermissions";
 import { useBankAccounts } from "@/features/bank-accounts/hooks";
-import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { useSingleCompanyPicker } from "@/features/companies/useSingleCompanyPicker";
 import type {
   StatementLineStatus,
   StatementLineWithRelations,
@@ -41,7 +41,15 @@ const STATUS_META: Record<
 };
 
 export default function ReconciliationPage() {
-  const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
+  // Conciliar é ato de UMA empresa: a linha do extrato pertence a uma conta bancária,
+  // que pertence a uma empresa. Num escopo com várias, escolhe-se entre as do escopo —
+  // agregar não faria sentido aqui.
+  const {
+    companyId: selectedCompanyId,
+    setCompanyId,
+    options: scopeCompanies,
+    needsPicker,
+  } = useSingleCompanyPicker();
   const { canEdit } = usePermissions();
   const [filter, setFilter] = React.useState<Filter>("unmatched");
   const [activeLineId, setActiveLineId] = React.useState<string | null>(null);
@@ -72,22 +80,34 @@ export default function ReconciliationPage() {
 
   const activeLine = lines.find((l) => l.id === activeLineId) ?? null;
 
-  if (isConsolidated || !selectedCompanyId) {
+  if (!selectedCompanyId) {
     return (
       <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-        <Header isConsolidated />
+        <Header scopeName="—" />
         <Card>
           <CardContent className="p-6 text-center text-sm text-text-muted">
-            Selecione uma empresa específica no seletor superior para conciliar extratos bancários.
+            Nenhuma empresa no escopo atual para conciliar.
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  const companyName =
+    scopeCompanies.find((c) => c.id === selectedCompanyId)?.trade_name ??
+    scopeCompanies.find((c) => c.id === selectedCompanyId)?.legal_name ??
+    "—";
+
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-      <Header companyName={selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—"} />
+      <Header
+        scopeName={companyName}
+        picker={
+          needsPicker
+            ? { value: selectedCompanyId, options: scopeCompanies, onChange: setCompanyId }
+            : null
+        }
+      />
 
       <OfxUploadCard companyId={selectedCompanyId} />
 
@@ -249,20 +269,38 @@ function Row({ line, isActive, onToggle, onUnmatch, onDelete }: RowProps) {
 }
 
 function Header({
-  isConsolidated,
-  companyName,
+  scopeName,
+  picker,
 }: {
-  isConsolidated?: boolean;
-  companyName?: string;
+  scopeName: string;
+  picker?: {
+    value: string;
+    options: { id: string; trade_name: string | null; legal_name: string }[];
+    onChange: (id: string) => void;
+  } | null;
 }) {
   return (
     <div>
       <div className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
         Conciliação Bancária
       </div>
-      <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
-        {isConsolidated ? "Consolidado" : companyName}
-      </h1>
+      <div className="mt-1 flex flex-wrap items-center gap-3">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">{scopeName}</h1>
+        {picker && (
+          <Select value={picker.value} onValueChange={picker.onChange}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {picker.options.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.trade_name ?? c.legal_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
       <p className="mt-1 text-sm text-text-muted">
         Importe extratos OFX e concilie linhas com lançamentos existentes. Linhas duplicadas (mesmo
         FITID por conta) são descartadas automaticamente.

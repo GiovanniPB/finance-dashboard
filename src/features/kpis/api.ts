@@ -71,13 +71,16 @@ export async function fetchKpiDashboard(companyId: string, year: number): Promis
   return aggregate(data ?? []);
 }
 
+/** `companyIds` nulo = organização inteira; array = recorte de um grupo de agregação. */
 export async function fetchKpiDashboardConsolidated(
   organizationId: string,
   year: number,
+  companyIds: string[] | null,
 ): Promise<KpiAggregate> {
   const { data, error } = await supabase.rpc("kpi_dashboard_consolidated", {
     p_organization_id: organizationId,
     p_year: year,
+    p_company_ids: companyIds ?? undefined,
   });
   if (error) throw error;
   return aggregate(data ?? []);
@@ -94,6 +97,7 @@ export interface ExpenseBreakdownRow {
 export async function fetchExpenseBreakdown(opts: {
   companyId: string | null;
   organizationId: string | null;
+  companyIds?: string[] | null;
   from: string;
   to: string;
   limit?: number;
@@ -101,6 +105,7 @@ export async function fetchExpenseBreakdown(opts: {
   const { data, error } = await supabase.rpc("expense_breakdown", {
     p_company_id: opts.companyId ?? undefined,
     p_organization_id: opts.organizationId ?? undefined,
+    p_company_ids: opts.companyIds ?? undefined,
     p_start: opts.from,
     p_end: opts.to,
     p_limit: opts.limit ?? 8,

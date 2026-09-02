@@ -37,7 +37,7 @@ const SCENARIO_META: Record<
 };
 
 export default function ForecastPage() {
-  const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
+  const { companyIds, isMultiCompany, scopeKind, scopeLabel, scopeCompanies } = useCompanyScope();
   const [horizon, setHorizon] = React.useState<Horizon>("90");
   const [scenario, setScenario] = React.useState<Scenario>("realistic");
 
@@ -48,30 +48,17 @@ export default function ForecastPage() {
     return isoDate(d);
   }, [horizon]);
 
-  const { data: baseline = [], isLoading } = useForecast(selectedCompanyId, from, to);
+  const { data: baseline = [], isLoading } = useForecast(companyIds, from, to);
 
   // Série do pagar.me em separado: o forecast já soma esses títulos nas entradas,
   // mas sem destacá-los não se enxerga quanto do caixa futuro é venda contratada.
-  const { data: pagarmeDays = [] } = usePagarmeForecast(selectedCompanyId, from, to);
+  const { data: pagarmeDays = [] } = usePagarmeForecast(companyIds, from, to);
   const pagarmeInflowByDay = React.useMemo(
     () => new Map(pagarmeDays.map((d) => [d.day, d.inflowPagarme])),
     [pagarmeDays],
   );
   const pagarmeTotal = pagarmeDays.reduce((acc, d) => acc + d.inflowPagarme, 0);
   const series = React.useMemo(() => applyScenario(baseline, scenario), [baseline, scenario]);
-
-  if (isConsolidated || !selectedCompanyId) {
-    return (
-      <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-        <Header isConsolidated />
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-text-muted">
-            Selecione uma empresa específica no seletor superior para projetar o fluxo de caixa.
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   const opening = series[0]
     ? series[0].runningBalance -
@@ -90,7 +77,11 @@ export default function ForecastPage() {
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-      <Header companyName={selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—"} />
+      <Header
+        scopeName={scopeKind === "consolidated" ? "Consolidado" : scopeLabel}
+        aggregated={isMultiCompany}
+        companyCount={scopeCompanies.length}
+      />
 
       <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -271,27 +262,28 @@ function ForecastTable({ data, loading }: TableProps) {
 }
 
 function Header({
-  isConsolidated,
-  companyName,
+  scopeName,
+  aggregated,
+  companyCount,
 }: {
-  isConsolidated?: boolean;
-  companyName?: string;
+  scopeName: string;
+  aggregated: boolean;
+  companyCount: number;
 }) {
   return (
     <div>
       <div className="text-2xs flex items-center gap-2 font-medium tracking-wide text-text-subtle uppercase">
-        {isConsolidated ? (
+        {aggregated ? (
           <Globe2 className="size-3 text-accent" />
         ) : (
           <TrendingUp className="size-3 text-accent" />
         )}
         Forecast de Caixa
       </div>
-      <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
-        {isConsolidated ? "Consolidado" : companyName}
-      </h1>
+      <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">{scopeName}</h1>
       <p className="mt-1 text-sm text-text-muted">
         Projeção combinando saldo atual, contas a pagar/receber pendentes e recorrências ativas.
+        {aggregated && ` Saldo de abertura e movimentos somam ${companyCount} empresa(s).`}
       </p>
       <div className="mt-2">
         <Badge tone="info">Regime de caixa</Badge>

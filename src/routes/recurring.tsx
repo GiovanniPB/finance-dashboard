@@ -29,11 +29,9 @@ import { formatBRL } from "@/lib/format";
 const FREQ_LABELS = Object.fromEntries(RECURRENCE_FREQUENCIES.map((f) => [f.value, f.label]));
 
 export default function RecurringPage() {
-  const { selectedCompanyId, isConsolidated, companies } = useCompanyScope();
-  const operational = companies.filter((c) => !c.is_holding);
-  const companyId = isConsolidated ? null : selectedCompanyId;
+  const { selectedCompanyId, companyIds, scopeCompanies } = useCompanyScope();
 
-  const { data: rows = [], isLoading } = useRecurringTemplates(companyId);
+  const { data: rows = [], isLoading } = useRecurringTemplates(companyIds);
   const remove = useDeleteRecurringTemplate();
   const approve = useApproveRecurringTemplate();
   const generate = useGenerateRecurringTransactions();
@@ -42,7 +40,9 @@ export default function RecurringPage() {
   const [editing, setEditing] = React.useState<RecurringTemplate | null>(null);
   const [confirmDelete, setConfirmDelete] = React.useState<RecurringTemplate | null>(null);
 
-  const drawerCompanyId = companyId ?? operational[0]?.id ?? null;
+  // Criar recorrência é ato de UMA empresa: sem empresa única no escopo, o drawer
+  // abre na primeira do escopo (grupo ou consolidado), nunca fora dele.
+  const drawerCompanyId = selectedCompanyId ?? scopeCompanies[0]?.id ?? null;
   const today = new Date().toISOString().slice(0, 10);
 
   const pendingManualCount = rows.filter(

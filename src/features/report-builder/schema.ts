@@ -87,6 +87,12 @@ export const reportScopeSchema = z
     mode: z.enum(["company", "consolidated"]),
     companyId: z.string().uuid({ message: "Empresa inválida" }).nullable().default(null),
     organizationId: z.string().uuid({ message: "Organização inválida" }),
+    /**
+     * Recorte de empresas quando `mode` é "consolidated": `null` = organização inteira,
+     * array = grupo de agregação. Tem default para que template gravado antes dos grupos
+     * continue carregando — e continue significando exatamente o que significava.
+     */
+    companyIds: z.array(z.string().uuid()).nullable().default(null),
   })
   .refine((s) => s.mode === "consolidated" || s.companyId !== null, {
     message: "Selecione uma empresa para relatório individual",
@@ -184,6 +190,8 @@ export function emptyReportConfig(opts: {
   organizationId: string;
   companyId: string | null;
   mode: ReportScopeMode;
+  /** Recorte do modo consolidado; ausente = organização inteira. */
+  companyIds?: string[] | null;
 }): ReportConfig {
   return {
     version: REPORT_CONFIG_VERSION,
@@ -191,6 +199,7 @@ export function emptyReportConfig(opts: {
       mode: opts.mode,
       companyId: opts.mode === "consolidated" ? null : opts.companyId,
       organizationId: opts.organizationId,
+      companyIds: opts.companyIds ?? null,
     },
     period: { preset: "last_month" },
     comparison: "none",

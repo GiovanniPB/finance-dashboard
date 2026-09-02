@@ -118,3 +118,29 @@ values
   ('00000000-0000-0000-0000-0000000000a0', 're_cmgv7foko2q4a0l9tyv9if1mo', '00000000-0000-0000-0000-000000000014', 'homologacao', true),
   ('00000000-0000-0000-0000-0000000000a0', 're_cmnz0qnjs1wff0l9tu8zrhyg8', '00000000-0000-0000-0000-000000000013', 'homologacao', true)
 on conflict (pagarme_account_id, pagarme_recipient_id) do nothing;
+
+-- -----------------------------------------------------------------------------
+-- Grupos de agregação — um recorte de exemplo para validar a consolidação seletiva
+-- localmente (DRE/KPI/caixa somando 2 de 4 empresas, e não as 4).
+-- -----------------------------------------------------------------------------
+insert into public.company_groups (id, organization_id, name, description, sort_order)
+values (
+  '00000000-0000-0000-0000-0000000000c1'::uuid,
+  '00000000-0000-0000-0000-000000000001',
+  'OTM (Assessoria + Corretora)',
+  'Braço OTM sem a educação financeira nem a tecnologia',
+  0
+)
+on conflict (id) do nothing;
+
+insert into public.company_group_members (group_id, company_id, organization_id)
+select
+  '00000000-0000-0000-0000-0000000000c1'::uuid,
+  c.id,
+  c.organization_id
+from public.companies c
+where c.id in (
+  '00000000-0000-0000-0000-000000000011',  -- OTM Assessoria
+  '00000000-0000-0000-0000-000000000012'   -- OTM Corretora
+)
+on conflict (group_id, company_id) do nothing;
