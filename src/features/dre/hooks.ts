@@ -27,11 +27,18 @@ export function useDreConsolidated(
   organizationId: string | null | undefined,
   from: string,
   to: string,
+  companyIds: string[] | null = null,
 ) {
+  const scopeKey = companyIds ? [...companyIds].sort().join(",") : "all";
   const query = useQuery({
-    queryKey: dreKeys.consolidated(organizationId ?? "", from, to),
-    queryFn: () => fetchDreConsolidated(organizationId ?? "", from, to),
-    enabled: Boolean(organizationId) && Boolean(from) && Boolean(to),
+    queryKey: [...dreKeys.consolidated(organizationId ?? "", from, to), scopeKey],
+    queryFn: () => fetchDreConsolidated(organizationId ?? "", from, to, companyIds),
+    // Recorte vazio (grupo ainda não resolvido) não vira "todas as empresas": não busca.
+    enabled:
+      Boolean(organizationId) &&
+      Boolean(from) &&
+      Boolean(to) &&
+      (companyIds === null || companyIds.length > 0),
   });
 
   const computed = useMemo(() => (query.data ? computeDreTotals(query.data) : null), [query.data]);

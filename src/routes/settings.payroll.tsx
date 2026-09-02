@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountCombobox } from "@/features/accounts/AccountCombobox";
-import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { useSingleCompanyPicker } from "@/features/companies/useSingleCompanyPicker";
 import type {
   EmployeeKind,
   PayrollComponent,
@@ -57,17 +57,14 @@ const HIDDEN_COMPONENTS: Partial<Record<EmployeeKind, PayrollComponent[]>> = {
 };
 
 export default function SettingsPayrollPage() {
-  const { companies, selectedCompanyId, isConsolidated } = useCompanyScope();
-  const operational = companies.filter((c) => !c.is_holding);
-
-  const [pickedCompanyId, setPickedCompanyId] = React.useState<string | null>(
-    isConsolidated ? (operational[0]?.id ?? null) : selectedCompanyId,
-  );
-  React.useEffect(() => {
-    if (!isConsolidated) setPickedCompanyId(selectedCompanyId);
-  }, [isConsolidated, selectedCompanyId]);
-
-  const companyId = pickedCompanyId;
+  // Tela que OPERA numa empresa: num escopo com várias (consolidado ou grupo de
+  // agregação), escolhe-se qual — sempre entre as empresas do escopo.
+  const {
+    companyId,
+    setCompanyId,
+    options: scopeCompanies,
+    needsPicker,
+  } = useSingleCompanyPicker();
   const [activeKind, setActiveKind] = React.useState<EmployeeKind>("partner");
   const { data: mappings = [], isLoading } = usePayrollMappings(companyId);
   const setupDefaults = useSetupDefaults();
@@ -137,13 +134,13 @@ export default function SettingsPayrollPage() {
             agregado.
           </p>
         </div>
-        {isConsolidated && operational.length > 1 && (
-          <Select value={pickedCompanyId ?? ""} onValueChange={(v) => setPickedCompanyId(v)}>
+        {needsPicker && (
+          <Select value={companyId ?? ""} onValueChange={(v) => setCompanyId(v)}>
             <SelectTrigger className="w-60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {operational.map((c) => (
+              {scopeCompanies.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.trade_name ?? c.legal_name}
                 </SelectItem>

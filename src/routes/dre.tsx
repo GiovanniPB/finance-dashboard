@@ -22,25 +22,25 @@ const ORGANIZATION_ID = "00000000-0000-0000-0000-000000000001";
 type Tab = "view" | "accounts";
 
 export default function DrePage() {
-  const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
+  const { selectedCompanyId, companyIds, isMultiCompany, scopeKind, scopeLabel } =
+    useCompanyScope();
   const [period] = usePeriod();
   const [tab, setTab] = React.useState<Tab>("view");
 
   const effective = effectiveRange(period);
 
-  const companyResult = useDreByCompany(
-    isConsolidated ? null : selectedCompanyId,
+  // Empresa única usa o plano DELA (`dre_by_company`); qualquer escopo com mais de uma
+  // empresa — consolidado ou grupo — agrega pelo plano-mestre, com o recorte no RPC.
+  const companyResult = useDreByCompany(selectedCompanyId, effective.from, effective.to);
+  const aggregatedResult = useDreConsolidated(
+    isMultiCompany ? ORGANIZATION_ID : null,
     effective.from,
     effective.to,
-  );
-  const consolidatedResult = useDreConsolidated(
-    isConsolidated ? ORGANIZATION_ID : null,
-    effective.from,
-    effective.to,
+    companyIds,
   );
 
-  const data = isConsolidated ? consolidatedResult.data : companyResult.data;
-  const isLoading = isConsolidated ? consolidatedResult.isLoading : companyResult.isLoading;
+  const data = isMultiCompany ? aggregatedResult.data : companyResult.data;
+  const isLoading = isMultiCompany ? aggregatedResult.isLoading : companyResult.isLoading;
 
   const netResult = data?.find((r) => r.dre_section === "net_result" && r.is_summary);
   const grossRevenue = data?.find((r) => r.dre_section === "gross_revenue" && r.is_summary);
@@ -50,13 +50,11 @@ export default function DrePage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-2xs flex items-center gap-2 font-medium tracking-wide text-text-subtle uppercase">
-            {isConsolidated ? <Globe2 className="size-3 text-accent" /> : null}
+            {isMultiCompany ? <Globe2 className="size-3 text-accent" /> : null}
             DRE · Demonstrativo de Resultado
           </div>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
-            {isConsolidated
-              ? "Consolidado · OTM Group"
-              : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—")}
+            {scopeKind === "consolidated" ? "Consolidado · OTM Group" : scopeLabel}
           </h1>
           <p className="mt-1 text-sm text-text-muted">
             {tab === "view"
@@ -89,9 +87,7 @@ export default function DrePage() {
                     getValue: (r) => r.effective_total_cash.toFixed(2),
                   },
                 ]);
-                const scope = isConsolidated
-                  ? "consolidado"
-                  : (selectedCompany?.trade_name ?? "empresa");
+                const scope = scopeKind === "consolidated" ? "consolidado" : scopeLabel;
                 downloadCsv(`dre-${scope}-${effective.from}-${effective.to}.csv`, csv);
               }}
             >
@@ -144,8 +140,10 @@ export default function DrePage() {
           <DreTable
             rows={data}
             loading={isLoading}
+            // Drill-down é por conta de UMA empresa; na linha do plano-mestre não há
+            // uma conta só para abrir.
             drillDown={
-              isConsolidated
+              isMultiCompany || !selectedCompanyId
                 ? undefined
                 : {
                     period: { from: effective.from, to: effective.to },
@@ -154,7 +152,7 @@ export default function DrePage() {
             }
           />
         </>
-      ) : isConsolidated || !selectedCompanyId ? (
+      ) : !selectedCompanyId ? (
         <Card>
           <CardContent className="p-6 text-center text-sm text-text-muted">
             Selecione uma empresa específica no seletor superior para gerenciar o plano de contas.

@@ -7,10 +7,11 @@ export const forecastKeys = {
     ["forecast", "daily", companyId, from, to] as const,
 };
 
-export function useForecast(companyId: string | null, from: string, to: string) {
+export function useForecast(companyIds: string[] | null, from: string, to: string) {
   return useQuery({
-    queryKey: forecastKeys.daily(companyId, from, to),
-    queryFn: () => fetchForecast(companyId ?? "", from, to),
-    enabled: Boolean(companyId),
+    queryKey: forecastKeys.daily(companyIds ? [...companyIds].sort().join(",") : null, from, to),
+    queryFn: () => fetchForecast(companyIds, from, to),
+    // Recorte vazio não deve virar "todas as empresas".
+    enabled: companyIds === null || companyIds.length > 0,
   });
 }

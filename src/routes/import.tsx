@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { useSingleCompanyPicker } from "@/features/companies/useSingleCompanyPicker";
 import {
   useCommitImportBatch,
   useCreateImportBatch,
@@ -52,15 +52,14 @@ const STEPS: { key: Step; label: string }[] = [
 ];
 
 export default function ImportPage() {
-  const { companies, selectedCompanyId, isConsolidated } = useCompanyScope();
-  const operational = companies.filter((c) => !c.is_holding);
-
-  const [companyId, setCompanyId] = React.useState<string | null>(
-    isConsolidated ? (operational[0]?.id ?? null) : selectedCompanyId,
-  );
-  React.useEffect(() => {
-    if (!isConsolidated) setCompanyId(selectedCompanyId);
-  }, [isConsolidated, selectedCompanyId]);
+  // Importar CSV grava em UMA empresa. Num escopo com várias (consolidado ou grupo),
+  // a empresa de destino é escolhida entre as do escopo — nunca fora dele.
+  const {
+    companyId,
+    setCompanyId,
+    options: scopeCompanies,
+    needsPicker,
+  } = useSingleCompanyPicker();
 
   const [step, setStep] = React.useState<Step>("upload");
   const [file, setFile] = React.useState<File | null>(null);
@@ -153,7 +152,7 @@ export default function ImportPage() {
 
       {step === "upload" && (
         <div className="space-y-4">
-          {isConsolidated && operational.length > 0 && (
+          {needsPicker && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="company">Empresa de destino</Label>
               <Select value={companyId ?? undefined} onValueChange={(v) => setCompanyId(v)}>
@@ -161,7 +160,7 @@ export default function ImportPage() {
                   <SelectValue placeholder="Selecione…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {operational.map((c) => (
+                  {scopeCompanies.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.trade_name ?? c.legal_name}
                     </SelectItem>

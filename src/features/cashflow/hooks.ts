@@ -4,23 +4,28 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchBankBalances, fetchCashflowDaily, fetchCashflowMonthly } from "./api";
 import { withCumulativeBalance } from "./compute";
 
+const scopeKey = (companyIds: string[] | null) =>
+  companyIds ? [...companyIds].sort().join(",") : "all";
+
 export const cashflowKeys = {
-  daily: (companyId: string, from: string, to: string) =>
-    ["cashflow", "daily", companyId, from, to] as const,
-  monthly: (companyId: string, year: number) => ["cashflow", "monthly", companyId, year] as const,
+  daily: (companyIds: string[] | null, from: string, to: string) =>
+    ["cashflow", "daily", scopeKey(companyIds), from, to] as const,
+  monthly: (companyIds: string[] | null, year: number) =>
+    ["cashflow", "monthly", scopeKey(companyIds), year] as const,
   banks: (companyId: string, asOf: string) => ["cashflow", "banks", companyId, asOf] as const,
 };
 
 export function useCashflowDaily(
-  companyId: string | null | undefined,
+  companyIds: string[] | null,
   from: string,
   to: string,
   openingBalance = 0,
 ) {
   const query = useQuery({
-    queryKey: cashflowKeys.daily(companyId ?? "", from, to),
-    queryFn: () => fetchCashflowDaily(companyId ?? "", from, to),
-    enabled: Boolean(companyId) && Boolean(from) && Boolean(to),
+    queryKey: cashflowKeys.daily(companyIds, from, to),
+    queryFn: () => fetchCashflowDaily(companyIds, from, to),
+    // Recorte vazio (grupo ainda não resolvido) não deve virar "todas as empresas".
+    enabled: Boolean(from) && Boolean(to) && (companyIds === null || companyIds.length > 0),
   });
   const data = useMemo(
     () => (query.data ? withCumulativeBalance(query.data, openingBalance) : null),
@@ -29,15 +34,11 @@ export function useCashflowDaily(
   return { ...query, data };
 }
 
-export function useCashflowMonthly(
-  companyId: string | null | undefined,
-  year: number,
-  openingBalance = 0,
-) {
+export function useCashflowMonthly(companyIds: string[] | null, year: number, openingBalance = 0) {
   const query = useQuery({
-    queryKey: cashflowKeys.monthly(companyId ?? "", year),
-    queryFn: () => fetchCashflowMonthly(companyId ?? "", year),
-    enabled: Boolean(companyId),
+    queryKey: cashflowKeys.monthly(companyIds, year),
+    queryFn: () => fetchCashflowMonthly(companyIds, year),
+    enabled: companyIds === null || companyIds.length > 0,
   });
   const data = useMemo(
     () => (query.data ? withCumulativeBalance(query.data, openingBalance) : null),

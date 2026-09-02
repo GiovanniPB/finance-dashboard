@@ -31,12 +31,19 @@ import { buildExpenseInsight, buildMarginInsight, buildYoYInsight } from "@/lib/
 const ORGANIZATION_ID = "00000000-0000-0000-0000-000000000001";
 
 export default function DashboardPage() {
-  const { isConsolidated, selectedCompany, companies, loading } = useCompanyScope();
-  const operational = companies.filter((c) => !c.is_holding);
+  const {
+    selectedCompanyId,
+    companyIds,
+    isMultiCompany,
+    scopeKind,
+    scopeLabel,
+    scopeCompanies,
+    loading,
+  } = useCompanyScope();
 
   const [year, setYear] = useQueryState("year", parseAsInteger.withDefault(2025));
 
-  const companyId = isConsolidated ? null : (selectedCompany?.id ?? null);
+  const companyId = selectedCompanyId;
 
   const {
     current: kpis,
@@ -46,12 +53,14 @@ export default function DashboardPage() {
     companyId,
     organizationId: ORGANIZATION_ID,
     year,
-    consolidated: isConsolidated,
+    aggregated: isMultiCompany,
+    companyIds,
   });
 
   const expenses = useExpenseBreakdown({
     companyId,
-    organizationId: isConsolidated ? ORGANIZATION_ID : null,
+    organizationId: isMultiCompany ? ORGANIZATION_ID : null,
+    companyIds,
     from: `${year}-01-01`,
     to: `${year}-12-31`,
   });
@@ -184,16 +193,16 @@ export default function DashboardPage() {
         <div>
           <div className="text-2xs flex items-center gap-2 font-medium tracking-wide text-text-subtle uppercase">
             <Sparkles className="size-3 text-accent" />
-            {isConsolidated ? "Visão de grupo" : "Empresa"}
+            {isMultiCompany ? "Visão de grupo" : "Empresa"}
           </div>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-balance">
-            {isConsolidated
-              ? "Consolidado · OTM Group"
-              : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—")}
+            {scopeKind === "consolidated" ? "Consolidado · OTM Group" : scopeLabel}
           </h1>
           <p className="mt-1 text-sm text-text-muted">
-            {isConsolidated
-              ? `Agregando ${operational.length} empresas operacionais`
+            {isMultiCompany
+              ? `Agregando ${scopeCompanies.length} empresa(s)${
+                  scopeKind === "group" ? " do grupo" : " operacionais"
+                }`
               : "Operação individual"}
           </p>
         </div>
@@ -439,12 +448,16 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Empresas do grupo</CardTitle>
+          {/* Quais empresas estão SENDO SOMADAS neste escopo — não "as do grupo OTM".
+              Com um recorte selecionado, é aqui que se confere o que entrou na conta. */}
+          <CardTitle>
+            {scopeKind === "group" ? `Empresas de ${scopeLabel}` : "Empresas do grupo"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3 pt-0 sm:grid-cols-2 lg:grid-cols-3">
           {loading
             ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14" />)
-            : operational.map((c) => (
+            : scopeCompanies.map((c) => (
                 <div
                   key={c.id}
                   className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border bg-surface-2/40 px-3 py-2.5"

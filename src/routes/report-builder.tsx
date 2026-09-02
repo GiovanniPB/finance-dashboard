@@ -34,26 +34,34 @@ import { useReportConfig } from "@/features/report-builder/useReportConfig";
 const ORGANIZATION_ID = "00000000-0000-0000-0000-000000000001";
 
 export default function ReportBuilderPage() {
-  const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
+  const {
+    selectedCompanyId,
+    companyIds,
+    isMultiCompany,
+    scopeKind,
+    scopeLabel: currentScopeLabel,
+  } = useCompanyScope();
 
+  // Grupo de agregação entra como o consolidado RESTRITO: mesmo modo, com recorte. Os
+  // blocos que o consolidado já suporta (DRE, KPIs, despesas) passam a somar só o
+  // recorte; os que só existem por empresa seguem só por empresa, como antes.
   const scope = React.useMemo<ReportScope>(
     () => ({
-      mode: isConsolidated ? "consolidated" : "company",
-      companyId: isConsolidated ? null : selectedCompanyId,
+      mode: isMultiCompany ? "consolidated" : "company",
+      companyId: selectedCompanyId,
       organizationId: ORGANIZATION_ID,
+      companyIds: isMultiCompany ? companyIds : null,
     }),
-    [isConsolidated, selectedCompanyId],
+    [isMultiCompany, selectedCompanyId, companyIds],
   );
 
   const report = useReportConfig(scope);
   const { config } = report;
 
-  const scopeLabel = isConsolidated
-    ? "Consolidado · OTM Group"
-    : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—");
+  const scopeLabel = scopeKind === "consolidated" ? "Consolidado · OTM Group" : currentScopeLabel;
 
   const disabledReason =
-    !isConsolidated && selectedCompanyId == null
+    !isMultiCompany && selectedCompanyId == null
       ? "Selecione uma empresa no seletor superior para gerar o relatório."
       : undefined;
 

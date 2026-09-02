@@ -57,13 +57,14 @@ export function TransactionForm({
   const isEditing = Boolean(existingTransaction);
 
   // Counterparties are organization-scoped; resolve the org from the company.
-  const { companies, isConsolidated } = useCompanyScope();
+  const { companies, isMultiCompany, scopeCompanies } = useCompanyScope();
   const organizationId = companies.find((c) => c.id === companyId)?.organization_id ?? null;
 
-  // No consolidado, ao criar, o usuário precisa escolher a empresa do lançamento
-  // (não há escopo fixo). Ao editar, a empresa é imutável.
-  const operationalCompanies = companies.filter((c) => !c.is_holding);
-  const showCompanySelect = !isEditing && isConsolidated;
+  // Sem empresa única no escopo (consolidado ou grupo), ao criar, a empresa do lançamento
+  // é escolhida aqui — e as opções são as do escopo: num grupo de 2 empresas, lançar numa
+  // terceira contradiria o recorte que a pessoa selecionou.
+  const operationalCompanies = scopeCompanies;
+  const showCompanySelect = !isEditing && isMultiCompany;
 
   // Trocar a empresa invalida os campos scoped por empresa/organização.
   function handleCompanyChange(nextCompanyId: string) {

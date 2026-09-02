@@ -11,10 +11,9 @@ interface Props {
   data: CashflowPeriodWithBalance[] | null;
   loading: boolean;
   granularity: CashflowGranularity;
-  companyId: string | null;
 }
 
-export function CashflowTable({ data, loading, granularity, companyId }: Props) {
+export function CashflowTable({ data, loading, granularity }: Props) {
   if (loading) {
     return (
       <div className="space-y-2 rounded-[var(--radius-lg)] border border-border bg-surface p-4">
@@ -47,7 +46,7 @@ export function CashflowTable({ data, loading, granularity, companyId }: Props) 
         </thead>
         <tbody>
           {data.map((row) => {
-            const drillUrl = buildDrillUrl(row.bucket, granularity, companyId);
+            const drillUrl = buildDrillUrl(row.bucket, granularity);
             return (
               <tr
                 key={row.bucket}
@@ -110,12 +109,12 @@ function Th({ children, align }: { children: React.ReactNode; align: "left" | "r
   );
 }
 
-function buildDrillUrl(
-  bucket: string,
-  granularity: CashflowGranularity,
-  companyId: string | null,
-): string | null {
-  if (!companyId) return null;
+/**
+ * Só datas na URL: a empresa vem do seletor global, então o link funciona igual numa
+ * empresa, no consolidado ou num grupo — antes ele era escondido sem empresa única,
+ * sem necessidade.
+ */
+function buildDrillUrl(bucket: string, granularity: CashflowGranularity): string {
   const params = new URLSearchParams();
   if (granularity === "monthly") {
     // bucket is the first day of the month; compute end of month

@@ -51,7 +51,7 @@ export function CommandPalette({ children }: { children?: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const navigate = useNavigate();
-  const { selectedCompanyId, isConsolidated } = useCompanyScope();
+  const { companyIds } = useCompanyScope();
 
   const openPalette = React.useCallback(() => {
     setOpen(true);
@@ -80,7 +80,12 @@ export function CommandPalette({ children }: { children?: React.ReactNode }) {
   }, [query]);
 
   const txSearch = useQuery({
-    queryKey: ["command-palette", "transactions", debounced, selectedCompanyId, isConsolidated],
+    queryKey: [
+      "command-palette",
+      "transactions",
+      debounced,
+      companyIds ? [...companyIds].sort().join(",") : "all",
+    ],
     queryFn: async () => {
       let q = supabase
         .from("transactions")
@@ -91,7 +96,7 @@ export function CommandPalette({ children }: { children?: React.ReactNode }) {
         .ilike("description", `%${debounced}%`)
         .order("accrual_date", { ascending: false })
         .limit(10);
-      if (!isConsolidated && selectedCompanyId) q = q.eq("company_id", selectedCompanyId);
+      if (companyIds) q = q.in("company_id", companyIds);
       const { data, error } = await q;
       if (error) throw error;
       return data ?? [];

@@ -42,7 +42,8 @@ export type InvoiceJobDateField = "paid_at" | "charge_created_at" | "created_at"
 export interface InvoiceJobFilters {
   statuses: string[] | null; // null = todas
   accountId?: string | null;
-  companyId?: string | null; // null = consolidado (todas as empresas visíveis pela RLS)
+  // null = sem recorte (todas as empresas visíveis pela RLS); array = só estas
+  companyIds?: string[] | null;
   source?: string | null; // metadata.source exato (ex.: 'backfill')
   ambiente?: string | null; // 'homologacao' | 'producao'
   origin?: string | null; // 'webhook' (source nulo) | 'backfill' (source='backfill')
@@ -319,8 +320,8 @@ export async function fetchInvoiceJobs(filters: InvoiceJobFilters): Promise<Invo
   if (filters.accountId) {
     query = query.eq("pagarme_account_id", filters.accountId);
   }
-  if (filters.companyId) {
-    query = query.eq("company_id", filters.companyId);
+  if (filters.companyIds) {
+    query = query.in("company_id", filters.companyIds);
   }
   if (filters.source) {
     query = query.eq("metadata->>source", filters.source);

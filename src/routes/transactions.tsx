@@ -30,15 +30,16 @@ import { downloadCsv, toCsv } from "@/lib/csv";
 const PAGE_SIZE = 50;
 
 export default function TransactionsPage() {
-  const { selectedCompanyId, isConsolidated, selectedCompany } = useCompanyScope();
+  const { selectedCompanyId, companyIds, isMultiCompany, scopeKind, scopeLabel } =
+    useCompanyScope();
   const { canEdit } = usePermissions();
   const [filters, setFilters] = useTransactionFilters();
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
   const columnPrefs = useTransactionColumnPrefs();
 
   const orderedColumnIds = React.useMemo(
-    () => resolveColumnOrder(columnPrefs.prefs.order, availableColumnIds(isConsolidated)),
-    [columnPrefs.prefs.order, isConsolidated],
+    () => resolveColumnOrder(columnPrefs.prefs.order, availableColumnIds(isMultiCompany)),
+    [columnPrefs.prefs.order, isMultiCompany],
   );
 
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -46,17 +47,17 @@ export default function TransactionsPage() {
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = React.useState(false);
 
-  const companyId = isConsolidated ? null : selectedCompanyId;
-
-  // No consolidado (companyId nulo), o drawer abre sem empresa fixa e o form
-  // exige que o usuário escolha a empresa do lançamento.
+  // `selectedCompanyId` é a empresa única do escopo — nulo em consolidado E em grupo.
+  // É o que alimenta os seletores de conta/centro de custo (que são por empresa) e o
+  // drawer: sem empresa fixa, o form exige que se escolha a empresa do lançamento.
+  const companyId = selectedCompanyId;
   const drawerCompanyId = companyId;
 
   // Só o recorte — sem ordenação nem página. É o que define "todos os
   // lançamentos do filtro" para a seleção em massa.
   const queryFilters = React.useMemo(
     () => ({
-      companyId,
+      companyIds,
       from: filters.from || null,
       to: filters.to || null,
       status: filters.status ? [filters.status] : undefined,
@@ -67,7 +68,7 @@ export default function TransactionsPage() {
       search: filters.search || null,
     }),
     [
-      companyId,
+      companyIds,
       filters.from,
       filters.to,
       filters.status,
@@ -193,9 +194,7 @@ export default function TransactionsPage() {
             Lançamentos
           </div>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
-            {isConsolidated
-              ? "Todas as empresas"
-              : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—")}
+            {scopeKind === "consolidated" ? "Todas as empresas" : scopeLabel}
           </h1>
           <p className="mt-1 text-sm text-text-muted">
             {data?.totalCount !== undefined

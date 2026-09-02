@@ -56,15 +56,14 @@ export function InvoiceJobsPanel() {
   const [exporting, setExporting] = React.useState<ExportFormat | "zip" | null>(null);
 
   // segue o switcher global: empresa selecionada filtra a fila; consolidado = todas
-  const { selectedCompanyId, isConsolidated, selectedCompany } = useCompanyScope();
-  const companyId = isConsolidated ? null : selectedCompanyId;
+  const { companyIds, scopeLabel, scopeKind } = useCompanyScope();
 
   const filters = React.useMemo<InvoiceJobFilters>(() => {
     const group = JOB_STATUS_FILTERS.find((f) => f.value === ui.status);
     return {
       statuses: group?.statuses ?? null,
       accountId: ui.accountId === "all" ? null : ui.accountId,
-      companyId,
+      companyIds,
       ambiente: ui.ambiente === "all" ? null : ui.ambiente,
       origin: ui.origin === "all" ? null : ui.origin,
       dateField: ui.dateField,
@@ -74,7 +73,7 @@ export function InvoiceJobsPanel() {
       page: ui.page,
       pageSize: PAGE_SIZE,
     };
-  }, [ui, companyId]);
+  }, [ui, companyIds]);
 
   const { data, isLoading } = useInvoiceJobs(filters);
   const jobs = React.useMemo(() => data?.rows ?? [], [data]);
@@ -111,7 +110,7 @@ export function InvoiceJobsPanel() {
     }
     setPage(0);
     clear();
-  }, [companyId, setPage, clear]);
+  }, [companyIds, setPage, clear]);
 
   function emitSelected() {
     approveJobs.mutate(
@@ -181,9 +180,7 @@ export function InvoiceJobsPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-2xs text-text-muted">
           {total} nota(s) no filtro ·{" "}
-          {selectedCompany
-            ? (selectedCompany.trade_name ?? selectedCompany.legal_name)
-            : "todas as empresas"}
+          {scopeKind === "consolidated" ? "todas as empresas" : scopeLabel}
         </span>
 
         <div className="flex items-center gap-2">

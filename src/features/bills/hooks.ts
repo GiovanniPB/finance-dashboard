@@ -31,10 +31,10 @@ export function useBills(filters: BillFilters) {
   });
 }
 
-export function useBillsAging(companyId: string | null, direction: BillFilters["direction"]) {
+export function useBillsAging(companyIds: string[] | null, direction: BillFilters["direction"]) {
   return useQuery({
-    queryKey: billKeys.aging(companyId, direction),
-    queryFn: () => fetchAging(companyId, direction),
+    queryKey: billKeys.aging(companyIds ? [...companyIds].sort().join(",") : null, direction),
+    queryFn: () => fetchAging(companyIds, direction),
   });
 }
 

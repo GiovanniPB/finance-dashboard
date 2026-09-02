@@ -35,7 +35,7 @@ export async function fetchTransactions(
     .select(SELECT_WITH_RELATIONS, { count: "exact" })
     .is("deleted_at", null);
 
-  if (filters.companyId) query = query.eq("company_id", filters.companyId);
+  if (filters.companyIds) query = query.in("company_id", filters.companyIds);
   if (filters.from) query = query.gte("accrual_date", filters.from);
   if (filters.to) query = query.lte("accrual_date", filters.to);
   if (filters.status && filters.status.length > 0) query = query.in("status", filters.status);
@@ -101,7 +101,7 @@ export async function bulkUpdateTransactions(ids: string[], patch: BulkPatch): P
 export async function fetchTransactionIds(filters: TransactionFilters): Promise<string[]> {
   let query = supabase.from("transactions").select("id").is("deleted_at", null);
 
-  if (filters.companyId) query = query.eq("company_id", filters.companyId);
+  if (filters.companyIds) query = query.in("company_id", filters.companyIds);
   if (filters.from) query = query.gte("accrual_date", filters.from);
   if (filters.to) query = query.lte("accrual_date", filters.to);
   if (filters.status && filters.status.length > 0) query = query.in("status", filters.status);

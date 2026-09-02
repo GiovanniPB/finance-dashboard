@@ -12,13 +12,14 @@ import {
 } from "./api";
 
 export const recurringKeys = {
-  list: (companyId: string | null) => ["recurring", companyId ?? "all"] as const,
+  list: (companyIds: string[] | null) =>
+    ["recurring", companyIds ? [...companyIds].sort().join(",") : "all"] as const,
 };
 
-export function useRecurringTemplates(companyId: string | null) {
+export function useRecurringTemplates(companyIds: string[] | null) {
   return useQuery({
-    queryKey: recurringKeys.list(companyId),
-    queryFn: () => fetchRecurringTemplates(companyId),
+    queryKey: recurringKeys.list(companyIds),
+    queryFn: () => fetchRecurringTemplates(companyIds),
   });
 }
 

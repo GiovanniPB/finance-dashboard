@@ -5,14 +5,16 @@ export type TaxObligationKind = Enums["tax_obligation_kind"];
 export type TaxObligationStatus = Enums["tax_obligation_status"];
 
 export interface ListFilters {
-  companyId: string;
+  /** `null` = sem recorte (limita a RLS); array = exatamente estas empresas. */
+  companyIds: string[] | null;
   status?: TaxObligationStatus[];
   from?: string;
   to?: string;
 }
 
 export async function fetchTaxObligations(filters: ListFilters): Promise<TaxObligation[]> {
-  let query = supabase.from("tax_obligations").select("*").eq("company_id", filters.companyId);
+  let query = supabase.from("tax_obligations").select("*");
+  if (filters.companyIds) query = query.in("company_id", filters.companyIds);
   if (filters.status && filters.status.length > 0) query = query.in("status", filters.status);
   if (filters.from) query = query.gte("due_date", filters.from);
   if (filters.to) query = query.lte("due_date", filters.to);

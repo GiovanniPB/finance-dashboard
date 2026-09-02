@@ -2,13 +2,14 @@ import { supabase } from "@/lib/supabase";
 
 import type { BankAccountBalance, CashflowPeriod } from "./types";
 
+/** `companyIds` nulo = todas as operacionais acessíveis; array = recorte do escopo. */
 export async function fetchCashflowDaily(
-  companyId: string,
+  companyIds: string[] | null,
   from: string,
   to: string,
 ): Promise<CashflowPeriod[]> {
-  const { data, error } = await supabase.rpc("cashflow_daily", {
-    p_company_id: companyId,
+  const { data, error } = await supabase.rpc("cashflow_daily_multi", {
+    p_company_ids: companyIds ?? undefined,
     p_start: from,
     p_end: to,
   });
@@ -22,11 +23,11 @@ export async function fetchCashflowDaily(
 }
 
 export async function fetchCashflowMonthly(
-  companyId: string,
+  companyIds: string[] | null,
   year: number,
 ): Promise<CashflowPeriod[]> {
-  const { data, error } = await supabase.rpc("cashflow_monthly", {
-    p_company_id: companyId,
+  const { data, error } = await supabase.rpc("cashflow_monthly_multi", {
+    p_company_ids: companyIds ?? undefined,
     p_year: year,
   });
   if (error) throw error;

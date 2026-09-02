@@ -15,22 +15,17 @@ import { BankAccountDeleteDialog } from "@/features/bank-accounts/components/Ban
 import { BankAccountDrawer } from "@/features/bank-accounts/components/BankAccountDrawer";
 import { BankAccountsTable } from "@/features/bank-accounts/components/BankAccountsTable";
 import { useBankAccounts, useToggleBankAccountActive } from "@/features/bank-accounts/hooks";
-import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { useSingleCompanyPicker } from "@/features/companies/useSingleCompanyPicker";
 
 export default function SettingsBanksPage() {
-  const { companies, selectedCompanyId, isConsolidated } = useCompanyScope();
-  const operational = companies.filter((c) => !c.is_holding);
-
-  // No modo consolidado, pedimos pra escolher uma empresa
-  const [pickedCompanyId, setPickedCompanyId] = React.useState<string | null>(
-    isConsolidated ? (operational[0]?.id ?? null) : selectedCompanyId,
-  );
-
-  React.useEffect(() => {
-    if (!isConsolidated) setPickedCompanyId(selectedCompanyId);
-  }, [isConsolidated, selectedCompanyId]);
-
-  const companyId = pickedCompanyId;
+  // Contas bancárias são de UMA empresa; num escopo com várias (consolidado ou grupo),
+  // a tela pede que se escolha qual — entre as do escopo.
+  const {
+    companyId,
+    setCompanyId,
+    options: scopeCompanies,
+    needsPicker,
+  } = useSingleCompanyPicker();
   const { data: rows = [], isLoading } = useBankAccounts(companyId);
   const toggleActive = useToggleBankAccountActive();
 
@@ -44,19 +39,19 @@ export default function SettingsBanksPage() {
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Contas bancárias</h2>
           <p className="mt-1 text-sm text-text-muted">
-            {isConsolidated
+            {needsPicker
               ? "Escolha uma empresa para gerenciar suas contas."
               : "Contas vinculadas a esta empresa."}
           </p>
         </div>
         <div className="flex items-end gap-2">
-          {isConsolidated && operational.length > 0 && (
-            <Select value={companyId ?? undefined} onValueChange={(v) => setPickedCompanyId(v)}>
+          {needsPicker && (
+            <Select value={companyId ?? undefined} onValueChange={(v) => setCompanyId(v)}>
               <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>
-                {operational.map((c) => (
+                {scopeCompanies.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.trade_name ?? c.legal_name}
                   </SelectItem>

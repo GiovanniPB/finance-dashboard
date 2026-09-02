@@ -24,14 +24,14 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ["dre"] });
 }
 
-const EMPTY_FILTERS: ListFilters = { companyId: "" };
+const EMPTY_FILTERS: ListFilters = { companyIds: [] };
 
 export function useTaxObligations(filters: ListFilters | null) {
   const effective = filters ?? EMPTY_FILTERS;
   return useQuery({
     queryKey: taxKeys.list(effective),
     queryFn: () => fetchTaxObligations(effective),
-    enabled: Boolean(filters?.companyId),
+    enabled: filters !== null,
   });
 }
 

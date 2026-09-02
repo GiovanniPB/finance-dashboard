@@ -43,8 +43,7 @@ export function BackfillJobsTable({ polling }: Props) {
   const [detail, setDetail] = React.useState<InvoiceJob | null>(null);
 
   // mesma regra da fila principal: segue o switcher global de empresa
-  const { selectedCompanyId, isConsolidated } = useCompanyScope();
-  const companyId = isConsolidated ? null : selectedCompanyId;
+  const { companyIds } = useCompanyScope();
 
   const filters = React.useMemo<InvoiceJobFilters>(() => {
     const group = JOB_STATUS_FILTERS.find((f) => f.value === statusFilter);
@@ -52,11 +51,11 @@ export function BackfillJobsTable({ polling }: Props) {
       statuses: group?.statuses ?? null,
       source: "backfill",
       accountId: accountId === "all" ? null : accountId,
-      companyId,
+      companyIds,
       page,
       pageSize: PAGE_SIZE,
     };
-  }, [statusFilter, accountId, companyId, page]);
+  }, [statusFilter, accountId, companyIds, page]);
 
   const { data, isLoading } = useInvoiceJobs(
     filters,
@@ -72,7 +71,7 @@ export function BackfillJobsTable({ polling }: Props) {
   React.useEffect(() => {
     setPage(0);
     clear();
-  }, [statusFilter, accountId, companyId, clear]);
+  }, [statusFilter, accountId, companyIds, clear]);
 
   function emitSelected() {
     approveJobs.mutate(

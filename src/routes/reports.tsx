@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BalanceReport } from "@/features/balance/components/BalanceReport";
-import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { useSingleCompanyPicker } from "@/features/companies/useSingleCompanyPicker";
 import { PeriodPicker } from "@/features/periods/PeriodPicker";
 import { effectiveRange, usePeriod } from "@/features/periods/usePeriod";
 import type { CounterpartyKindFilter } from "@/features/reports/api";
@@ -73,7 +73,16 @@ function comparisonPeriods(cmp: Comparison): {
 }
 
 export default function ReportsPage() {
-  const { isConsolidated, selectedCompany, selectedCompanyId } = useCompanyScope();
+  // Todos os relatórios desta tela são por empresa (centro de custo, balanço,
+  // contraparte, comparativo de DRE usam o plano de contas DELA). Num escopo com várias
+  // empresas, escolhe-se qual — entre as do escopo. Consolidação seletiva de DRE/KPI
+  // vive no dashboard, no /dre e no construtor de relatórios.
+  const {
+    companyId: selectedCompanyId,
+    setCompanyId,
+    options: scopeCompanies,
+    needsPicker,
+  } = useSingleCompanyPicker();
   // Aba e período na URL: o link para um balanço vale o balanço daquele período.
   const [tab, setTab] = useQueryState(
     "aba",
@@ -83,20 +92,21 @@ export default function ReportsPage() {
   const [kind, setKind] = React.useState<CounterpartyKindFilter>("all");
   const [comparison, setComparison] = React.useState<Comparison>("mom");
 
-  if (isConsolidated || !selectedCompanyId) {
+  if (!selectedCompanyId) {
     return (
       <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-        <Header isConsolidated />
+        <Header scopeName="—" />
         <Card>
           <CardContent className="p-6 text-center text-sm text-text-muted">
-            Selecione uma empresa específica no seletor superior para acessar os relatórios.
+            Nenhuma empresa no escopo atual para relatar.
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const companyName = selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—";
+  const selected = scopeCompanies.find((c) => c.id === selectedCompanyId);
+  const companyName = selected?.trade_name ?? selected?.legal_name ?? "—";
   const range = effectiveRange(period);
   // No preset "Personalizado" o intervalo fica incompleto entre um clique e outro;
   // sem esta guarda os RPCs receberiam data vazia ou invertida.
@@ -105,7 +115,14 @@ export default function ReportsPage() {
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-      <Header companyName={companyName} />
+      <Header
+        scopeName={companyName}
+        picker={
+          needsPicker
+            ? { value: selectedCompanyId, options: scopeCompanies, onChange: setCompanyId }
+            : null
+        }
+      />
 
       <div className="flex items-center gap-1 border-b border-border">
         {TABS.map((t) => (
@@ -193,20 +210,38 @@ function TabButton({ active, onClick, children }: TabButtonProps) {
 }
 
 function Header({
-  isConsolidated,
-  companyName,
+  scopeName,
+  picker,
 }: {
-  isConsolidated?: boolean;
-  companyName?: string;
+  scopeName: string;
+  picker?: {
+    value: string;
+    options: { id: string; trade_name: string | null; legal_name: string }[];
+    onChange: (id: string) => void;
+  } | null;
 }) {
   return (
     <div>
       <div className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
         Relatórios Gerenciais
       </div>
-      <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
-        {isConsolidated ? "Consolidado" : companyName}
-      </h1>
+      <div className="mt-1 flex flex-wrap items-center gap-3">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">{scopeName}</h1>
+        {picker && (
+          <Select value={picker.value} onValueChange={picker.onChange}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {picker.options.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.trade_name ?? c.legal_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
       <p className="mt-1 text-sm text-text-muted">
         Balanço gerencial mês a mês, análises por centro de custo e contraparte e comparativos de
         DRE (MoM/YoY) — todos exportáveis para CSV.

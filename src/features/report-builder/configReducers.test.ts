@@ -214,7 +214,7 @@ describe("pruneIncompatibleBlocks", () => {
   it("remove blocos por empresa ao passar para consolidado", () => {
     const config: ReportConfig = {
       ...withBlocks(["cover", "dre", "cashflow", "forecast"]),
-      scope: { mode: "consolidated", companyId: null, organizationId: ORG },
+      scope: { mode: "consolidated", companyId: null, organizationId: ORG, companyIds: null },
     };
     const result = pruneIncompatibleBlocks(config);
 
@@ -232,7 +232,7 @@ describe("pruneIncompatibleBlocks", () => {
   it("não duplica tipo removido mais de uma vez", () => {
     const config: ReportConfig = {
       ...baseConfig(),
-      scope: { mode: "consolidated", companyId: null, organizationId: ORG },
+      scope: { mode: "consolidated", companyId: null, organizationId: ORG, companyIds: null },
       blocks: [createBlock("cashflow", "a"), createBlock("cashflow", "b")],
     };
 
@@ -247,6 +247,7 @@ describe("setScope", () => {
       mode: "consolidated",
       companyId: null,
       organizationId: ORG,
+      companyIds: null,
     });
 
     expect(result.config.scope.mode).toBe("consolidated");
@@ -255,7 +256,12 @@ describe("setScope", () => {
 
   it("mantém tudo ao voltar para empresa", () => {
     const config = withBlocks(["dre", "cashflow"]);
-    const result = setScope(config, { mode: "company", companyId: COMPANY, organizationId: ORG });
+    const result = setScope(config, {
+      mode: "company",
+      companyId: COMPANY,
+      organizationId: ORG,
+      companyIds: null,
+    });
 
     expect(result.removed).toEqual([]);
     expect(result.config.blocks).toHaveLength(2);

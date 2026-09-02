@@ -9,13 +9,14 @@ export interface ForecastDay {
   runningBalance: number;
 }
 
+/** `companyIds` nulo = todas as operacionais acessíveis; array = recorte do escopo. */
 export async function fetchForecast(
-  companyId: string,
+  companyIds: string[] | null,
   from: string,
   to: string,
 ): Promise<ForecastDay[]> {
-  const { data, error } = await supabase.rpc("forecast_cashflow_daily", {
-    p_company_id: companyId,
+  const { data, error } = await supabase.rpc("forecast_cashflow_daily_multi", {
+    p_company_ids: companyIds ?? undefined,
     p_from: from,
     p_to: to,
   });

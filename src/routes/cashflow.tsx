@@ -9,11 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useBalancesMulti } from "@/features/bank-accounts/hooks";
 import { BankBalancesCard } from "@/features/cashflow/components/BankBalancesCard";
 import { CashflowChart } from "@/features/cashflow/components/CashflowChart";
 import { CashflowSummary } from "@/features/cashflow/components/CashflowSummary";
 import { CashflowTable } from "@/features/cashflow/components/CashflowTable";
-import { useBankBalances, useCashflowDaily, useCashflowMonthly } from "@/features/cashflow/hooks";
+import { useCashflowDaily, useCashflowMonthly } from "@/features/cashflow/hooks";
 import { useCashflowFilters } from "@/features/cashflow/useCashflowFilters";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { monthBounds } from "@/lib/dates";
@@ -34,12 +35,8 @@ const MONTH_LABELS = [
 ];
 
 export default function CashflowPage() {
-  const { selectedCompanyId, selectedCompany, isConsolidated, companies } = useCompanyScope();
+  const { companyIds, isMultiCompany, scopeKind, scopeLabel, scopeCompanies } = useCompanyScope();
   const [filters, setFilters] = useCashflowFilters();
-
-  // No consolidated mode yet — fallback to first operational company.
-  const operational = companies.filter((c) => !c.is_holding);
-  const effectiveCompanyId = isConsolidated ? (operational[0]?.id ?? null) : selectedCompanyId;
 
   const { year, granularity, month } = filters;
   const monthSelected = month >= 1 && month <= 12;
@@ -51,12 +48,12 @@ export default function CashflowPage() {
     ? monthBounds(new Date(year, month - 1, 1))
     : { start: `${year}-01-01`, end: `${year}-12-31` };
 
-  const monthly = useCashflowMonthly(
-    effectiveGranularity === "monthly" ? effectiveCompanyId : null,
-    year,
-  );
+  // Recorte vazio desliga a consulta (só a granularidade ativa busca). `null` NÃO serve
+  // para isso: null é o recorte do consolidado, ou seja, "todas as empresas".
+  const OFF: string[] = [];
+  const monthly = useCashflowMonthly(effectiveGranularity === "monthly" ? companyIds : OFF, year);
   const daily = useCashflowDaily(
-    effectiveGranularity === "daily" ? effectiveCompanyId : null,
+    effectiveGranularity === "daily" ? companyIds : OFF,
     range.start,
     range.end,
   );
@@ -64,23 +61,24 @@ export default function CashflowPage() {
   const active = effectiveGranularity === "monthly" ? monthly : daily;
 
   // Saldo das contas no fim do período visível, para casar com a tabela ao lado.
-  const banks = useBankBalances(effectiveCompanyId, range.end);
+  // `bank_balances_multi` soma o escopo inteiro — é o que faltava para o consolidado
+  // deixar de cair na primeira empresa.
+  const banks = useBalancesMulti(range.end, companyIds);
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-2xs flex items-center gap-2 font-medium tracking-wide text-text-subtle uppercase">
-            {isConsolidated ? <Globe2 className="size-3 text-accent" /> : null}
+            {isMultiCompany ? <Globe2 className="size-3 text-accent" /> : null}
             Fluxo de Caixa
           </div>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">
-            {isConsolidated
-              ? `Demo · ${operational[0]?.trade_name ?? "—"}`
-              : (selectedCompany?.trade_name ?? selectedCompany?.legal_name ?? "—")}
+            {scopeKind === "consolidated" ? "Consolidado" : scopeLabel}
           </h1>
           <p className="mt-1 text-sm text-text-muted">
             Movimentação por data de caixa, com acumulado partindo de zero.
+            {isMultiCompany && ` Somando ${scopeCompanies.length} empresa(s).`}
           </p>
         </div>
         <Badge tone="info">Regime de caixa</Badge>
@@ -162,7 +160,6 @@ export default function CashflowPage() {
             data={active.data ?? null}
             loading={active.isLoading}
             granularity={effectiveGranularity}
-            companyId={effectiveCompanyId}
           />
         </div>
         <div>
