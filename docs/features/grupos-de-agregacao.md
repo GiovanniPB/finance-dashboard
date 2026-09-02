@@ -49,15 +49,24 @@ Um grupo só aparece para quem acessa **todas** as empresas dele. Um DRE rotulad
 "Corretora + Assessoria" somando só uma das duas seria um número contábil errado em
 silêncio; melhor o grupo não existir para essa pessoa do que existir pela metade.
 
-A regra mora em `visible_company_group_ids()`, `security definer` **sem argumento** — duas
-decisões conscientes:
+A regra mora em `hidden_company_group_ids()` — o conjunto dos grupos que a pessoa **não**
+pode ver — `security definer` **sem argumento**. Três decisões conscientes:
 
 - **`security definer`** porque o predicado precisa varrer `company_group_members`;
   escrevê-lo na policy daquela tabela seria a policy consultando a própria tabela
   (`infinite recursion detected in policy`).
 - **sem argumento** para a policy chamá-la dentro de `(select …)`, que o planner resolve
   como InitPlan — avaliado uma vez por statement, não por linha (convenção de RLS do
-  CLAUDE.md). Conferido: `Filter: ((InitPlan 1).col1 AND (ANY (id = (hashed SubPlan 2).col1)))`.
+  CLAUDE.md). Conferido: `Filter: ((InitPlan 1).col1 AND (NOT (ANY (id = (hashed SubPlan 2).col1))))`.
+- **conjunto oculto, não visível** — e essa é a parte não óbvia. A primeira versão
+  perguntava "quais grupos eu vejo", lendo `company_groups`. Isso quebrou a criação pela
+  UI: `insert().select()` gera `INSERT ... RETURNING`, o Postgres aplica a policy de SELECT
+  à linha nova, e a função `stable` que lê a própria tabela vê o snapshot do início do
+  statement — sem a linha em inserção. Resultado: `new row violates row-level security
+policy for table "company_groups"` para um super admin, com todos os termos da policy de
+  INSERT verdadeiros. Perguntando "quais estão ocultos" a resposta sai só de
+  `company_group_members`, e um grupo recém-criado (sem membros) não está oculto.
+  Corrigido em `…_grupos_visibilidade_sem_autorreferencia`.
 
 Escrita: criar/renomear/apagar exige `admin` ou `editor`; **colocar uma empresa no grupo
 exige escrita naquela empresa** (`has_company_write_access(company_id)`), que é o que
@@ -139,4 +148,7 @@ No banco local, com dado do seed:
 - RLS: `viewer` com acesso a 1 de 4 empresas não vê o grupo de 2, nem a composição dele;
   `editor` cria grupo e adiciona empresa que acessa, e é recusado na que não acessa;
   token com claim `client_id` é recusado no insert e apaga 0 linhas;
+- **o caminho real da UI**, `INSERT ... RETURNING` e `UPDATE ... RETURNING`, testado
+  explicitamente para super admin, editor e viewer — o teste que faltava na primeira
+  versão, que só exercitava insert sem `returning` e por isso não pegou o defeito acima;
 - as 8 RPCs continuam resolvendo quando chamadas por nome como o servidor MCP chama.

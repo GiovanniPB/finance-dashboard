@@ -4376,6 +4376,7 @@ export type Database = {
         Args: { p_organization_id: string }
         Returns: boolean
       }
+      hidden_company_group_ids: { Args: never; Returns: string[] }
       ignore_statement_line: {
         Args: { p_line_id: string }
         Returns: {
@@ -4893,7 +4894,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      visible_company_group_ids: { Args: never; Returns: string[] }
     }
     Enums: {
       account_kind:

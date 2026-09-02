@@ -114,6 +114,26 @@ where n.nspname = 'public' and c.relkind = 'v';
 §Grants em `mcp-insights-system.md`): se a view devolver "permission denied" num banco
 reconstruído das migrations, é grant faltando, não a policy.
 
+⚠️ **Policy de SELECT de tabela cuja UI insere com `.select()` NÃO pode consultar a
+própria tabela.** `supabase.from(t).insert(...).select()` gera `INSERT ... RETURNING`, e o
+Postgres aplica a policy de **SELECT** à linha nova. Se essa policy chamar uma função
+`stable` que lê a própria tabela, a função vê o snapshot do início do statement — onde a
+linha em inserção ainda não existe — e o INSERT é recusado com
+
+```
+new row violates row-level security policy for table "<t>"
+```
+
+sem citar policy nenhuma (o RETURNING não atribui nome), inclusive para super admin, e com
+todos os termos da policy de INSERT verdadeiros. Foi o que aconteceu em `company_groups`:
+a policy de SELECT consultava `visible_company_group_ids()`, que lia `company_groups`.
+Corrigido em `…_grupos_visibilidade_sem_autorreferencia` invertendo o conjunto — a função
+passou a calcular o que está **oculto**, lendo só a tabela de membros.
+
+Note também que erro de policy **restritiva** vem com o nome dela na mensagem
+(`… policy "oauth_sem_escrita_ins" for table …`) e o de permissiva/RETURNING vem sem: é o
+sinal mais rápido para saber onde olhar.
+
 ⚠️ **No caminho de LEITURA, nunca chame `has_company_access(company_id)` direto na
 policy.** Ela é `security definer` → o Postgres não faz inlining, e como o argumento
 depende da linha, a função roda **uma vez por linha varrida**. Numa tabela de 47k
