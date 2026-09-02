@@ -143,7 +143,9 @@ function cashflowFixture(): CashflowPeriod[] {
 
 function costCentersFixture(): CostCenterRow[] {
   return Array.from({ length: 5 }, (_, i) => ({
-    costCenterId: `cc${i}`,
+    key: `centro ${i}`,
+    costCenterIds: [`cc${i}`],
+    companiesCount: 1,
     name: `Centro ${i}`,
     revenue: 200_000 - i * 20_000,
     expense: 120_000 + i * 15_000,
@@ -208,6 +210,7 @@ function bankBalancesFixture(): BankAccountBalance[] {
 function counterpartiesFixture(): CounterpartyRow[] {
   return Array.from({ length: 8 }, (_, i) => ({
     counterpartyId: `cp${i}`,
+    companiesCount: 1,
     name: `Contraparte ${i}`,
     kind: i % 2 === 0 ? "customer" : "supplier",
     totalInflow: i % 2 === 0 ? 180_000 - i * 12_000 : 0,
@@ -324,7 +327,9 @@ describe("renderers de bloco", () => {
       },
       costCenters: [
         {
-          costCenterId: "c",
+          key: "zerado",
+          costCenterIds: ["c"],
+          companiesCount: 1,
           name: "Zerado",
           revenue: 0,
           expense: 0,
@@ -372,6 +377,7 @@ describe("renderers de bloco", () => {
       counterparties: [
         {
           counterpartyId: "c",
+          companiesCount: 1,
           name: "Zerada",
           kind: "customer",
           totalInflow: 0,

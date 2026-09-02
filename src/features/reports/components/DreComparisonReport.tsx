@@ -10,7 +10,12 @@ import type { DreComparisonRow } from "../api";
 import { useDreComparison } from "../hooks";
 
 interface Props {
-  companyId: string;
+  /** Empresa única do escopo (nulo em consolidado e em grupo). */
+  companyId: string | null;
+  organizationId: string;
+  companyIds: string[] | null;
+  /** Escopo com mais de uma empresa: agrega pelo plano-mestre. */
+  aggregated: boolean;
   aFrom: string;
   aTo: string;
   bFrom: string;
@@ -19,8 +24,28 @@ interface Props {
   labelB: string;
 }
 
-export function DreComparisonReport({ companyId, aFrom, aTo, bFrom, bTo, labelA, labelB }: Props) {
-  const { data = [], isLoading } = useDreComparison(companyId, aFrom, aTo, bFrom, bTo);
+export function DreComparisonReport({
+  companyId,
+  organizationId,
+  companyIds,
+  aggregated,
+  aFrom,
+  aTo,
+  bFrom,
+  bTo,
+  labelA,
+  labelB,
+}: Props) {
+  const { data = [], isLoading } = useDreComparison({
+    companyId,
+    organizationId,
+    companyIds,
+    aggregated,
+    aFrom,
+    aTo,
+    bFrom,
+    bTo,
+  });
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
   if (data.length === 0) {

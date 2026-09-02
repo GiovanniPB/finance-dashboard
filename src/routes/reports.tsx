@@ -2,7 +2,6 @@ import * as React from "react";
 import { BarChart3, Building2, Table2, Users, type LucideIcon } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -12,7 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BalanceReport } from "@/features/balance/components/BalanceReport";
-import { useSingleCompanyPicker } from "@/features/companies/useSingleCompanyPicker";
+import { balanceScopeFrom } from "@/features/balance/scope";
+import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { PeriodPicker } from "@/features/periods/PeriodPicker";
 import { effectiveRange, usePeriod } from "@/features/periods/usePeriod";
 import type { CounterpartyKindFilter } from "@/features/reports/api";
@@ -73,16 +73,24 @@ function comparisonPeriods(cmp: Comparison): {
 }
 
 export default function ReportsPage() {
-  // Todos os relatórios desta tela são por empresa (centro de custo, balanço,
-  // contraparte, comparativo de DRE usam o plano de contas DELA). Num escopo com várias
-  // empresas, escolhe-se qual — entre as do escopo. Consolidação seletiva de DRE/KPI
-  // vive no dashboard, no /dre e no construtor de relatórios.
+  // Os quatro relatórios seguem o escopo do seletor, cada um do jeito que faz sentido:
+  //  · centro de custo agrupa pela chave de consolidação (nome, ou grupo de fusão);
+  //  · contraparte soma direto, porque contraparte é da organização;
+  //  · comparativo de DRE agrega pelo plano-mestre quando há mais de uma empresa;
+  //  · balanço usa o modelo de linhas DO ESCOPO (empresa, grupo ou consolidado).
   const {
-    companyId: selectedCompanyId,
-    setCompanyId,
-    options: scopeCompanies,
-    needsPicker,
-  } = useSingleCompanyPicker();
+    selectedCompanyId,
+    selectedGroup,
+    companyIds,
+    companies,
+    isMultiCompany,
+    scopeKind,
+    scopeLabel,
+    scopeCompanies,
+  } = useCompanyScope();
+  // Sem constante hardcoded: a organização vem da própria lista de empresas acessíveis.
+  // Enquanto ela não carregar, as consultas que dependem dela ficam desligadas.
+  const organizationId = companies[0]?.organization_id ?? "";
   // Aba e período na URL: o link para um balanço vale o balanço daquele período.
   const [tab, setTab] = useQueryState(
     "aba",
@@ -92,21 +100,13 @@ export default function ReportsPage() {
   const [kind, setKind] = React.useState<CounterpartyKindFilter>("all");
   const [comparison, setComparison] = React.useState<Comparison>("mom");
 
-  if (!selectedCompanyId) {
-    return (
-      <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
-        <Header scopeName="—" />
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-text-muted">
-            Nenhuma empresa no escopo atual para relatar.
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const balanceScope = balanceScopeFrom({
+    scopeKind,
+    selectedCompanyId,
+    selectedGroupId: selectedGroup?.id ?? null,
+  });
 
-  const selected = scopeCompanies.find((c) => c.id === selectedCompanyId);
-  const companyName = selected?.trade_name ?? selected?.legal_name ?? "—";
+  const scopeName = scopeKind === "consolidated" ? "Consolidado" : scopeLabel;
   const range = effectiveRange(period);
   // No preset "Personalizado" o intervalo fica incompleto entre um clique e outro;
   // sem esta guarda os RPCs receberiam data vazia ou invertida.
@@ -116,12 +116,8 @@ export default function ReportsPage() {
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] space-y-5 p-6 lg:p-8">
       <Header
-        scopeName={companyName}
-        picker={
-          needsPicker
-            ? { value: selectedCompanyId, options: scopeCompanies, onChange: setCompanyId }
-            : null
-        }
+        scopeName={scopeName}
+        companiesCount={isMultiCompany ? scopeCompanies.length : null}
       />
 
       <div className="flex items-center gap-1 border-b border-border">
@@ -159,14 +155,22 @@ export default function ReportsPage() {
       )}
 
       {tab === "cost-center" && rangeReady && (
-        <CostCenterReport companyId={selectedCompanyId} from={range.from} to={range.to} />
+        <CostCenterReport companyIds={companyIds} from={range.from} to={range.to} />
       )}
       {tab === "balance" && rangeReady && (
-        <BalanceReport companyId={selectedCompanyId} from={range.from} to={range.to} />
+        <BalanceReport
+          scope={balanceScope}
+          organizationId={organizationId}
+          companyIds={companyIds}
+          companyId={selectedCompanyId}
+          groupName={selectedGroup?.name}
+          from={range.from}
+          to={range.to}
+        />
       )}
       {tab === "counterparty" && rangeReady && (
         <CounterpartyReport
-          companyId={selectedCompanyId}
+          companyIds={companyIds}
           from={range.from}
           to={range.to}
           kind={kind}
@@ -176,6 +180,9 @@ export default function ReportsPage() {
       {tab === "dre-comparison" && (
         <DreComparisonReport
           companyId={selectedCompanyId}
+          organizationId={organizationId}
+          companyIds={companyIds}
+          aggregated={isMultiCompany}
           aFrom={cmp.a.from}
           aTo={cmp.a.to}
           bFrom={cmp.b.from}
@@ -211,14 +218,11 @@ function TabButton({ active, onClick, children }: TabButtonProps) {
 
 function Header({
   scopeName,
-  picker,
+  companiesCount,
 }: {
   scopeName: string;
-  picker?: {
-    value: string;
-    options: { id: string; trade_name: string | null; legal_name: string }[];
-    onChange: (id: string) => void;
-  } | null;
+  /** Nº de empresas somadas; `null` quando o escopo é uma empresa. */
+  companiesCount: number | null;
 }) {
   return (
     <div>
@@ -227,19 +231,10 @@ function Header({
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-3">
         <h1 className="font-display text-3xl font-semibold tracking-tight">{scopeName}</h1>
-        {picker && (
-          <Select value={picker.value} onValueChange={picker.onChange}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {picker.options.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.trade_name ?? c.legal_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {companiesCount !== null && companiesCount > 1 && (
+          <span className="text-2xs rounded-full bg-accent-soft px-2 py-0.5 text-accent">
+            somando {companiesCount} empresas
+          </span>
         )}
       </div>
       <p className="mt-1 text-sm text-text-muted">

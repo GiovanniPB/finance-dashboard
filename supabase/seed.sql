@@ -144,3 +144,29 @@ where c.id in (
   '00000000-0000-0000-0000-000000000012'   -- OTM Corretora
 )
 on conflict (group_id, company_id) do nothing;
+
+-- -----------------------------------------------------------------------------
+-- Centros de custo nos lançamentos + um nome divergente de propósito.
+--
+-- Sem isto o relatório de centro de custo local mostra só "Sem centro de custo", e
+-- a consolidação (que casa por nome) não tem o que exercitar. A OTM Corretora recebe
+-- um nome fora do padrão para reproduzir localmente o caso real do grupo: nome
+-- divergente separa a linha, e a fusão manual reune.
+-- -----------------------------------------------------------------------------
+update public.transactions t
+set cost_center_id = escolhido.id
+from (
+  select cc.company_id, cc.id,
+         row_number() over (partition by cc.company_id order by cc.name) - 1 as pos
+  from public.cost_centers cc
+  where cc.is_active
+) escolhido
+where escolhido.company_id = t.company_id
+  and escolhido.pos = abs(hashtext(t.id::text)) % 3
+  and t.cost_center_id is null
+  and t.deleted_at is null;
+
+update public.cost_centers cc
+set name = 'OTM Corretora - Administrativo'
+where cc.company_id = '00000000-0000-0000-0000-000000000012'
+  and lower(btrim(cc.name)) = 'administrativo';

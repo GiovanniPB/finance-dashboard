@@ -97,38 +97,58 @@ export type Database = {
       }
       balance_report_models: {
         Row: {
-          company_id: string
+          company_group_id: string | null
+          company_id: string | null
           created_at: string
           created_by: string | null
           id: string
           lines: Json
           metadata: Json
+          organization_id: string
           updated_at: string
         }
         Insert: {
-          company_id: string
+          company_group_id?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           lines?: Json
           metadata?: Json
+          organization_id: string
           updated_at?: string
         }
         Update: {
-          company_id?: string
+          company_group_id?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           lines?: Json
           metadata?: Json
+          organization_id?: string
           updated_at?: string
         }
         Relationships: [
           {
+            foreignKeyName: "balance_report_models_company_group_id_fkey"
+            columns: ["company_group_id"]
+            isOneToOne: false
+            referencedRelation: "company_groups"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "balance_report_models_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "balance_report_models_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -667,6 +687,44 @@ export type Database = {
           },
         ]
       }
+      cost_center_merge_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_center_merge_groups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_centers: {
         Row: {
           company_id: string
@@ -674,6 +732,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          merge_group_id: string | null
           name: string
           updated_at: string
         }
@@ -683,6 +742,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          merge_group_id?: string | null
           name: string
           updated_at?: string
         }
@@ -692,6 +752,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          merge_group_id?: string | null
           name?: string
           updated_at?: string
         }
@@ -701,6 +762,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_centers_merge_group_id_fkey"
+            columns: ["merge_group_id"]
+            isOneToOne: false
+            referencedRelation: "cost_center_merge_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -832,6 +900,13 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_centers_consolidated"
             referencedColumns: ["id"]
           },
         ]
@@ -2352,6 +2427,13 @@ export type Database = {
             referencedRelation: "cost_centers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payroll_account_mappings_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_centers_consolidated"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payroll_items: {
@@ -2649,6 +2731,13 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_templates_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_centers_consolidated"
             referencedColumns: ["id"]
           },
           {
@@ -3131,6 +3220,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transactions_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_centers_consolidated"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transactions_counterparty_id_fkey"
             columns: ["counterparty_id"]
             isOneToOne: false
@@ -3297,6 +3393,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transactions_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_centers_consolidated"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transactions_counterparty_id_fkey"
             columns: ["counterparty_id"]
             isOneToOne: false
@@ -3347,6 +3450,33 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_cost_centers_consolidated: {
+        Row: {
+          company_id: string | null
+          consolidated_name: string | null
+          consolidation_key: string | null
+          id: string | null
+          is_active: boolean | null
+          merge_group_id: string | null
+          name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_centers_merge_group_id_fkey"
+            columns: ["merge_group_id"]
+            isOneToOne: false
+            referencedRelation: "cost_center_merge_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -3519,6 +3649,13 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_centers_consolidated"
             referencedColumns: ["id"]
           },
           {
@@ -3719,6 +3856,13 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_centers_consolidated"
             referencedColumns: ["id"]
           },
           {
@@ -4048,6 +4192,20 @@ export type Database = {
           transaction_count: number
         }[]
       }
+      cost_center_analysis_multi: {
+        Args: { p_company_ids?: string[]; p_from: string; p_to: string }
+        Returns: {
+          companies_count: number
+          consolidation_key: string
+          cost_center_ids: string[]
+          cost_center_name: string
+          expense: number
+          margin_pct: number
+          net: number
+          revenue: number
+          transaction_count: number
+        }[]
+      }
       cost_center_monthly_series: {
         Args: {
           p_basis?: Database["public"]["Enums"]["accounting_basis"]
@@ -4064,9 +4222,27 @@ export type Database = {
           transaction_count: number
         }[]
       }
+      cost_center_monthly_series_multi: {
+        Args: {
+          p_basis?: Database["public"]["Enums"]["accounting_basis"]
+          p_company_ids?: string[]
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          company_id: string
+          cost_center_id: string
+          cost_center_name: string
+          expense: number
+          month: string
+          revenue: number
+          transaction_count: number
+        }[]
+      }
       counterparty_analysis: {
         Args: {
-          p_company_id: string
+          p_company_id?: string
+          p_company_ids?: string[]
           p_from: string
           p_kind?: string
           p_limit?: number
@@ -4074,6 +4250,7 @@ export type Database = {
         }
         Returns: {
           avg_ticket: number
+          companies_count: number
           counterparty_id: string
           counterparty_kind: string
           counterparty_name: string
@@ -4232,6 +4409,29 @@ export type Database = {
       dre_comparison: {
         Args: {
           p_company_id: string
+          p_period_a_from: string
+          p_period_a_to: string
+          p_period_b_from: string
+          p_period_b_to: string
+        }
+        Returns: {
+          account_id: string
+          code: string
+          dre_section: Database["public"]["Enums"]["dre_section"]
+          is_summary: boolean
+          kind: Database["public"]["Enums"]["account_kind"]
+          name: string
+          sort_order: number
+          total_a: number
+          total_b: number
+          variance_abs: number
+          variance_pct: number
+        }[]
+      }
+      dre_comparison_multi: {
+        Args: {
+          p_company_ids?: string[]
+          p_organization_id: string
           p_period_a_from: string
           p_period_a_to: string
           p_period_b_from: string

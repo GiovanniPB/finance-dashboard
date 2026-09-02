@@ -11,13 +11,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 import { analyzeModel } from "../compute";
+import { nameForCostCenterId, type CostCenterOption } from "../costCenterOptions";
 import { LINE_KIND_LABELS, MEASURE_LABELS, type BalanceLine } from "../schema";
 import { BalanceLineEditor } from "./BalanceLineEditor";
-
-interface CostCenterOption {
-  id: string;
-  name: string;
-}
 
 interface Props {
   lines: BalanceLine[];
@@ -35,9 +31,13 @@ function describeLine(
 
   if (line.kind === "cost_centers") {
     if (line.costCenterIds.length === 0) return "Nenhum centro de custo";
-    const names = line.costCenterIds.map(
-      (id) => costCenters.find((cc) => cc.id === id)?.name ?? "centro removido",
-    );
+    // Vários ids podem cair na mesma opção (o mesmo conceito em N empresas): sem o
+    // Set, a descrição repetiria "Capex, Capex, Capex".
+    const names = [
+      ...new Set(
+        line.costCenterIds.map((id) => nameForCostCenterId(costCenters, id) ?? "centro removido"),
+      ),
+    ];
     return `${MEASURE_LABELS[line.measure]} · ${names.join(", ")}`;
   }
   if (line.kind === "formula") {
@@ -69,13 +69,13 @@ export function BalanceModelPanel({ lines, costCenters, onChange }: Props) {
     () =>
       analyzeModel(
         lines,
-        costCenters.map((cc) => cc.id),
+        // O conjunto válido é a união dos centros de todas as opções.
+        costCenters.flatMap((cc) => cc.costCenterIds),
       ),
     [lines, costCenters],
   );
 
-  const nameOfCostCenter = (id: string) =>
-    costCenters.find((cc) => cc.id === id)?.name ?? id.slice(0, 8);
+  const nameOfCostCenter = (id: string) => nameForCostCenterId(costCenters, id) ?? id.slice(0, 8);
 
   const openEditor = (line: BalanceLine | null) => {
     setEditing(line);

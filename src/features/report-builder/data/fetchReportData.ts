@@ -107,7 +107,7 @@ export async function fetchReportData(input: FetchReportDataInput): Promise<Repo
 
   if (types.has("cost-centers") && companyId != null) {
     tasks.push(
-      fetchCostCenterAnalysis(companyId, period.from, period.to).then((rows) => {
+      fetchCostCenterAnalysis([companyId], period.from, period.to).then((rows) => {
         data.costCenters = rows;
       }),
     );
@@ -135,7 +135,7 @@ export async function fetchReportData(input: FetchReportDataInput): Promise<Repo
     const kind: CounterpartyKindFilter =
       optionOf(blocks, "counterparties", (o) => o.counterpartyKind) ?? "all";
     tasks.push(
-      fetchCounterpartyAnalysis(companyId, period.from, period.to, kind, limit).then((rows) => {
+      fetchCounterpartyAnalysis([companyId], period.from, period.to, kind, limit).then((rows) => {
         data.counterparties = rows;
       }),
     );

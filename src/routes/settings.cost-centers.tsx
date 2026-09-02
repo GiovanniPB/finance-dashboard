@@ -17,9 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCompanyScope } from "@/features/companies/CompanyContext";
 import { useSingleCompanyPicker } from "@/features/companies/useSingleCompanyPicker";
 import { type CostCenter } from "@/features/cost-centers/api";
 import { CostCenterDrawer } from "@/features/cost-centers/components/CostCenterDrawer";
+import { CostCenterMergePanel } from "@/features/cost-centers/components/CostCenterMergePanel";
 import { useCostCenters } from "@/features/cost-centers/hooks";
 import { cn } from "@/lib/cn";
 
@@ -32,6 +34,10 @@ export default function SettingsCostCentersPage() {
     options: scopeCompanies,
     needsPicker,
   } = useSingleCompanyPicker();
+  // A fusão é entre empresas, então ela olha o ESCOPO inteiro — não a empresa escolhida
+  // acima, que serve ao cadastro (criar/editar centro é ato de uma empresa).
+  const { companies, companyIds, isMultiCompany } = useCompanyScope();
+  const organizationId = companies[0]?.organization_id ?? "";
   const { data: rows = [], isLoading } = useCostCenters(companyId);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CostCenter | null>(null);
@@ -140,6 +146,15 @@ export default function SettingsCostCentersPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Fusão só faz sentido com mais de uma empresa no escopo. */}
+      {isMultiCompany && organizationId && (
+        <CostCenterMergePanel
+          organizationId={organizationId}
+          companyIds={companyIds}
+          companies={companies}
+        />
       )}
 
       {companyId && (

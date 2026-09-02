@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { useCompanyScope } from "@/features/companies/CompanyContext";
+import { scopeQueryKey } from "@/features/companies/scopeQueryKey";
 import { formatDate } from "@/lib/dates";
 import { formatBRL } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
@@ -80,12 +81,7 @@ export function CommandPalette({ children }: { children?: React.ReactNode }) {
   }, [query]);
 
   const txSearch = useQuery({
-    queryKey: [
-      "command-palette",
-      "transactions",
-      debounced,
-      companyIds ? [...companyIds].sort().join(",") : "all",
-    ],
+    queryKey: ["command-palette", "transactions", debounced, scopeQueryKey(companyIds)],
     queryFn: async () => {
       let q = supabase
         .from("transactions")

@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { scopeQueryKey } from "@/features/companies/scopeQueryKey";
+
 import { fetchBankBalances, fetchCashflowDaily, fetchCashflowMonthly } from "./api";
 import { withCumulativeBalance } from "./compute";
 
-const scopeKey = (companyIds: string[] | null) =>
-  companyIds ? [...companyIds].sort().join(",") : "all";
+const scopeKey = (companyIds: string[] | null) => scopeQueryKey(companyIds);
 
 export const cashflowKeys = {
   daily: (companyIds: string[] | null, from: string, to: string) =>

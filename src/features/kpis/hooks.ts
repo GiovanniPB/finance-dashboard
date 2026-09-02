@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { scopeQueryKey } from "@/features/companies/scopeQueryKey";
+
 import {
   fetchExpenseBreakdown,
   fetchKpiDashboard,
@@ -29,7 +31,7 @@ export function useKpiDashboardConsolidated(
   year: number,
   companyIds: string[] | null = null,
 ) {
-  const scopeKey = companyIds ? [...companyIds].sort().join(",") : "all";
+  const scopeKey = scopeQueryKey(companyIds);
   return useQuery({
     queryKey: [...kpiKeys.consolidated(organizationId, year), scopeKey],
     queryFn: () => fetchKpiDashboardConsolidated(organizationId ?? "", year, companyIds),
@@ -87,7 +89,7 @@ export function useExpenseBreakdown(opts: {
   from: string;
   to: string;
 }) {
-  const scopeKey = opts.companyIds ? [...opts.companyIds].sort().join(",") : "all";
+  const scopeKey = scopeQueryKey(opts.companyIds ?? null);
   return useQuery({
     queryKey: [
       ...kpiKeys.expenses(opts.companyId, opts.organizationId, opts.from, opts.to),

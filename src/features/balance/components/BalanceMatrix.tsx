@@ -24,7 +24,7 @@ interface Props {
   matrix: Matrix;
   /** Intercala uma coluna de variação depois de cada mês. */
   showVariation?: boolean;
-  companyId: string;
+  companyIds: string[] | null;
   from: string;
   to: string;
   basis: AccountingBasis;
@@ -77,7 +77,7 @@ function periodLabelOf(months: string[]): string {
 export function BalanceMatrix({
   matrix,
   showVariation = false,
-  companyId,
+  companyIds,
   from,
   to,
   basis,
@@ -238,7 +238,7 @@ export function BalanceMatrix({
           if (!next) setDrilled(null);
         }}
         line={drilled}
-        companyId={companyId}
+        companyIds={companyIds}
         from={from}
         to={to}
         basis={basis}

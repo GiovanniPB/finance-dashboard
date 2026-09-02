@@ -12,27 +12,44 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCostCenters } from "@/features/cost-centers/hooks";
+import { useConsolidatedCostCenters, useCostCenters } from "@/features/cost-centers/hooks";
 import { cn } from "@/lib/cn";
 import { downloadCsv } from "@/lib/csv";
 
 import { buildBalanceMatrix } from "../compute";
+import { optionsFromConsolidated, optionsFromCostCenters } from "../costCenterOptions";
 import { buildBalanceCsv } from "../csv";
 import { BASIS_LABELS } from "../drilldown";
 import { useBalanceModel, useMonthlySeries, useSaveBalanceModel } from "../hooks";
 import { linesFromCostCenters, type BalanceLine } from "../schema";
+import { balanceScopeLabel, type BalanceScope } from "../scope";
 import { BalanceMatrix } from "./BalanceMatrix";
 import { BalanceModelPanel } from "./BalanceModelPanel";
 
 const BASES = ["accrual", "cash"] as const;
 
 interface Props {
-  companyId: string;
+  /** Escopo do MODELO de linhas: empresa, grupo, ou consolidado. */
+  scope: BalanceScope;
+  organizationId: string;
+  /** Recorte de empresas do escopo — nulo em consolidado. */
+  companyIds: string[] | null;
+  /** Empresa única do escopo, quando houver (nulo em consolidado e em grupo). */
+  companyId: string | null;
+  groupName?: string;
   from: string;
   to: string;
 }
 
-export function BalanceReport({ companyId, from, to }: Props) {
+export function BalanceReport({
+  scope,
+  organizationId,
+  companyIds,
+  companyId,
+  groupName,
+  from,
+  to,
+}: Props) {
   const [draft, setDraft] = React.useState<BalanceLine[] | null>(null);
   const [editing, setEditing] = React.useState(false);
   // Na URL junto com aba e período: o link reproduz a tela como ela está.
@@ -45,32 +62,46 @@ export function BalanceReport({ companyId, from, to }: Props) {
     parseAsStringLiteral(BASES).withDefault("accrual"),
   );
 
-  const seriesQuery = useMonthlySeries(companyId, from, to, basis);
-  const modelQuery = useBalanceModel(companyId);
-  const costCentersQuery = useCostCenters(companyId);
-  const save = useSaveBalanceModel(companyId);
+  const seriesQuery = useMonthlySeries(companyIds, from, to, basis);
+  const modelQuery = useBalanceModel(scope, organizationId);
+  const save = useSaveBalanceModel(scope, organizationId);
+
+  // Escopo de UMA empresa oferece os centros dela; escopo com várias oferece as CHAVES
+  // de consolidação, para uma linha somar o mesmo conceito nas N empresas de uma vez.
+  const singleCompanyQuery = useCostCenters(scope.kind === "company" ? companyId : null);
+  const consolidatedQuery = useConsolidatedCostCenters(scope.kind === "company" ? [] : companyIds);
 
   const saved = React.useMemo(() => modelQuery.data ?? [], [modelQuery.data]);
   const lines = draft ?? saved;
   const isDirty = draft != null && JSON.stringify(draft) !== JSON.stringify(saved);
 
-  const activeCostCenters = React.useMemo(
-    () => (costCentersQuery.data ?? []).filter((cc) => cc.is_active),
-    [costCentersQuery.data],
-  );
+  const activeCostCenters = React.useMemo(() => {
+    if (scope.kind === "company") {
+      return optionsFromCostCenters((singleCompanyQuery.data ?? []).filter((cc) => cc.is_active));
+    }
+    return optionsFromConsolidated(consolidatedQuery.data ?? []);
+  }, [scope.kind, singleCompanyQuery.data, consolidatedQuery.data]);
+
+  const scopeLabel = balanceScopeLabel(scope, { groupName });
 
   const matrix = React.useMemo(
     () => buildBalanceMatrix({ from, to, series: seriesQuery.data ?? [], lines }),
     [from, to, seriesQuery.data, lines],
   );
 
-  const isLoading = seriesQuery.isLoading || modelQuery.isLoading || costCentersQuery.isLoading;
+  const isLoading =
+    seriesQuery.isLoading ||
+    modelQuery.isLoading ||
+    (scope.kind === "company" ? singleCompanyQuery.isLoading : consolidatedQuery.isLoading);
   if (isLoading) return <Skeleton className="h-72 w-full" />;
 
   // Consulta que falha NÃO pode virar matriz vazia: sem dado, toda linha calcula
   // zero e a tela fica idêntica a "não houve movimento no período" — um erro de
   // banco passa por resultado legítimo e ninguém percebe.
-  const failure = seriesQuery.error ?? modelQuery.error ?? costCentersQuery.error;
+  const failure =
+    seriesQuery.error ??
+    modelQuery.error ??
+    (scope.kind === "company" ? singleCompanyQuery.error : consolidatedQuery.error);
   if (failure) {
     return (
       <div className="space-y-3 rounded-[var(--radius-lg)] border border-expense/40 bg-expense/5 p-6">
@@ -89,7 +120,9 @@ export function BalanceReport({ companyId, from, to }: Props) {
           onClick={() => {
             void seriesQuery.refetch();
             void modelQuery.refetch();
-            void costCentersQuery.refetch();
+            void (scope.kind === "company"
+              ? singleCompanyQuery.refetch()
+              : consolidatedQuery.refetch());
           }}
         >
           Tentar de novo
@@ -113,7 +146,7 @@ export function BalanceReport({ companyId, from, to }: Props) {
     return (
       <div className="space-y-4">
         <div className="rounded-[var(--radius-lg)] border border-dashed border-border bg-surface p-12 text-center">
-          <h3 className="text-sm font-semibold">Monte o balanço desta empresa</h3>
+          <h3 className="text-sm font-semibold">Monte o balanço {scopeLabel}</h3>
           <p className="mx-auto mt-1 max-w-md text-sm text-text-muted">
             Cada linha da matriz é um item: um grupo de centros de custo, uma fórmula sobre outros
             itens (Ebitda, Lucro Líquido) ou um percentual (Margem).
@@ -126,7 +159,10 @@ export function BalanceReport({ companyId, from, to }: Props) {
               setEditing(true);
             }}
           >
-            <Sparkles className="size-4" /> Começar com um item por centro de custo
+            <Sparkles className="size-4" />{" "}
+            {scope.kind === "company"
+              ? "Começar com um item por centro de custo"
+              : "Começar com um item por centro de custo consolidado"}
           </Button>
           {activeCostCenters.length === 0 && (
             <p className="text-2xs mt-3 text-text-muted">
@@ -223,7 +259,7 @@ export function BalanceReport({ companyId, from, to }: Props) {
         matrix={matrix}
         showVariation={showVariation}
         basis={basis}
-        companyId={companyId}
+        companyIds={companyIds}
         from={from}
         to={to}
       />
@@ -231,7 +267,7 @@ export function BalanceReport({ companyId, from, to }: Props) {
       {matrix.lines.some((l) => l.kind === "unclassified") && (
         <p className="text-2xs text-text-muted">
           A linha <strong>Não classificado</strong> é o que nenhum item captura — inclusive
-          lançamento sem centro de custo. Ela existe para o relatório fechar com o total da empresa;
+          lançamento sem centro de custo. Ela existe para o relatório fechar com o total do escopo;
           some quando o modelo cobre tudo.
         </p>
       )}

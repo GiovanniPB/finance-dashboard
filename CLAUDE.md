@@ -253,9 +253,17 @@ RPC nova que agregue empresa segue o padrão `p_company_ids uuid[] default null`
 empresa, a implementação passa a ser a multi e a de uma empresa vira **wrapper** dela —
 o número do grupo e o da empresa não podem divergir.
 
+⚠️ **Centro de custo consolidado casa por NOME normalizado** (`lower(btrim(...))`), não por
+id — `cost_centers` é por empresa e não tem identidade compartilhada. Nome divergente fica
+em linha separada de propósito, e a correção é a **fusão manual**
+(`cost_center_merge_groups` + `cost_centers.merge_group_id`), que dá aos centros um nome de
+consolidação comum. A chave vive na view `v_cost_centers_consolidated`; qualquer agregação
+nova por centro de custo deve ler dela, não reimplementar o agrupamento.
+
 > 📘 **Referência técnica completa:**
 > [`docs/features/grupos-de-agregacao.md`](docs/features/grupos-de-agregacao.md) —
-> modelo, banco, RLS tudo-ou-nada, RPCs, comportamento por tela e invariantes.
+> modelo, banco, RLS tudo-ou-nada, RPCs, relatórios consolidados, fusão de centros de
+> custo, balanço por escopo, comportamento por tela e invariantes.
 
 ## Integração NFS-e (pagar.me × Focus)
 

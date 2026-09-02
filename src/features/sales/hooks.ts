@@ -1,5 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { scopeQueryKey } from "@/features/companies/scopeQueryKey";
+
 import {
   fetchGatewayAccounts,
   fetchLedgerHealth,
@@ -108,7 +110,7 @@ export function useSalesRecurrence(from: string, to: string, accountId: string |
 
 export function useReceivablesSchedule(from: string, to: string, companyIds: string[] | null) {
   return useQuery({
-    queryKey: salesKeys.receivables(from, to, companyIds ? [...companyIds].sort().join(",") : null),
+    queryKey: salesKeys.receivables(from, to, scopeQueryKey(companyIds)),
     queryFn: () => fetchReceivablesSchedule(from, to, companyIds),
     ...FILTRAVEL,
   });
@@ -141,7 +143,7 @@ export function useReceivablesOfTransaction(transactionId: string | null) {
 
 export function usePagarmeForecast(companyIds: string[] | null, from: string, to: string) {
   return useQuery({
-    queryKey: ledgerKeys.forecast(companyIds ? [...companyIds].sort().join(",") : null, from, to),
+    queryKey: ledgerKeys.forecast(scopeQueryKey(companyIds), from, to),
     queryFn: () => fetchPagarmeForecast(companyIds, from, to),
     enabled: companyIds === null || companyIds.length > 0,
   });
