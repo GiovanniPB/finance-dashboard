@@ -22,6 +22,21 @@ function job(overrides: Partial<InvoiceJob>): InvoiceJob {
     danfse_path: "c1/ref.pdf",
     tomador_nome: "Fulano",
     tomador_documento: "29615225878",
+    tomador_email: "fulano@example.com",
+    tomador_endereco: {
+      line_1: "144, Rua Camarao, Centro",
+      line_2: "Apto 703",
+      zip_code: "06455-010",
+      city: "Barueri",
+      state: "SP",
+      cep_info: {
+        logradouro: "Rua Camarão",
+        bairro: "Jardim Paulista",
+        municipio: "Barueri",
+        uf: "SP",
+        ibge: "3505708",
+      },
+    },
     valor_servicos: 1764,
     pagarme_charge_id: "ch_1",
     metadata: { source: "backfill" },
@@ -76,6 +91,64 @@ describe("buildExportRows", () => {
     expect(row["Data do pagamento"]).toBe("");
     expect(row["Chave de acesso"]).toBe("");
     expect(row["Arquivo XML"]).toBe("");
+  });
+});
+
+describe("buildExportRows — dados do tomador", () => {
+  it("exporta e-mail e o endereço derivado (o mesmo que vai na nota)", () => {
+    const [row] = buildExportRows([job({})]);
+    expect(row).toMatchObject({
+      Tomador: "Fulano",
+      "Documento tomador": "29615225878",
+      "E-mail tomador": "fulano@example.com",
+      // ViaCEP (cep_info) tem precedência sobre o parse do line_1
+      Logradouro: "Rua Camarão",
+      Bairro: "Jardim Paulista",
+      Complemento: "Apto 703",
+      Município: "Barueri",
+      UF: "SP",
+      "Código IBGE": "3505708",
+    });
+  });
+
+  it("não confunde o número do endereço com o número da nota", () => {
+    const [row] = buildExportRows([job({})]);
+    expect(row["Número"]).toBe("17"); // número da NFS-e
+    expect(row["Número (endereço)"]).toBe("144"); // número do logradouro
+  });
+
+  it("mantém o CEP como texto de 8 dígitos (o zero à esquerda sobrevive)", () => {
+    const [row] = buildExportRows([job({})]);
+    expect(row.CEP).toBe("06455010");
+    expect(typeof row.CEP).toBe("string");
+  });
+
+  it("prefere a correção manual do endereço (nfse_override)", () => {
+    const [row] = buildExportRows([
+      job({
+        tomador_endereco: {
+          line_1: "144, Rua Camarao, Centro",
+          zip_code: "06455-010",
+          nfse_override: { bairro: "Centro", cep: "01001-000", numero: "1500" },
+        },
+      }),
+    ]);
+    expect(row.Bairro).toBe("Centro");
+    expect(row.CEP).toBe("01001000");
+    expect(row["Número (endereço)"]).toBe("1500");
+  });
+
+  it("deixa as colunas do tomador vazias quando não há endereço nem e-mail", () => {
+    const [row] = buildExportRows([job({ tomador_email: null, tomador_endereco: null })]);
+    expect(row["E-mail tomador"]).toBe("");
+    expect(row.Logradouro).toBe("");
+    expect(row["Número (endereço)"]).toBe("");
+    expect(row.Complemento).toBe("");
+    expect(row.Bairro).toBe("");
+    expect(row.CEP).toBe("");
+    expect(row.Município).toBe("");
+    expect(row.UF).toBe("");
+    expect(row["Código IBGE"]).toBe("");
   });
 });
 
