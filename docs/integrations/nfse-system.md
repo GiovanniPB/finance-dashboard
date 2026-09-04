@@ -302,6 +302,16 @@ Item na sidebar (`FileText`). Página com 4 abas (estado na URL via nuqs):
   (`pending_review`→`queued`), **reemitir** (`rejected/failed`→`queued`), **revisar o
   tomador** (`TomadorReviewForm`: documento, nome, e-mail e endereço estruturado, com
   busca por CEP no ViaCEP e ação "salvar e reemitir") e baixar XML/DANFSe.
+  **Exportar** (`export.ts`) leva TODAS as notas do filtro (não só a página, via
+  `fetchAllInvoiceJobs`) em `.xlsx`, `.csv` (`;` + BOM) ou "pacote contábil"
+  (ZIP com a planilha + XML/DANFSe das autorizadas). A planilha tem o bloco
+  fiscal (datas, série/número, chave, protocolo, valor numérico) e o bloco do
+  **tomador**: nome, documento, e-mail e o endereço **derivado** por
+  `deriveTomadorEndereco` — o mesmo que a nota leva (correção manual > ViaCEP >
+  parse do `line_1`), para a planilha não discordar do documento fiscal. O
+  número do logradouro sai como `Número (endereço)` porque `Número` já é o da
+  nota. Contém PII do tomador: é arquivo para a contabilidade, não para
+  compartilhar solto.
 - **Conexões pagar.me** (`ConnectionsPanel`) — CRUD de `pagarme_accounts`
   (`ConnectionDrawer`); a **URL do webhook é gerada e revelada 1×** (+ rotacionar);
   recebedores por conta (`RecipientsSheet`).
@@ -439,6 +449,7 @@ supabase/
 src/features/nfse/
 ├── api.ts hooks.ts schema.ts constants.ts
 ├── tomador.ts (espelho da derivação p/ a UI) · cep.ts (ViaCEP sob demanda)
+├── export.ts (planilha/CSV/ZIP contábil — fiscal + tomador com endereço derivado)
 └── components/  Connections{Panel,Drawer}, RecipientsSheet, FiscalSettings{Panel,Drawer},
                  InvoiceJobs{Panel}, InvoiceJobDrawer, TomadorReviewForm, Webhooks{Panel},
                  WebhookEventDrawer, FieldToggle

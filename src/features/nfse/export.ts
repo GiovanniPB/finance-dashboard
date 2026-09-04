@@ -2,6 +2,7 @@ import { formatDate } from "@/lib/dates";
 
 import type { InvoiceJob } from "./api";
 import { AMBIENTE_META, DOCUMENT_TYPE_META, JOB_STATUS_META } from "./constants";
+import { deriveTomadorEndereco } from "./tomador";
 
 export type ExportFormat = "csv" | "xlsx";
 
@@ -31,10 +32,16 @@ export function exportFileBaseName(job: InvoiceJob): string {
  * Mapeia as notas para linhas planas voltadas à contabilidade — os campos que o
  * contador imputa no sistema fiscal: data de emissão, série/número, chave de
  * acesso, protocolo, valor (numérico), tomador. Puro e testável.
+ *
+ * O bloco do tomador leva o endereço DERIVADO (`deriveTomadorEndereco`), não o
+ * jsonb cru do pagar.me: é o mesmo valor que a tela de revisão mostra e que a
+ * nota vai levar (correção manual > ViaCEP > parse do `line_1`). Assim a
+ * planilha não discorda do documento fiscal.
  */
 export function buildExportRows(jobs: InvoiceJob[]): ExportRow[] {
   return jobs.map((job) => {
     const authorized = job.status === "authorized";
+    const { endereco } = deriveTomadorEndereco(job.tomador_endereco);
     return {
       "Data da compra": fmtDateOrEmpty(job.charge_created_at),
       "Data do pagamento": fmtDateOrEmpty(job.paid_at),
@@ -49,6 +56,17 @@ export function buildExportRows(jobs: InvoiceJob[]): ExportRow[] {
       Ambiente: AMBIENTE_META[job.ambiente]?.label ?? job.ambiente,
       Tomador: job.tomador_nome ?? "",
       "Documento tomador": job.tomador_documento ?? "",
+      "E-mail tomador": job.tomador_email ?? "",
+      Logradouro: endereco.logradouro ?? "",
+      // "Número" já é o número da NOTA nesta planilha — o do logradouro precisa
+      // de rótulo próprio, senão uma coluna sobrescreve a outra em silêncio
+      "Número (endereço)": endereco.numero ?? "",
+      Complemento: endereco.complemento ?? "",
+      Bairro: endereco.bairro ?? "",
+      CEP: endereco.cep ?? "", // texto: 8 dígitos, preserva zero à esquerda
+      Município: endereco.municipio ?? "",
+      UF: endereco.uf ?? "",
+      "Código IBGE": endereco.codigoMunicipio ?? "",
       "Valor (R$)": job.valor_servicos,
       Origem: originLabel(job),
       Conexão: job.account?.label ?? "",
