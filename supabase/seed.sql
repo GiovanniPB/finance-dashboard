@@ -179,3 +179,131 @@ set cost_center_id = (
 where t.company_id = '00000000-0000-0000-0000-000000000012'
   and t.deleted_at is null
   and abs(hashtext(t.id::text)) % 3 = 0;
+
+-- -----------------------------------------------------------------------------
+-- 6. Regras de tributo — parâmetros extraídos das planilhas de cálculo
+--
+-- Reproduz o que hoje vive em célula de planilha, uma aba por mês: alíquota,
+-- presunção, adicional, retenção e vencimento. Serve de ambiente local pronto e de
+-- registro do que a contabilidade pratica hoje.
+--
+-- Fonte: `calculo iss-pis-cofins Otm assessor.xlsx`, `calculo IRPJ-CSLL Otm
+-- assessor.xlsx`, `calculo PIS_COFINS_jce.xlsx`, `calculo_IRPJ_CSLL_ jce.xlsx`.
+--
+-- Vencimentos: DARF, ISS e IRRF ANTECIPAM para o dia útil anterior. É a correção de
+-- três datas que as planilhas registram em dia não útil (ISS 10/10/2026 num sábado;
+-- IRPJ 31/10/2026 num sábado; IRPJ 31/01/2027 num domingo).
+-- -----------------------------------------------------------------------------
+
+-- Classificação fiscal da receita: serviço em geral (32%) nas duas contas de receita
+-- do plano mestre. Sem isso a apuração cairia na classe padrão da regra e avisaria.
+update public.chart_of_accounts_master
+   set presumption_class = 'servico_geral'
+ where kind = 'revenue' and presumption_class is null;
+update public.chart_of_accounts
+   set presumption_class = 'servico_geral'
+ where kind = 'revenue' and presumption_class is null;
+
+-- OTM Assessoria: serviço puro.
+-- ⚠️ `base_date_basis = 'cash'`: o lançamento de comissão tem `accrual_date` no mês a
+-- que a comissão SE REFERE, e a competência fiscal é a da NOTA — que nesses dados cai
+-- no `cash_date`. Por competência o IRPJ do 3t2026 daria R$ 681.872,60; por caixa dá
+-- R$ 1.543.003,86, que é o número da planilha.
+insert into public.tax_rules (
+  company_id, kind, period_kind, base_source, base_date_basis, rate, uses_presumption,
+  default_presumption_class, surtax_rate, surtax_monthly_allowance,
+  deducts_retentions, due_day, due_month_offset, due_date_adjust, payee, valid_from, notes
+) values
+  ('00000000-0000-0000-0000-000000000011', 'iss', 'monthly', 'revenue_accounts', 'cash', 0.02,
+   false, null, null, null, false, 10, 1, 'previous_business_day',
+   'PREFEITURA DE BARUERI', '2026-01-01', 'ISS de Barueri sobre o faturamento do mês'),
+  ('00000000-0000-0000-0000-000000000011', 'darf_pis', 'monthly', 'revenue_accounts', 'cash', 0.0065,
+   false, null, null, null, true, 25, 1, 'previous_business_day',
+   'RECEITA FEDERAL', '2026-01-01', 'PIS cumulativo'),
+  ('00000000-0000-0000-0000-000000000011', 'darf_cofins', 'monthly', 'revenue_accounts', 'cash', 0.03,
+   false, null, null, null, true, 25, 1, 'previous_business_day',
+   'RECEITA FEDERAL', '2026-01-01', 'COFINS cumulativa'),
+  ('00000000-0000-0000-0000-000000000011', 'darf_irpj', 'quarterly', 'revenue_accounts', 'cash', 0.15,
+   true, 'servico_geral', 0.10, 20000, true, 31, 1, 'previous_business_day',
+   'RECEITA FEDERAL', '2026-01-01',
+   'Lucro presumido trimestral; adicional de 10% acima de R$ 60.000 no trimestre; IRRF de 1,5% das NFs deduzido como retenção'),
+  ('00000000-0000-0000-0000-000000000011', 'darf_csll', 'quarterly', 'revenue_accounts', 'cash', 0.09,
+   true, 'servico_geral', null, null, false, 31, 1, 'previous_business_day',
+   'RECEITA FEDERAL', '2026-01-01', 'Lucro presumido trimestral, sem adicional');
+
+-- Faixas de presunção da OTM: 32% até R$ 1.250.000 no trimestre, 35,2% no excedente.
+-- ATENÇÃO: a majoração é regra da contabilidade, confirmada pelo dono do repo. A
+-- planilha aplica a faixa base sobre R$ 1.250.000 FIXOS; aqui é por interseção com a
+-- receita, que é o que impede imposto negativo em trimestre sem receita.
+insert into public.tax_rule_presumptions (rule_id, presumption_class, threshold_from, threshold_to, rate)
+select r.id, 'servico_geral', v.f, v.t, v.rate
+from public.tax_rules r
+cross join (values (0, 1250000, 0.32), (1250000, null, 0.352)) as v(f, t, rate)
+where r.company_id = '00000000-0000-0000-0000-000000000011'
+  and r.kind in ('darf_irpj', 'darf_csll');
+
+-- IRRF de 10% sobre distribuição de lucros acima de R$ 49.999,99 por sócio.
+-- `full_when_exceeded` reproduz a planilha, que aplica os 10% sobre o valor inteiro de
+-- quem passou do limite (E9 = 442.580 × 10% = 44.258). A leitura alternativa —
+-- tributar só o excedente — é `excess`; ver `tax_allowance_mode`.
+insert into public.tax_rules (
+  company_id, kind, period_kind, base_source, base_date_basis, base_account_ids, rate,
+  base_allowance, base_allowance_per_payee, base_allowance_mode,
+  deducts_retentions, due_day, due_month_offset, due_date_adjust, payee, valid_from, notes
+)
+select
+  '00000000-0000-0000-0000-000000000011', 'irrf_dividendos', 'monthly', 'dividends', 'cash',
+  array_agg(a.id), 0.10, 49999.99, true, 'full_when_exceeded',
+  false, 20, 1, 'previous_business_day', 'RECEITA FEDERAL', '2026-01-01',
+  'IRRF retido do sócio na distribuição; a empresa é a fonte pagadora, então não deduz retenção própria'
+from public.chart_of_accounts a
+where a.company_id = '00000000-0000-0000-0000-000000000011' and a.kind = 'dividend'
+having count(*) > 0;
+
+-- Jimmy Carvalho: receita MISTA — mercadoria (NF-e), serviço (NFS-e) e ganho no
+-- exterior, cada um com sua presunção. É o caso que a ferramenta antiga não sabia
+-- representar de jeito nenhum.
+insert into public.tax_rules (
+  company_id, kind, period_kind, base_source, rate, uses_presumption,
+  default_presumption_class, surtax_rate, surtax_monthly_allowance,
+  deducts_retentions, due_day, due_month_offset, due_date_adjust, payee, valid_from, notes
+) values
+  ('00000000-0000-0000-0000-000000000014', 'iss', 'monthly', 'revenue_accounts', 0.02,
+   false, null, null, null, false, 10, 1, 'previous_business_day',
+   'PREFEITURA DE BARUERI', '2026-01-01', 'ISS só sobre a receita de serviço (NFS-e)'),
+  ('00000000-0000-0000-0000-000000000014', 'darf_pis', 'monthly', 'revenue_accounts', 0.0065,
+   false, null, null, null, true, 25, 1, 'previous_business_day',
+   'RECEITA FEDERAL', '2026-01-01', 'PIS cumulativo, com retenção da NF deduzida'),
+  ('00000000-0000-0000-0000-000000000014', 'darf_cofins', 'monthly', 'revenue_accounts', 0.03,
+   false, null, null, null, true, 25, 1, 'previous_business_day',
+   'RECEITA FEDERAL', '2026-01-01', 'COFINS cumulativa, com retenção da NF deduzida'),
+  ('00000000-0000-0000-0000-000000000014', 'darf_irpj', 'quarterly', 'revenue_accounts', 0.15,
+   true, 'servico_geral', 0.10, 20000, true, 31, 1, 'previous_business_day',
+   'RECEITA FEDERAL', '2026-01-01', 'Presunção por classe: mercadoria 8%, serviço 32%, exterior 100%'),
+  ('00000000-0000-0000-0000-000000000014', 'darf_csll', 'quarterly', 'revenue_accounts', 0.09,
+   true, 'servico_geral', null, null, false, 31, 1, 'previous_business_day',
+   'RECEITA FEDERAL', '2026-01-01', 'Presunção por classe: mercadoria 12%, serviço 32%, exterior 100%');
+
+-- IRPJ da Jimmy: mercadoria a 8%.
+insert into public.tax_rule_presumptions (rule_id, presumption_class, threshold_from, threshold_to, rate)
+select r.id, v.cls::public.tax_presumption_class, 0, null, v.rate
+from public.tax_rules r
+cross join (values ('revenda_mercadoria', 0.08), ('servico_geral', 0.32), ('financeiro_exterior', 1.0))
+  as v(cls, rate)
+where r.company_id = '00000000-0000-0000-0000-000000000014' and r.kind = 'darf_irpj';
+
+-- CSLL da Jimmy: mercadoria a 12% — é a diferença que a planilha registra e que a
+-- ferramenta antiga não tinha onde guardar.
+insert into public.tax_rule_presumptions (rule_id, presumption_class, threshold_from, threshold_to, rate)
+select r.id, v.cls::public.tax_presumption_class, 0, null, v.rate
+from public.tax_rules r
+cross join (values ('revenda_mercadoria', 0.12), ('servico_geral', 0.32), ('financeiro_exterior', 1.0))
+  as v(cls, rate)
+where r.company_id = '00000000-0000-0000-0000-000000000014' and r.kind = 'darf_csll';
+
+-- A OTM tem a data-base CONFERIDA — o IRPJ do 3t2026 por caixa dá R$ 1.543.003,86 e o
+-- ISS de ago/2026 dá R$ 681.872,60, os dois números da planilha no centavo. A JCE fica
+-- não conferida de propósito: a base dela não foi batida contra as notas, e a apuração
+-- deve avisar até alguém conferir.
+update public.tax_rules set base_date_basis_confirmed = true
+ where company_id = '00000000-0000-0000-0000-000000000011';

@@ -386,6 +386,9 @@ export type Database = {
           name: string
           notes: string | null
           parent_id: string | null
+          presumption_class:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
           sign_hint: string | null
           sort_order: number
           updated_at: string
@@ -404,6 +407,9 @@ export type Database = {
           name: string
           notes?: string | null
           parent_id?: string | null
+          presumption_class?:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
           sign_hint?: string | null
           sort_order?: number
           updated_at?: string
@@ -422,6 +428,9 @@ export type Database = {
           name?: string
           notes?: string | null
           parent_id?: string | null
+          presumption_class?:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
           sign_hint?: string | null
           sort_order?: number
           updated_at?: string
@@ -464,6 +473,9 @@ export type Database = {
           notes: string | null
           organization_id: string
           parent_id: string | null
+          presumption_class:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
           sign_hint: string | null
           sort_order: number
           updated_at: string
@@ -481,6 +493,9 @@ export type Database = {
           notes?: string | null
           organization_id: string
           parent_id?: string | null
+          presumption_class?:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
           sign_hint?: string | null
           sort_order?: number
           updated_at?: string
@@ -498,6 +513,9 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           parent_id?: string | null
+          presumption_class?:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
           sign_hint?: string | null
           sort_order?: number
           updated_at?: string
@@ -2892,10 +2910,255 @@ export type Database = {
           },
         ]
       }
+      tax_assessment_lines: {
+        Row: {
+          account_id: string | null
+          amount: number
+          assessment_id: string
+          base_amount: number
+          created_at: string
+          description: string
+          document_ref: string | null
+          id: string
+          is_manual: boolean
+          line_kind: Database["public"]["Enums"]["tax_assessment_line_kind"]
+          metadata: Json
+          payee: string | null
+          presumption_class:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
+          presumption_rate: number | null
+          reference_date: string | null
+          sort_order: number
+          transaction_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          assessment_id: string
+          base_amount?: number
+          created_at?: string
+          description: string
+          document_ref?: string | null
+          id?: string
+          is_manual?: boolean
+          line_kind: Database["public"]["Enums"]["tax_assessment_line_kind"]
+          metadata?: Json
+          payee?: string | null
+          presumption_class?:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
+          presumption_rate?: number | null
+          reference_date?: string | null
+          sort_order?: number
+          transaction_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          assessment_id?: string
+          base_amount?: number
+          created_at?: string
+          description?: string
+          document_ref?: string | null
+          id?: string
+          is_manual?: boolean
+          line_kind?: Database["public"]["Enums"]["tax_assessment_line_kind"]
+          metadata?: Json
+          payee?: string | null
+          presumption_class?:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
+          presumption_rate?: number | null
+          reference_date?: string | null
+          sort_order?: number
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_assessment_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_assessment_lines_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "tax_assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_assessment_lines_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_assessment_lines_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_assessment_lines_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_assessment_lines_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "v_transactions_signed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_assessments: {
+        Row: {
+          additions: number
+          amount_due: number
+          company_id: string
+          computed_at: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          deductions: number
+          due_date: string
+          gross_revenue: number
+          id: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata: Json
+          notes: string | null
+          period_end: string
+          period_kind: Database["public"]["Enums"]["tax_period_kind"]
+          period_start: string
+          rate: number
+          retentions: number
+          rule_id: string | null
+          status: Database["public"]["Enums"]["tax_assessment_status"]
+          surtax_amount: number
+          surtax_base: number
+          tax_amount: number
+          taxable_base: number
+          updated_at: string
+        }
+        Insert: {
+          additions?: number
+          amount_due?: number
+          company_id: string
+          computed_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deductions?: number
+          due_date: string
+          gross_revenue?: number
+          id?: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata?: Json
+          notes?: string | null
+          period_end: string
+          period_kind: Database["public"]["Enums"]["tax_period_kind"]
+          period_start: string
+          rate?: number
+          retentions?: number
+          rule_id?: string | null
+          status?: Database["public"]["Enums"]["tax_assessment_status"]
+          surtax_amount?: number
+          surtax_base?: number
+          tax_amount?: number
+          taxable_base?: number
+          updated_at?: string
+        }
+        Update: {
+          additions?: number
+          amount_due?: number
+          company_id?: string
+          computed_at?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deductions?: number
+          due_date?: string
+          gross_revenue?: number
+          id?: string
+          kind?: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata?: Json
+          notes?: string | null
+          period_end?: string
+          period_kind?: Database["public"]["Enums"]["tax_period_kind"]
+          period_start?: string
+          rate?: number
+          retentions?: number
+          rule_id?: string | null
+          status?: Database["public"]["Enums"]["tax_assessment_status"]
+          surtax_amount?: number
+          surtax_base?: number
+          tax_amount?: number
+          taxable_base?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_assessments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_assessments_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_holidays: {
+        Row: {
+          created_at: string
+          holiday_date: string
+          id: string
+          municipio_ibge: string | null
+          name: string
+          scope: string
+          uf: string | null
+        }
+        Insert: {
+          created_at?: string
+          holiday_date: string
+          id?: string
+          municipio_ibge?: string | null
+          name: string
+          scope: string
+          uf?: string | null
+        }
+        Update: {
+          created_at?: string
+          holiday_date?: string
+          id?: string
+          municipio_ibge?: string | null
+          name?: string
+          scope?: string
+          uf?: string | null
+        }
+        Relationships: []
+      }
       tax_obligations: {
         Row: {
           amount_estimated: number
           amount_paid: number
+          assessment_id: string | null
           base_amount: number | null
           company_id: string
           created_at: string
@@ -2915,6 +3178,7 @@ export type Database = {
         Insert: {
           amount_estimated?: number
           amount_paid?: number
+          assessment_id?: string | null
           base_amount?: number | null
           company_id: string
           created_at?: string
@@ -2934,6 +3198,7 @@ export type Database = {
         Update: {
           amount_estimated?: number
           amount_paid?: number
+          assessment_id?: string | null
           base_amount?: number | null
           company_id?: string
           created_at?: string
@@ -2951,6 +3216,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tax_obligations_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "tax_assessments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tax_obligations_company_id_fkey"
             columns: ["company_id"]
@@ -2984,6 +3256,167 @@ export type Database = {
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "v_transactions_signed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_rule_presumptions: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          presumption_class: Database["public"]["Enums"]["tax_presumption_class"]
+          rate: number
+          rule_id: string
+          threshold_from: number
+          threshold_to: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          presumption_class: Database["public"]["Enums"]["tax_presumption_class"]
+          rate: number
+          rule_id: string
+          threshold_from?: number
+          threshold_to?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          presumption_class?: Database["public"]["Enums"]["tax_presumption_class"]
+          rate?: number
+          rule_id?: string
+          threshold_from?: number
+          threshold_to?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_rule_presumptions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_rules: {
+        Row: {
+          account_id: string | null
+          active: boolean
+          base_account_ids: string[] | null
+          base_allowance: number | null
+          base_allowance_mode: Database["public"]["Enums"]["tax_allowance_mode"]
+          base_allowance_per_payee: boolean
+          base_date_basis: Database["public"]["Enums"]["tax_base_date_basis"]
+          base_date_basis_confirmed: boolean
+          base_source: Database["public"]["Enums"]["tax_base_source"]
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deducts_retentions: boolean
+          default_presumption_class:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
+          due_date_adjust: Database["public"]["Enums"]["tax_due_date_adjust"]
+          due_day: number
+          due_month_offset: number
+          id: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata: Json
+          notes: string | null
+          payee: string | null
+          period_kind: Database["public"]["Enums"]["tax_period_kind"]
+          rate: number
+          surtax_monthly_allowance: number | null
+          surtax_rate: number | null
+          updated_at: string
+          uses_presumption: boolean
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          active?: boolean
+          base_account_ids?: string[] | null
+          base_allowance?: number | null
+          base_allowance_mode?: Database["public"]["Enums"]["tax_allowance_mode"]
+          base_allowance_per_payee?: boolean
+          base_date_basis?: Database["public"]["Enums"]["tax_base_date_basis"]
+          base_date_basis_confirmed?: boolean
+          base_source?: Database["public"]["Enums"]["tax_base_source"]
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deducts_retentions?: boolean
+          default_presumption_class?:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
+          due_date_adjust?: Database["public"]["Enums"]["tax_due_date_adjust"]
+          due_day: number
+          due_month_offset?: number
+          id?: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata?: Json
+          notes?: string | null
+          payee?: string | null
+          period_kind?: Database["public"]["Enums"]["tax_period_kind"]
+          rate: number
+          surtax_monthly_allowance?: number | null
+          surtax_rate?: number | null
+          updated_at?: string
+          uses_presumption?: boolean
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          active?: boolean
+          base_account_ids?: string[] | null
+          base_allowance?: number | null
+          base_allowance_mode?: Database["public"]["Enums"]["tax_allowance_mode"]
+          base_allowance_per_payee?: boolean
+          base_date_basis?: Database["public"]["Enums"]["tax_base_date_basis"]
+          base_date_basis_confirmed?: boolean
+          base_source?: Database["public"]["Enums"]["tax_base_source"]
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deducts_retentions?: boolean
+          default_presumption_class?:
+            | Database["public"]["Enums"]["tax_presumption_class"]
+            | null
+          due_date_adjust?: Database["public"]["Enums"]["tax_due_date_adjust"]
+          due_day?: number
+          due_month_offset?: number
+          id?: string
+          kind?: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata?: Json
+          notes?: string | null
+          payee?: string | null
+          period_kind?: Database["public"]["Enums"]["tax_period_kind"]
+          rate?: number
+          surtax_monthly_allowance?: number | null
+          surtax_rate?: number | null
+          updated_at?: string
+          uses_presumption?: boolean
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -4056,6 +4489,35 @@ export type Database = {
         Args: { p_company_id: string; p_reference_period: string }
         Returns: number
       }
+      confirm_tax_assessment: {
+        Args: { p_assessment_id: string }
+        Returns: {
+          amount_estimated: number
+          amount_paid: number
+          assessment_id: string | null
+          base_amount: number | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string
+          id: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata: Json
+          notes: string | null
+          paid_at: string | null
+          rate_pct: number | null
+          reference_period: string
+          status: Database["public"]["Enums"]["tax_obligation_status"]
+          transaction_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tax_obligations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cost_center_analysis: {
         Args: { p_company_id: string; p_from: string; p_to: string }
         Returns: {
@@ -4413,6 +4875,7 @@ export type Database = {
         Returns: {
           amount_estimated: number
           amount_paid: number
+          assessment_id: string | null
           base_amount: number | null
           company_id: string
           created_at: string
@@ -4545,6 +5008,7 @@ export type Database = {
         Returns: {
           amount_estimated: number
           amount_paid: number
+          assessment_id: string | null
           base_amount: number | null
           company_id: string
           created_at: string
@@ -4819,6 +5283,44 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reopen_tax_assessment: {
+        Args: { p_assessment_id: string }
+        Returns: {
+          additions: number
+          amount_due: number
+          company_id: string
+          computed_at: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          deductions: number
+          due_date: string
+          gross_revenue: number
+          id: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata: Json
+          notes: string | null
+          period_end: string
+          period_kind: Database["public"]["Enums"]["tax_period_kind"]
+          period_start: string
+          rate: number
+          retentions: number
+          rule_id: string | null
+          status: Database["public"]["Enums"]["tax_assessment_status"]
+          surtax_amount: number
+          surtax_base: number
+          tax_amount: number
+          taxable_base: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tax_assessments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       resync_recurring_future: {
         Args: { p_template_id: string }
         Returns: number
@@ -4895,6 +5397,44 @@ export type Database = {
           sales_count: number
         }[]
       }
+      save_tax_assessment: {
+        Args: { p_payload: Json }
+        Returns: {
+          additions: number
+          amount_due: number
+          company_id: string
+          computed_at: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          created_by: string | null
+          deductions: number
+          due_date: string
+          gross_revenue: number
+          id: string
+          kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          metadata: Json
+          notes: string | null
+          period_end: string
+          period_kind: Database["public"]["Enums"]["tax_period_kind"]
+          period_start: string
+          rate: number
+          retentions: number
+          rule_id: string | null
+          status: Database["public"]["Enums"]["tax_assessment_status"]
+          surtax_amount: number
+          surtax_base: number
+          tax_amount: number
+          taxable_base: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tax_assessments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       seed_company_chart_of_accounts: {
         Args: { p_company_id: string }
         Returns: number
@@ -4943,6 +5483,53 @@ export type Database = {
           transaction_id: string
         }[]
       }
+      tax_adjust_business_day: {
+        Args: {
+          p_adjust: Database["public"]["Enums"]["tax_due_date_adjust"]
+          p_date: string
+          p_municipio_ibge?: string
+          p_uf?: string
+        }
+        Returns: string
+      }
+      tax_assessment_inputs: {
+        Args: {
+          p_company_id: string
+          p_kind: Database["public"]["Enums"]["tax_obligation_kind"]
+          p_period_date: string
+        }
+        Returns: Json
+      }
+      tax_due_date: {
+        Args: {
+          p_adjust: Database["public"]["Enums"]["tax_due_date_adjust"]
+          p_due_day: number
+          p_month_offset: number
+          p_municipio_ibge?: string
+          p_period_end: string
+          p_uf?: string
+        }
+        Returns: string
+      }
+      tax_is_business_day: {
+        Args: { p_date: string; p_municipio_ibge?: string; p_uf?: string }
+        Returns: boolean
+      }
+      tax_period_end: {
+        Args: {
+          p_date: string
+          p_period_kind: Database["public"]["Enums"]["tax_period_kind"]
+        }
+        Returns: string
+      }
+      tax_period_start: {
+        Args: {
+          p_date: string
+          p_period_kind: Database["public"]["Enums"]["tax_period_kind"]
+        }
+        Returns: string
+      }
+      tax_uf_from_ibge: { Args: { p_municipio_ibge: string }; Returns: string }
       unmatch_statement_line: {
         Args: { p_line_id: string }
         Returns: {
@@ -5086,6 +5673,21 @@ export type Database = {
         | "semiannual"
         | "yearly"
       statement_line_status: "unmatched" | "matched" | "created" | "ignored"
+      tax_allowance_mode: "excess" | "full_when_exceeded"
+      tax_assessment_line_kind:
+        | "revenue"
+        | "revenue_return"
+        | "retention"
+        | "deduction"
+        | "addition"
+        | "carryforward"
+      tax_assessment_status: "draft" | "confirmed"
+      tax_base_date_basis: "accrual" | "cash"
+      tax_base_source: "revenue_accounts" | "dividends" | "payroll" | "manual"
+      tax_due_date_adjust:
+        | "none"
+        | "previous_business_day"
+        | "next_business_day"
       tax_obligation_kind:
         | "das_simples"
         | "darf_irpj"
@@ -5099,7 +5701,18 @@ export type Database = {
         | "irrf_retencao"
         | "inss_retencao"
         | "custom"
+        | "irrf_dividendos"
       tax_obligation_status: "pending" | "paid" | "overdue" | "waived"
+      tax_period_kind: "monthly" | "quarterly" | "annual"
+      tax_presumption_class:
+        | "revenda_mercadoria"
+        | "industria"
+        | "servico_geral"
+        | "servico_transporte"
+        | "servico_hospitalar"
+        | "combustivel_revenda"
+        | "financeiro_exterior"
+        | "outras"
       transaction_direction: "inflow" | "outflow"
       transaction_status:
         | "scheduled"
@@ -5344,6 +5957,23 @@ export const Constants = {
         "yearly",
       ],
       statement_line_status: ["unmatched", "matched", "created", "ignored"],
+      tax_allowance_mode: ["excess", "full_when_exceeded"],
+      tax_assessment_line_kind: [
+        "revenue",
+        "revenue_return",
+        "retention",
+        "deduction",
+        "addition",
+        "carryforward",
+      ],
+      tax_assessment_status: ["draft", "confirmed"],
+      tax_base_date_basis: ["accrual", "cash"],
+      tax_base_source: ["revenue_accounts", "dividends", "payroll", "manual"],
+      tax_due_date_adjust: [
+        "none",
+        "previous_business_day",
+        "next_business_day",
+      ],
       tax_obligation_kind: [
         "das_simples",
         "darf_irpj",
@@ -5357,8 +5987,20 @@ export const Constants = {
         "irrf_retencao",
         "inss_retencao",
         "custom",
+        "irrf_dividendos",
       ],
       tax_obligation_status: ["pending", "paid", "overdue", "waived"],
+      tax_period_kind: ["monthly", "quarterly", "annual"],
+      tax_presumption_class: [
+        "revenda_mercadoria",
+        "industria",
+        "servico_geral",
+        "servico_transporte",
+        "servico_hospitalar",
+        "combustivel_revenda",
+        "financeiro_exterior",
+        "outras",
+      ],
       transaction_direction: ["inflow", "outflow"],
       transaction_status: [
         "scheduled",
