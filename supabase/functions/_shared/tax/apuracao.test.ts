@@ -684,6 +684,25 @@ describe("data-base da apuração", () => {
     expect(aviso).toContain("1543003.86");
   });
 
+  it("para de avisar depois de a data-base ser conferida", () => {
+    // Na OTM as duas datas divergem SEMPRE (accrual = mês da comissão, caixa = mês
+    // seguinte). Sem este corte o aviso dispararia em toda apuração, das 6 regras,
+    // todo mês — e aviso que sempre dispara estraga os avisos que importam.
+    const r = computeAssessment(
+      inputs({
+        ...trimestre,
+        kind: "darf_irpj",
+        rule: OTM_IRPJ,
+        gathered_lines: [revenue("Comissão", 681_872.6, "servico_geral")],
+        base_date_basis: "cash",
+        gross_revenue_alt_basis: 1_543_003.86,
+        base_date_basis_confirmed: true,
+      }),
+    );
+
+    expect(r.warnings).toHaveLength(0);
+  });
+
   it("não avisa quando as duas bases coincidem", () => {
     const r = computeAssessment(
       inputs({

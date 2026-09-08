@@ -73,6 +73,7 @@ export function TaxRuleSheet({ open, onOpenChange, companyId, companyName, rule 
   const [kind, setKind] = React.useState<TaxObligationKind>("iss");
   const [periodKind, setPeriodKind] = React.useState<TaxPeriodKind>("monthly");
   const [dateBasis, setDateBasis] = React.useState<BaseDateBasis>("accrual");
+  const [basisConfirmed, setBasisConfirmed] = React.useState(false);
   const [ratePct, setRatePct] = React.useState(2);
   const [usesPresumption, setUsesPresumption] = React.useState(false);
   const [defaultClass, setDefaultClass] = React.useState<TaxPresumptionClass>("servico_geral");
@@ -106,6 +107,7 @@ export function TaxRuleSheet({ open, onOpenChange, companyId, companyName, rule 
     setKind(rule.kind);
     setPeriodKind(rule.period_kind);
     setDateBasis(rule.base_date_basis);
+    setBasisConfirmed(rule.base_date_basis_confirmed);
     setRatePct(rule.rate * 100);
     setUsesPresumption(rule.uses_presumption);
     setDefaultClass(rule.default_presumption_class ?? "servico_geral");
@@ -150,6 +152,7 @@ export function TaxRuleSheet({ open, onOpenChange, companyId, companyName, rule 
           kind,
           period_kind: periodKind,
           base_date_basis: dateBasis,
+          base_date_basis_confirmed: basisConfirmed,
           base_source: baseSource,
           base_account_ids: isDividends ? dividendAccounts : null,
           rate: Number((ratePct / 100).toFixed(6)),
@@ -249,6 +252,13 @@ export function TaxRuleSheet({ open, onOpenChange, companyId, companyName, rule 
                   apuração avisa quando a outra data daria número bem diferente.
                 </p>
               </Field>
+
+              <Toggle
+                checked={basisConfirmed}
+                onChange={setBasisConfirmed}
+                label="Data-base conferida contra o demonstrativo da contabilidade"
+                hint="Marque depois de bater a base de um período com o demonstrativo. Enquanto não estiver marcado, a apuração avisa a cada vez que a outra data daria número diferente — o aviso é de uma vez só, não estado permanente."
+              />
 
               <Field label="Alíquota (%)" htmlFor="rule-rate">
                 <Input

@@ -262,8 +262,15 @@ begin
   --     o que faz o script ser a correção re-executável, não só a carga inicial.
   -- ---------------------------------------------------------------------------
   update public.tax_rules
-     set base_date_basis = 'cash', updated_at = now()
-   where company_id = v_otm and base_date_basis <> 'cash';
+     set base_date_basis = 'cash',
+         -- Conferido: a base do IRPJ do 3t2026 por caixa dá R$ 1.543.003,86 e a do ISS
+         -- de ago/2026 dá R$ 681.872,60 — os dois números da planilha, no centavo. Sem
+         -- esta marca o aviso de divergência dispararia em toda apuração da OTM, já que
+         -- ali as duas datas divergem por construção.
+         base_date_basis_confirmed = true,
+         updated_at = now()
+   where company_id = v_otm
+     and (base_date_basis <> 'cash' or base_date_basis_confirmed = false);
 
   if (select count(*) from public.tax_rules where company_id = v_otm) <> 6 then
     raise exception 'OTM Assessoria devia ter 6 regras, tem %',
@@ -281,8 +288,16 @@ begin
   end if;
 
   if exists (select 1 from public.tax_rules
-              where company_id = v_otm and base_date_basis <> 'cash') then
-    raise exception 'Alguma regra da OTM ficou fora da data-base de caixa';
+              where company_id = v_otm
+                and (base_date_basis <> 'cash' or base_date_basis_confirmed = false)) then
+    raise exception 'Alguma regra da OTM ficou fora da data-base de caixa conferida';
+  end if;
+
+  -- A JCE fica em competência e NÃO conferida de propósito: não bati a base dela
+  -- contra as notas. A apuração vai avisar até alguém conferir, que é o certo.
+  if exists (select 1 from public.tax_rules
+              where company_id = v_jce and base_date_basis_confirmed = true) then
+    raise exception 'A data-base da JCE não foi conferida — não pode estar marcada';
   end if;
 
   raise notice 'Carga concluída: 6 regras da OTM Assessoria (base de caixa), 5 da Jimmy Carvalho (base de competência, a conferir).';

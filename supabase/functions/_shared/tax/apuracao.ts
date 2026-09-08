@@ -111,6 +111,14 @@ export interface AssessmentInputs {
    * contabilidade. Divergência grande entre as duas vira aviso.
    */
   gross_revenue_alt_basis?: number;
+  /**
+   * A data-base já foi conferida contra o demonstrativo da contabilidade?
+   *
+   * Enquanto `false`, divergência entre as duas datas vira aviso. Depois de conferida,
+   * divergir é a configuração CORRETA — na OTM Assessoria as duas datas divergem
+   * sempre, e um aviso que dispara toda apuração estraga os avisos que importam.
+   */
+  base_date_basis_confirmed?: boolean;
   rule: TaxRule;
   gathered_lines: InputLine[];
   manual_lines: InputLine[];
@@ -349,7 +357,7 @@ export function computeAssessment(inputs: AssessmentInputs): AssessmentResult {
 
   // Data-base errada não parece defeito: o número sai bonito, só do mês trocado. Este
   // aviso é o que faz a divergência aparecer antes de virar imposto pago errado.
-  if (inputs.gross_revenue_alt_basis !== undefined) {
+  if (inputs.gross_revenue_alt_basis !== undefined && !inputs.base_date_basis_confirmed) {
     const altCents = toCents(inputs.gross_revenue_alt_basis);
     const maior = Math.max(Math.abs(grossCents), Math.abs(altCents));
     if (maior > 0 && Math.abs(altCents - grossCents) > maior / 100) {
@@ -358,7 +366,8 @@ export function computeAssessment(inputs: AssessmentInputs): AssessmentResult {
       warnings.push(
         `A base está sendo apurada por ${atual} (R$ ${fromCents(grossCents).toFixed(2)}); ` +
           `por ${outra} o mesmo período daria R$ ${fromCents(altCents).toFixed(2)}. ` +
-          `Confira contra o demonstrativo da contabilidade qual das duas é a competência fiscal.`,
+          `Confira contra o demonstrativo da contabilidade qual das duas é a competência ` +
+          `fiscal e marque a data-base como conferida na regra — este aviso é de uma vez só.`,
       );
     }
   }

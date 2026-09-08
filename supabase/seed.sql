@@ -300,3 +300,10 @@ from public.tax_rules r
 cross join (values ('revenda_mercadoria', 0.12), ('servico_geral', 0.32), ('financeiro_exterior', 1.0))
   as v(cls, rate)
 where r.company_id = '00000000-0000-0000-0000-000000000014' and r.kind = 'darf_csll';
+
+-- A OTM tem a data-base CONFERIDA — o IRPJ do 3t2026 por caixa dá R$ 1.543.003,86 e o
+-- ISS de ago/2026 dá R$ 681.872,60, os dois números da planilha no centavo. A JCE fica
+-- não conferida de propósito: a base dela não foi batida contra as notas, e a apuração
+-- deve avisar até alguém conferir.
+update public.tax_rules set base_date_basis_confirmed = true
+ where company_id = '00000000-0000-0000-0000-000000000011';

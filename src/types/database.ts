@@ -3310,6 +3310,7 @@ export type Database = {
           base_allowance_mode: Database["public"]["Enums"]["tax_allowance_mode"]
           base_allowance_per_payee: boolean
           base_date_basis: Database["public"]["Enums"]["tax_base_date_basis"]
+          base_date_basis_confirmed: boolean
           base_source: Database["public"]["Enums"]["tax_base_source"]
           company_id: string
           created_at: string
@@ -3343,6 +3344,7 @@ export type Database = {
           base_allowance_mode?: Database["public"]["Enums"]["tax_allowance_mode"]
           base_allowance_per_payee?: boolean
           base_date_basis?: Database["public"]["Enums"]["tax_base_date_basis"]
+          base_date_basis_confirmed?: boolean
           base_source?: Database["public"]["Enums"]["tax_base_source"]
           company_id: string
           created_at?: string
@@ -3376,6 +3378,7 @@ export type Database = {
           base_allowance_mode?: Database["public"]["Enums"]["tax_allowance_mode"]
           base_allowance_per_payee?: boolean
           base_date_basis?: Database["public"]["Enums"]["tax_base_date_basis"]
+          base_date_basis_confirmed?: boolean
           base_source?: Database["public"]["Enums"]["tax_base_source"]
           company_id?: string
           created_at?: string
