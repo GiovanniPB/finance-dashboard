@@ -1,5 +1,14 @@
 import * as React from "react";
-import { AlertTriangle, CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Calculator,
+  CheckCircle2,
+  Loader2,
+  Plus,
+  Trash2,
+  Wallet,
+} from "lucide-react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +26,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyScope } from "@/features/companies/CompanyContext";
 import type { TaxObligation, TaxObligationStatus } from "@/features/taxes/api";
+import { ApuracaoPanel } from "@/features/taxes/components/ApuracaoPanel";
 import { PayTaxDialog } from "@/features/taxes/components/PayTaxDialog";
 import { KIND_META, STATUS_META } from "@/features/taxes/constants";
 import {
@@ -31,6 +41,8 @@ import { formatBRL, formatPercent } from "@/lib/format";
 
 type Filter = "open" | "paid" | "all";
 
+const TAB_VALUES = ["apuracao", "obrigacoes"] as const;
+
 export default function TaxesPage() {
   const {
     companies,
@@ -41,6 +53,11 @@ export default function TaxesPage() {
     scopeKind,
     scopeLabel,
   } = useCompanyScope();
+  // Aba na URL: o link para a apuração de um período vale aquela apuração.
+  const [tab, setTab] = useQueryState(
+    "aba",
+    parseAsStringLiteral(TAB_VALUES).withDefault("apuracao"),
+  );
   const [filter, setFilter] = React.useState<Filter>("open");
   const [paying, setPaying] = React.useState<TaxObligation | null>(null);
   const [confirmDelete, setConfirmDelete] = React.useState<TaxObligation | null>(null);
@@ -110,174 +127,201 @@ export default function TaxesPage() {
         />
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-[var(--radius-md)] border border-border bg-surface p-4">
-        <div className="flex-1">
-          <div className="text-2xs font-semibold tracking-wide text-text-subtle uppercase">
-            Geração de obrigações
-          </div>
-          {!selectedCompanyId && (
-            <p className="mt-1 text-sm text-text-muted">
-              A obrigação nasce do regime tributário de UMA empresa — escolha uma no seletor
-              superior para gerar. A lista abaixo continua somando o escopo inteiro.
-            </p>
-          )}
-          {selectedCompanyId && (
-            <p className="mt-1 text-sm text-text-muted">
-              Gera as obrigações típicas para <strong>{formatMonthYear(referencePeriod)}</strong>{" "}
-              baseadas no regime tributário ({regime}). A operação é idempotente — re-executar
-              atualiza valores das obrigações pendentes sem duplicar.
-            </p>
-          )}
-        </div>
-        <Button
-          size="sm"
-          disabled={generateMutation.isPending || !selectedCompanyId}
-          onClick={() => {
-            if (!selectedCompanyId) return;
-            generateMutation.mutate(
-              { companyId: selectedCompanyId, referencePeriod },
-              {
-                onSuccess: (rows) => toast.success(`${rows.length} obrigação(ões) atualizadas`),
-                onError: (err) => toast.error("Erro ao gerar", { description: err.message }),
-              },
-            );
-          }}
-        >
-          {generateMutation.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Plus className="size-4" />
-          )}
-          Gerar mês atual
-        </Button>
+      <div className="flex items-center gap-1 border-b border-border">
+        <TabButton active={tab === "apuracao"} onClick={() => void setTab("apuracao")}>
+          <Calculator className="size-3.5" /> Apuração
+        </TabButton>
+        <TabButton active={tab === "obrigacoes"} onClick={() => void setTab("obrigacoes")}>
+          <Wallet className="size-3.5" /> Obrigações & pagamento
+        </TabButton>
       </div>
 
-      {next7Days.length > 0 && (
-        <div className="flex items-start gap-2 rounded-[var(--radius-md)] border border-warning bg-warning-soft p-3 text-sm">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
-          <div>
-            <strong className="text-warning">Próximos vencimentos</strong>
-            <ul className="mt-0.5 list-disc pl-5 text-text-muted">
-              {next7Days.slice(0, 5).map((o) => (
-                <li key={o.id}>
-                  {KIND_META[o.kind].label} — {formatDate(o.due_date)} —{" "}
-                  <span className="font-mono">{formatBRL(o.amount_estimated)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+      {tab === "apuracao" && (
+        <ApuracaoPanel
+          companyId={selectedCompanyId}
+          companyName={scopeName}
+          companyIds={companyIds}
+          isMultiCompany={isMultiCompany}
+        />
       )}
 
-      <div className="flex items-center gap-3">
-        <Label htmlFor="filter" className="sr-only">
-          Filtro
-        </Label>
-        <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-          <SelectTrigger id="filter" className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="open">Em aberto / Vencidas</SelectItem>
-            <SelectItem value="paid">Pagas</SelectItem>
-            <SelectItem value="all">Todas</SelectItem>
-          </SelectContent>
-        </Select>
-        <span className="text-xs text-text-muted">{obligations.length} obrigação(ões)</span>
-      </div>
-
-      {isLoading ? (
-        <Skeleton className="h-64 w-full" />
-      ) : obligations.length === 0 ? (
-        <div className="rounded-[var(--radius-md)] border border-dashed border-border bg-surface p-12 text-center text-sm text-text-muted">
-          Nenhuma obrigação encontrada. Clique em "Gerar mês atual" para criar as obrigações típicas
-          da empresa.
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface">
-          <table className="w-full text-sm">
-            <thead className="bg-surface-2">
-              <tr className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
-                <th className="px-3 py-2.5 text-left">Imposto</th>
-                {isMultiCompany && <th className="px-3 py-2.5 text-left">Empresa</th>}
-                <th className="px-3 py-2.5 text-left">Competência</th>
-                <th className="px-3 py-2.5 text-left">Vencimento</th>
-                <th className="px-3 py-2.5 text-right">Base</th>
-                <th className="px-3 py-2.5 text-right">Alíquota</th>
-                <th className="px-3 py-2.5 text-right">Valor</th>
-                <th className="px-3 py-2.5 text-left">Status</th>
-                <th className="w-40 px-3 py-2.5"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {obligations.map((o) => {
-                const status = STATUS_META[o.status];
-                const kind = KIND_META[o.kind];
-                const isOpen = o.status === "pending" || o.status === "overdue";
-                return (
-                  <tr key={o.id} className="hover:bg-surface-2/60">
-                    <td className="px-3 py-2.5">
-                      <div className="text-sm font-medium">{kind.label}</div>
-                      <div className="text-2xs text-text-subtle">{kind.description}</div>
-                    </td>
-                    {/* Sem esta coluna, duas linhas "DAS · mesma competência" de empresas
-                        diferentes ficariam indistinguíveis na soma do escopo. */}
-                    {isMultiCompany && (
-                      <td className="px-3 py-2.5 text-xs text-text-muted">
-                        {companyNameById.get(o.company_id) ?? "—"}
-                      </td>
-                    )}
-                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">
-                      {formatMonthYear(o.reference_period)}
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">
-                      {formatDate(o.due_date)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right font-mono text-xs text-text-muted">
-                      {o.base_amount ? formatBRL(o.base_amount) : "—"}
-                    </td>
-                    <td className="px-3 py-2.5 text-right font-mono text-xs text-text-muted">
-                      {o.rate_pct == null ? "—" : formatPercent(o.rate_pct, { fromHundred: true })}
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <div className="font-mono text-sm font-semibold">
-                        {formatBRL(o.amount_estimated)}
-                      </div>
-                      {o.amount_paid > 0 && o.amount_paid !== o.amount_estimated && (
-                        <div className="text-2xs text-text-subtle">
-                          pago {formatBRL(o.amount_paid)}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Badge tone={status.tone}>{status.label}</Badge>
-                    </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {isOpen && (
-                          <Button size="sm" onClick={() => setPaying(o)}>
-                            <CheckCircle2 className="size-3.5" /> Pagar
-                          </Button>
-                        )}
-                        {isOpen && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setConfirmDelete(o)}
-                            aria-label="Excluir"
-                            className={cn("text-expense hover:bg-expense-soft hover:text-expense")}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+      {tab === "obrigacoes" && (
+        <>
+          <div className="flex flex-wrap items-end justify-between gap-3 rounded-[var(--radius-md)] border border-border bg-surface p-4">
+            <div className="flex-1">
+              <div className="text-2xs font-semibold tracking-wide text-text-subtle uppercase">
+                Geração de obrigações
+              </div>
+              {!selectedCompanyId && (
+                <p className="mt-1 text-sm text-text-muted">
+                  A obrigação nasce do regime tributário de UMA empresa — escolha uma no seletor
+                  superior para gerar. A lista abaixo continua somando o escopo inteiro.
+                </p>
+              )}
+              {selectedCompanyId && (
+                <p className="mt-1 text-sm text-text-muted">
+                  Gera as obrigações típicas para{" "}
+                  <strong>{formatMonthYear(referencePeriod)}</strong> baseadas no regime tributário
+                  ({regime}). A operação é idempotente — re-executar atualiza valores das obrigações
+                  pendentes sem duplicar.
+                </p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              disabled={generateMutation.isPending || !selectedCompanyId}
+              onClick={() => {
+                if (!selectedCompanyId) return;
+                generateMutation.mutate(
+                  { companyId: selectedCompanyId, referencePeriod },
+                  {
+                    onSuccess: (rows) => toast.success(`${rows.length} obrigação(ões) atualizadas`),
+                    onError: (err) => toast.error("Erro ao gerar", { description: err.message }),
+                  },
                 );
-              })}
-            </tbody>
-          </table>
-        </div>
+              }}
+            >
+              {generateMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Plus className="size-4" />
+              )}
+              Gerar mês atual
+            </Button>
+          </div>
+
+          {next7Days.length > 0 && (
+            <div className="flex items-start gap-2 rounded-[var(--radius-md)] border border-warning bg-warning-soft p-3 text-sm">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+              <div>
+                <strong className="text-warning">Próximos vencimentos</strong>
+                <ul className="mt-0.5 list-disc pl-5 text-text-muted">
+                  {next7Days.slice(0, 5).map((o) => (
+                    <li key={o.id}>
+                      {KIND_META[o.kind].label} — {formatDate(o.due_date)} —{" "}
+                      <span className="font-mono">{formatBRL(o.amount_estimated)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3">
+            <Label htmlFor="filter" className="sr-only">
+              Filtro
+            </Label>
+            <Select value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+              <SelectTrigger id="filter" className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="open">Em aberto / Vencidas</SelectItem>
+                <SelectItem value="paid">Pagas</SelectItem>
+                <SelectItem value="all">Todas</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-text-muted">{obligations.length} obrigação(ões)</span>
+          </div>
+
+          {isLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : obligations.length === 0 ? (
+            <div className="rounded-[var(--radius-md)] border border-dashed border-border bg-surface p-12 text-center text-sm text-text-muted">
+              Nenhuma obrigação encontrada. Clique em "Gerar mês atual" para criar as obrigações
+              típicas da empresa.
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-[var(--radius-md)] border border-border bg-surface">
+              <table className="w-full text-sm">
+                <thead className="bg-surface-2">
+                  <tr className="text-2xs font-medium tracking-wide text-text-subtle uppercase">
+                    <th className="px-3 py-2.5 text-left">Imposto</th>
+                    {isMultiCompany && <th className="px-3 py-2.5 text-left">Empresa</th>}
+                    <th className="px-3 py-2.5 text-left">Competência</th>
+                    <th className="px-3 py-2.5 text-left">Vencimento</th>
+                    <th className="px-3 py-2.5 text-right">Base</th>
+                    <th className="px-3 py-2.5 text-right">Alíquota</th>
+                    <th className="px-3 py-2.5 text-right">Valor</th>
+                    <th className="px-3 py-2.5 text-left">Status</th>
+                    <th className="w-40 px-3 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {obligations.map((o) => {
+                    const status = STATUS_META[o.status];
+                    const kind = KIND_META[o.kind];
+                    const isOpen = o.status === "pending" || o.status === "overdue";
+                    return (
+                      <tr key={o.id} className="hover:bg-surface-2/60">
+                        <td className="px-3 py-2.5">
+                          <div className="text-sm font-medium">{kind.label}</div>
+                          <div className="text-2xs text-text-subtle">{kind.description}</div>
+                        </td>
+                        {/* Sem esta coluna, duas linhas "DAS · mesma competência" de empresas
+                        diferentes ficariam indistinguíveis na soma do escopo. */}
+                        {isMultiCompany && (
+                          <td className="px-3 py-2.5 text-xs text-text-muted">
+                            {companyNameById.get(o.company_id) ?? "—"}
+                          </td>
+                        )}
+                        <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">
+                          {formatMonthYear(o.reference_period)}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">
+                          {formatDate(o.due_date)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-mono text-xs text-text-muted">
+                          {o.base_amount ? formatBRL(o.base_amount) : "—"}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-mono text-xs text-text-muted">
+                          {o.rate_pct == null
+                            ? "—"
+                            : formatPercent(o.rate_pct, { fromHundred: true })}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="font-mono text-sm font-semibold">
+                            {formatBRL(o.amount_estimated)}
+                          </div>
+                          {o.amount_paid > 0 && o.amount_paid !== o.amount_estimated && (
+                            <div className="text-2xs text-text-subtle">
+                              pago {formatBRL(o.amount_paid)}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <Badge tone={status.tone}>{status.label}</Badge>
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {isOpen && (
+                              <Button size="sm" onClick={() => setPaying(o)}>
+                                <CheckCircle2 className="size-3.5" /> Pagar
+                              </Button>
+                            )}
+                            {isOpen && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setConfirmDelete(o)}
+                                aria-label="Excluir"
+                                className={cn(
+                                  "text-expense hover:bg-expense-soft hover:text-expense",
+                                )}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       <PayTaxDialog obligation={paying} onOpenChange={(open) => !open && setPaying(null)} />
@@ -359,5 +403,28 @@ function Header({ scopeName, regime }: { scopeName: string; regime?: string | nu
         </p>
       )}
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+        active ? "border-accent text-accent" : "border-transparent text-text-muted hover:text-text",
+      )}
+    >
+      {children}
+    </button>
   );
 }

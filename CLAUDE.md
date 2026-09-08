@@ -230,6 +230,46 @@ Webhooks e orquestração server-side (ex.: esteira NFS-e) vivem em `supabase/fu
 - **Não** colocar dado de seed em migration nem segredo no frontend.
 - **Não** mutar dados de migrations já aplicadas.
 
+## Apuração de impostos
+
+`/taxes` tem **duas abas**: `Apuração` (calcular o devido) e `Obrigações` (pagar). As
+planilhas de cálculo do contador foram absorvidas em três camadas — parâmetro
+(`tax_rules` + `tax_rule_presumptions`), demonstrativo (`tax_assessment_lines`) e
+apuração (`tax_assessments`). `tax_obligations` continua sendo o **pagamento**, agora
+com `assessment_id`.
+
+⚠️ **A aritmética do tributo tem UMA implementação:**
+`supabase/functions/_shared/tax/apuracao.ts`. A tela reexporta de
+`src/features/taxes/apuracao.ts`. O SQL faz **calendário e colheita** (vencimento
+depende de feriado, base depende de lançamento sob RLS); o TS faz **presunção,
+adicional, franquia, retenção e saldo devedor**; o SQL **grava conferindo coerência** e
+recalcula o vencimento por conta própria, ignorando o do cliente. Não duplique a regra:
+o número que sai daí é o que se paga à Receita.
+
+⚠️ **Linha de demonstrativo tem duas naturezas.** `is_manual = false` vem de lançamento
+e é **regenerada** a cada recálculo; `is_manual = true` (retenção sofrida, outras
+deduções, saldo anterior) **sobrevive**. Tratar as duas igual apagaria a retenção
+digitada e o imposto subiria em silêncio.
+
+⚠️ **Não existe apuração consolidada.** A regra é de UMA empresa (alíquota, presunção,
+vencimento mudam entre elas). Somar o IRPJ de quatro empresas sob um rótulo só é o pior
+defeito possível aqui.
+
+⚠️ **A base sai dos LANÇAMENTOS** (`transactions` em contas de receita), não dos
+documentos fiscais — e usa os estados `pending|settled|reconciled`, o **mesmo conjunto
+da coluna de competência da DRE**. Divergir faria a DRE e a apuração discordarem sobre
+a receita do mês. A classe de presunção mora em `chart_of_accounts.presumption_class`.
+
+⚠️ **Vencimento é ajustado para dia útil**, com direção por tributo (DARF/ISS
+antecipam, DAS posterga) e feriado nacional/estadual/municipal em `tax_holidays`. Cinco
+datas são conferidas por `assert` **dentro da migration** — `db:reset` falha se a
+aritmética ou o calendário mudarem.
+
+> 📘 **Referência técnica completa:**
+> [`docs/features/apuracao-de-impostos.md`](docs/features/apuracao-de-impostos.md) —
+> modelo, banco, RLS, calendário, arredondamento, as divergências encontradas nas
+> planilhas (com os valores) e o que ficou em aberto para a contabilidade.
+
 ## Escopo de empresa & grupos de agregação
 
 O seletor superior tem **três** formas de escopo, não duas: uma empresa, `Consolidado`
