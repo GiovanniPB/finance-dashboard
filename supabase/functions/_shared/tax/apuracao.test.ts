@@ -644,3 +644,20 @@ describe("guardas do motor", () => {
     expect(trimestral.surtax_base).toBe(260_000); // 320.000 − 60.000
   });
 });
+
+describe("DAS do Simples não é apurável por alíquota fixa", () => {
+  it("avisa em alto e bom som que o número está errado", () => {
+    // Duas das quatro empresas do grupo são Simples, então isto não é hipótese: é o
+    // caminho que alguém tentaria primeiro. A alíquota do DAS é progressiva sobre o
+    // RBT12 e este motor não sabe calculá-la.
+    const r = computeAssessment(
+      inputs({
+        kind: "das_simples",
+        rule: rule({ rate: 0.06 }),
+        gathered_lines: [revenue("Faturamento do mês", 100_000)],
+      }),
+    );
+
+    expect(r.warnings.some((w) => w.includes("ERRADO"))).toBe(true);
+  });
+});

@@ -299,6 +299,20 @@ export function computeAssessment(inputs: AssessmentInputs): AssessmentResult {
   const { rule } = inputs;
   const warnings: string[] = [];
 
+  // O DAS do Simples tem alíquota EFETIVA PROGRESSIVA — sai de
+  // `(RBT12 × nominal − dedução) / RBT12`, com a faixa dependendo da receita
+  // acumulada dos 12 meses anteriores. Este motor faz `base × alíquota fixa`, então o
+  // número sairia errado. A UI não oferece `das_simples` (ver `APURAVEIS`), mas uma
+  // regra inserida direto por SQL chegaria aqui — e número contábil errado em
+  // silêncio é o pior defeito possível.
+  if (inputs.kind === "das_simples") {
+    warnings.push(
+      "O DAS do Simples tem alíquota efetiva progressiva (depende do RBT12) e este " +
+        "cálculo aplica alíquota fixa — o valor está ERRADO. Apure o DAS pela aba de " +
+        "obrigações, que usa a tabela do Anexo III.",
+    );
+  }
+
   const gathered: ComputedLine[] = inputs.gathered_lines.map((l, i) => ({
     ...l,
     is_manual: false,

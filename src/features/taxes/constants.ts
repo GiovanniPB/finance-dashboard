@@ -81,7 +81,17 @@ export const PERIOD_KIND_META: Record<TaxPeriodKind, { label: string; short: str
   annual: { label: "Anual", short: "ano" },
 };
 
-/** Tributos que a apuração sabe calcular hoje — os que têm regra parametrizável. */
+/**
+ * Tributos que a apuração sabe calcular hoje — os de alíquota FIXA sobre a base.
+ *
+ * ⚠️ `das_simples` está fora de propósito. A alíquota efetiva do Simples é
+ * PROGRESSIVA — sai de `(RBT12 × nominal − dedução) / RBT12`, com a faixa dependendo
+ * da receita acumulada dos 12 meses anteriores. O motor daqui faz `base × alíquota`,
+ * então uma regra de DAS com alíquota fixa produziria número errado com toda a
+ * convicção, e duas das empresas do grupo são Simples. Enquanto o motor não souber
+ * RBT12, o DAS continua saindo por `generate_tax_obligations` +
+ * `calculate_simples_anexo_iii`, na aba de obrigações.
+ */
 export const APURAVEIS: TaxObligationKind[] = [
   "iss",
   "darf_pis",
@@ -89,7 +99,6 @@ export const APURAVEIS: TaxObligationKind[] = [
   "darf_irpj",
   "darf_csll",
   "irrf_dividendos",
-  "das_simples",
   "custom",
 ];
 
