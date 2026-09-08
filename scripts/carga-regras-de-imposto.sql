@@ -253,6 +253,18 @@ begin
   -- ---------------------------------------------------------------------------
   -- 7) Conferência: o que deveria existir, existe.
   -- ---------------------------------------------------------------------------
+  -- ---------------------------------------------------------------------------
+  -- 6b) Corrige a data-base das regras JÁ existentes.
+  --
+  --     Os inserts acima usam `on conflict do nothing`, então re-rodar o script não
+  --     mexeria numa regra carregada antes de `base_date_basis` existir — e ela teria
+  --     ficado no default `accrual`, que na OTM dá a base do mês errado. Este update é
+  --     o que faz o script ser a correção re-executável, não só a carga inicial.
+  -- ---------------------------------------------------------------------------
+  update public.tax_rules
+     set base_date_basis = 'cash', updated_at = now()
+   where company_id = v_otm and base_date_basis <> 'cash';
+
   if (select count(*) from public.tax_rules where company_id = v_otm) <> 6 then
     raise exception 'OTM Assessoria devia ter 6 regras, tem %',
       (select count(*) from public.tax_rules where company_id = v_otm);
@@ -268,7 +280,12 @@ begin
     raise exception 'IRPJ da OTM devia ter 2 faixas de presunção';
   end if;
 
-  raise notice 'Carga concluída: 6 regras da OTM Assessoria, 5 da Jimmy Carvalho.';
+  if exists (select 1 from public.tax_rules
+              where company_id = v_otm and base_date_basis <> 'cash') then
+    raise exception 'Alguma regra da OTM ficou fora da data-base de caixa';
+  end if;
+
+  raise notice 'Carga concluída: 6 regras da OTM Assessoria (base de caixa), 5 da Jimmy Carvalho (base de competência, a conferir).';
 end $$;
 
 commit;
