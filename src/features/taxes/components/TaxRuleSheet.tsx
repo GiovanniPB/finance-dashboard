@@ -31,8 +31,14 @@ import type {
   TaxPresumptionClass,
   TaxRuleWithTiers,
 } from "../api";
-import type { AllowanceMode } from "../apuracao";
-import { APURAVEIS, KIND_META, PERIOD_KIND_META, PRESUMPTION_CLASS_META } from "../constants";
+import type { AllowanceMode, BaseDateBasis } from "../apuracao";
+import {
+  APURAVEIS,
+  DATE_BASIS_META,
+  KIND_META,
+  PERIOD_KIND_META,
+  PRESUMPTION_CLASS_META,
+} from "../constants";
 import { useUpsertTaxRule } from "../hooks";
 
 /**
@@ -66,6 +72,7 @@ export function TaxRuleSheet({ open, onOpenChange, companyId, companyName, rule 
 
   const [kind, setKind] = React.useState<TaxObligationKind>("iss");
   const [periodKind, setPeriodKind] = React.useState<TaxPeriodKind>("monthly");
+  const [dateBasis, setDateBasis] = React.useState<BaseDateBasis>("accrual");
   const [ratePct, setRatePct] = React.useState(2);
   const [usesPresumption, setUsesPresumption] = React.useState(false);
   const [defaultClass, setDefaultClass] = React.useState<TaxPresumptionClass>("servico_geral");
@@ -98,6 +105,7 @@ export function TaxRuleSheet({ open, onOpenChange, companyId, companyName, rule 
     if (!rule) return;
     setKind(rule.kind);
     setPeriodKind(rule.period_kind);
+    setDateBasis(rule.base_date_basis);
     setRatePct(rule.rate * 100);
     setUsesPresumption(rule.uses_presumption);
     setDefaultClass(rule.default_presumption_class ?? "servico_geral");
@@ -141,6 +149,7 @@ export function TaxRuleSheet({ open, onOpenChange, companyId, companyName, rule 
           company_id: companyId,
           kind,
           period_kind: periodKind,
+          base_date_basis: dateBasis,
           base_source: baseSource,
           base_account_ids: isDividends ? dividendAccounts : null,
           rate: Number((ratePct / 100).toFixed(6)),
@@ -220,6 +229,25 @@ export function TaxRuleSheet({ open, onOpenChange, companyId, companyName, rule 
                     ))}
                   </SelectContent>
                 </Select>
+              </Field>
+
+              <Field label="Data que delimita o período" htmlFor="rule-basis">
+                <Select value={dateBasis} onValueChange={(v) => setDateBasis(v as BaseDateBasis)}>
+                  <SelectTrigger id="rule-basis">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(["accrual", "cash"] as BaseDateBasis[]).map((b) => (
+                      <SelectItem key={b} value={b}>
+                        {DATE_BASIS_META[b].label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-2xs mt-1 text-text-subtle">
+                  {DATE_BASIS_META[dateBasis].hint} Errar aqui desloca a base em um mês inteiro — a
+                  apuração avisa quando a outra data daria número bem diferente.
+                </p>
               </Field>
 
               <Field label="Alíquota (%)" htmlFor="rule-rate">

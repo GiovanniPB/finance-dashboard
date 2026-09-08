@@ -184,6 +184,7 @@ export function ApuracaoPanel({ companyId, companyName, companyIds, isMultiCompa
                   <th className="px-3 py-2 text-left">Imposto</th>
                   <th className="px-3 py-2 text-left">Período</th>
                   <th className="px-3 py-2 text-right">Alíquota</th>
+                  <th className="px-3 py-2 text-left">Data-base</th>
                   <th className="px-3 py-2 text-left">Presunção</th>
                   <th className="px-3 py-2 text-left">Vencimento</th>
                   <th className="px-3 py-2 text-left">Vigência</th>
@@ -204,6 +205,9 @@ export function ApuracaoPanel({ companyId, companyName, companyIds, isMultiCompa
                           +{formatPercent(r.surtax_rate)} adicional
                         </span>
                       )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-text-muted">
+                      {r.base_date_basis === "cash" ? "caixa / nota" : "competência"}
                     </td>
                     <td className="px-3 py-2 text-xs text-text-muted">
                       {r.uses_presumption

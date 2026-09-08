@@ -47,6 +47,8 @@ export type PeriodKind = "monthly" | "quarterly" | "annual";
 
 export type AllowanceMode = "excess" | "full_when_exceeded";
 
+export type BaseDateBasis = "accrual" | "cash";
+
 export interface PresumptionTier {
   presumption_class: PresumptionClass;
   /** Início da faixa, medido sobre a receita da PRÓPRIA classe no período. */
@@ -98,6 +100,17 @@ export interface AssessmentInputs {
   period_end: string;
   months_in_period: number;
   due_date: string;
+  /** Qual data do lançamento delimitou o período: competência ou caixa. */
+  base_date_basis?: BaseDateBasis;
+  /**
+   * Receita que o MESMO período traria pela OUTRA data-base.
+   *
+   * Existe porque errar a data-base desloca a base em um mês inteiro sem nada parecer
+   * quebrado. Medido na OTM Assessoria: o IRPJ do 3t2026 dá R$ 681.872,60 por
+   * competência e R$ 1.543.003,86 por caixa — e é o segundo que bate com a
+   * contabilidade. Divergência grande entre as duas vira aviso.
+   */
+  gross_revenue_alt_basis?: number;
   rule: TaxRule;
   gathered_lines: InputLine[];
   manual_lines: InputLine[];
@@ -333,6 +346,22 @@ export function computeAssessment(inputs: AssessmentInputs): AssessmentResult {
     (l) => l.line_kind === "revenue" || l.line_kind === "revenue_return",
   );
   const grossCents = sumCents(baseLines);
+
+  // Data-base errada não parece defeito: o número sai bonito, só do mês trocado. Este
+  // aviso é o que faz a divergência aparecer antes de virar imposto pago errado.
+  if (inputs.gross_revenue_alt_basis !== undefined) {
+    const altCents = toCents(inputs.gross_revenue_alt_basis);
+    const maior = Math.max(Math.abs(grossCents), Math.abs(altCents));
+    if (maior > 0 && Math.abs(altCents - grossCents) > maior / 100) {
+      const atual = inputs.base_date_basis === "cash" ? "caixa" : "competência";
+      const outra = inputs.base_date_basis === "cash" ? "competência" : "caixa";
+      warnings.push(
+        `A base está sendo apurada por ${atual} (R$ ${fromCents(grossCents).toFixed(2)}); ` +
+          `por ${outra} o mesmo período daria R$ ${fromCents(altCents).toFixed(2)}. ` +
+          `Confira contra o demonstrativo da contabilidade qual das duas é a competência fiscal.`,
+      );
+    }
+  }
 
   // ----- Base de cálculo -----
   const classes: ClassBreakdown[] = [];

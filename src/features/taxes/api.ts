@@ -100,6 +100,7 @@ export type TaxAssessmentLine = Tables["tax_assessment_lines"]["Row"];
 export type TaxPeriodKind = Enums["tax_period_kind"];
 export type TaxPresumptionClass = Enums["tax_presumption_class"];
 export type TaxAssessmentLineKind = Enums["tax_assessment_line_kind"];
+export type TaxBaseDateBasis = Enums["tax_base_date_basis"];
 
 export interface TaxRuleWithTiers extends TaxRuleRow {
   tax_rule_presumptions: TaxRulePresumption[];

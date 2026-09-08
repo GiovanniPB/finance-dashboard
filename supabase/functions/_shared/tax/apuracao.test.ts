@@ -661,3 +661,54 @@ describe("DAS do Simples não é apurável por alíquota fixa", () => {
     expect(r.warnings.some((w) => w.includes("ERRADO"))).toBe(true);
   });
 });
+
+describe("data-base da apuração", () => {
+  // Regressão do defeito medido na produção: a base da OTM Assessoria por competência
+  // dá R$ 681.872,60 no 3t2026, e por caixa dá R$ 1.543.003,86 — que é o número da
+  // planilha. Errar a data-base desloca a base em um mês inteiro sem nada parecer
+  // quebrado, então a divergência tem de aparecer.
+  it("avisa quando a outra data-base daria número muito diferente", () => {
+    const r = computeAssessment(
+      inputs({
+        ...trimestre,
+        kind: "darf_irpj",
+        rule: OTM_IRPJ,
+        gathered_lines: [revenue("Comissão ref julho/2026", 681_872.6, "servico_geral")],
+        base_date_basis: "accrual",
+        gross_revenue_alt_basis: 1_543_003.86,
+      }),
+    );
+
+    expect(r.gross_revenue).toBe(681_872.6);
+    const aviso = r.warnings.find((w) => w.includes("data-base") || w.includes("competência"));
+    expect(aviso).toContain("1543003.86");
+  });
+
+  it("não avisa quando as duas bases coincidem", () => {
+    const r = computeAssessment(
+      inputs({
+        kind: "iss",
+        rule: rule({ rate: 0.02 }),
+        gathered_lines: [revenue("Faturamento", 100_000)],
+        base_date_basis: "cash",
+        gross_revenue_alt_basis: 100_000,
+      }),
+    );
+
+    expect(r.warnings).toHaveLength(0);
+  });
+
+  it("tolera diferença de arredondamento sem virar ruído mensal", () => {
+    const r = computeAssessment(
+      inputs({
+        kind: "iss",
+        rule: rule({ rate: 0.02 }),
+        gathered_lines: [revenue("Faturamento", 100_000)],
+        base_date_basis: "cash",
+        gross_revenue_alt_basis: 100_500, // 0,5% de diferença
+      }),
+    );
+
+    expect(r.warnings).toHaveLength(0);
+  });
+});

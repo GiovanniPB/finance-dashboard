@@ -1,5 +1,6 @@
 import type {
   TaxAssessmentLineKind,
+  TaxBaseDateBasis,
   TaxObligationKind,
   TaxObligationStatus,
   TaxPeriodKind,
@@ -73,6 +74,22 @@ export const LINE_KIND_META: Record<
   deduction: { label: "(-) Outras deduções", sign: "-", order: 3 },
   addition: { label: "(+) Acréscimos", sign: "+", order: 4 },
   carryforward: { label: "Saldo de período anterior", sign: "+", order: 5 },
+};
+
+/**
+ * Qual data delimita o período da base. Errar isto desloca a base em um mês inteiro
+ * sem nada parecer quebrado — medido na OTM Assessoria, muda o IRPJ do trimestre de
+ * R$ 681.872,60 para R$ 1.543.003,86.
+ */
+export const DATE_BASIS_META: Record<TaxBaseDateBasis, { label: string; hint: string }> = {
+  accrual: {
+    label: "Competência (data do lançamento)",
+    hint: "Mesma data da coluna de competência da DRE.",
+  },
+  cash: {
+    label: "Caixa / nota (data de pagamento)",
+    hint: "Use quando a nota é emitida no recebimento — é o caso da comissão de assessoria.",
+  },
 };
 
 export const PERIOD_KIND_META: Record<TaxPeriodKind, { label: string; short: string }> = {

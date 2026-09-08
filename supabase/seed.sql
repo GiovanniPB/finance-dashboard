@@ -205,25 +205,29 @@ update public.chart_of_accounts
  where kind = 'revenue' and presumption_class is null;
 
 -- OTM Assessoria: serviço puro.
+-- ⚠️ `base_date_basis = 'cash'`: o lançamento de comissão tem `accrual_date` no mês a
+-- que a comissão SE REFERE, e a competência fiscal é a da NOTA — que nesses dados cai
+-- no `cash_date`. Por competência o IRPJ do 3t2026 daria R$ 681.872,60; por caixa dá
+-- R$ 1.543.003,86, que é o número da planilha.
 insert into public.tax_rules (
-  company_id, kind, period_kind, base_source, rate, uses_presumption,
+  company_id, kind, period_kind, base_source, base_date_basis, rate, uses_presumption,
   default_presumption_class, surtax_rate, surtax_monthly_allowance,
   deducts_retentions, due_day, due_month_offset, due_date_adjust, payee, valid_from, notes
 ) values
-  ('00000000-0000-0000-0000-000000000011', 'iss', 'monthly', 'revenue_accounts', 0.02,
+  ('00000000-0000-0000-0000-000000000011', 'iss', 'monthly', 'revenue_accounts', 'cash', 0.02,
    false, null, null, null, false, 10, 1, 'previous_business_day',
    'PREFEITURA DE BARUERI', '2026-01-01', 'ISS de Barueri sobre o faturamento do mês'),
-  ('00000000-0000-0000-0000-000000000011', 'darf_pis', 'monthly', 'revenue_accounts', 0.0065,
+  ('00000000-0000-0000-0000-000000000011', 'darf_pis', 'monthly', 'revenue_accounts', 'cash', 0.0065,
    false, null, null, null, true, 25, 1, 'previous_business_day',
    'RECEITA FEDERAL', '2026-01-01', 'PIS cumulativo'),
-  ('00000000-0000-0000-0000-000000000011', 'darf_cofins', 'monthly', 'revenue_accounts', 0.03,
+  ('00000000-0000-0000-0000-000000000011', 'darf_cofins', 'monthly', 'revenue_accounts', 'cash', 0.03,
    false, null, null, null, true, 25, 1, 'previous_business_day',
    'RECEITA FEDERAL', '2026-01-01', 'COFINS cumulativa'),
-  ('00000000-0000-0000-0000-000000000011', 'darf_irpj', 'quarterly', 'revenue_accounts', 0.15,
+  ('00000000-0000-0000-0000-000000000011', 'darf_irpj', 'quarterly', 'revenue_accounts', 'cash', 0.15,
    true, 'servico_geral', 0.10, 20000, true, 31, 1, 'previous_business_day',
    'RECEITA FEDERAL', '2026-01-01',
    'Lucro presumido trimestral; adicional de 10% acima de R$ 60.000 no trimestre; IRRF de 1,5% das NFs deduzido como retenção'),
-  ('00000000-0000-0000-0000-000000000011', 'darf_csll', 'quarterly', 'revenue_accounts', 0.09,
+  ('00000000-0000-0000-0000-000000000011', 'darf_csll', 'quarterly', 'revenue_accounts', 'cash', 0.09,
    true, 'servico_geral', null, null, false, 31, 1, 'previous_business_day',
    'RECEITA FEDERAL', '2026-01-01', 'Lucro presumido trimestral, sem adicional');
 
@@ -243,12 +247,12 @@ where r.company_id = '00000000-0000-0000-0000-000000000011'
 -- quem passou do limite (E9 = 442.580 × 10% = 44.258). A leitura alternativa —
 -- tributar só o excedente — é `excess`; ver `tax_allowance_mode`.
 insert into public.tax_rules (
-  company_id, kind, period_kind, base_source, base_account_ids, rate,
+  company_id, kind, period_kind, base_source, base_date_basis, base_account_ids, rate,
   base_allowance, base_allowance_per_payee, base_allowance_mode,
   deducts_retentions, due_day, due_month_offset, due_date_adjust, payee, valid_from, notes
 )
 select
-  '00000000-0000-0000-0000-000000000011', 'irrf_dividendos', 'monthly', 'dividends',
+  '00000000-0000-0000-0000-000000000011', 'irrf_dividendos', 'monthly', 'dividends', 'cash',
   array_agg(a.id), 0.10, 49999.99, true, 'full_when_exceeded',
   false, 20, 1, 'previous_business_day', 'RECEITA FEDERAL', '2026-01-01',
   'IRRF retido do sócio na distribuição; a empresa é a fonte pagadora, então não deduz retenção própria'

@@ -256,9 +256,20 @@ vencimento mudam entre elas). Somar o IRPJ de quatro empresas sob um rótulo só
 defeito possível aqui.
 
 ⚠️ **A base sai dos LANÇAMENTOS** (`transactions` em contas de receita), não dos
-documentos fiscais — e usa os estados `pending|settled|reconciled`, o **mesmo conjunto
-da coluna de competência da DRE**. Divergir faria a DRE e a apuração discordarem sobre
-a receita do mês. A classe de presunção mora em `chart_of_accounts.presumption_class`.
+documentos fiscais — nos estados `pending|settled|reconciled`. A classe de presunção
+mora em `chart_of_accounts.presumption_class`.
+
+⚠️ **A DATA que delimita o período é parâmetro da regra** (`base_date_basis`:
+`accrual` ou `cash`), nunca constante. Na OTM Assessoria o `accrual_date` é o mês a que
+a comissão SE REFERE e a competência fiscal é a da nota, que cai no `cash_date`: por
+competência o IRPJ do 3t2026 dá R$ 681.872,60, por caixa dá R$ 1.543.003,86 — e é o
+segundo que bate com a contabilidade. Toda apuração compara com a outra data
+(`gross_revenue_alt_basis`) e **avisa se divergir mais de 1%**, porque data-base errada
+não parece defeito: o número sai bonito, só do mês trocado.
+
+⚠️ **DAS do Simples não é apurável por este motor** — alíquota efetiva progressiva
+sobre o RBT12, contra `base × alíquota fixa` daqui. Fora de `APURAVEIS`; continua
+saindo por `generate_tax_obligations` + `calculate_simples_anexo_iii`.
 
 ⚠️ **Vencimento é ajustado para dia útil**, com direção por tributo (DARF/ISS
 antecipam, DAS posterga) e feriado nacional/estadual/municipal em `tax_holidays`. Cinco

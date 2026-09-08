@@ -12,6 +12,7 @@ export {
   computeAssessment,
   type AllowanceMode,
   type AssessmentInputs,
+  type BaseDateBasis,
   type AssessmentResult,
   type ClassBreakdown,
   type ComputedLine,

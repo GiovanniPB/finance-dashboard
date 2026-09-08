@@ -3309,6 +3309,7 @@ export type Database = {
           base_allowance: number | null
           base_allowance_mode: Database["public"]["Enums"]["tax_allowance_mode"]
           base_allowance_per_payee: boolean
+          base_date_basis: Database["public"]["Enums"]["tax_base_date_basis"]
           base_source: Database["public"]["Enums"]["tax_base_source"]
           company_id: string
           created_at: string
@@ -3341,6 +3342,7 @@ export type Database = {
           base_allowance?: number | null
           base_allowance_mode?: Database["public"]["Enums"]["tax_allowance_mode"]
           base_allowance_per_payee?: boolean
+          base_date_basis?: Database["public"]["Enums"]["tax_base_date_basis"]
           base_source?: Database["public"]["Enums"]["tax_base_source"]
           company_id: string
           created_at?: string
@@ -3373,6 +3375,7 @@ export type Database = {
           base_allowance?: number | null
           base_allowance_mode?: Database["public"]["Enums"]["tax_allowance_mode"]
           base_allowance_per_payee?: boolean
+          base_date_basis?: Database["public"]["Enums"]["tax_base_date_basis"]
           base_source?: Database["public"]["Enums"]["tax_base_source"]
           company_id?: string
           created_at?: string
@@ -5676,6 +5679,7 @@ export type Database = {
         | "addition"
         | "carryforward"
       tax_assessment_status: "draft" | "confirmed"
+      tax_base_date_basis: "accrual" | "cash"
       tax_base_source: "revenue_accounts" | "dividends" | "payroll" | "manual"
       tax_due_date_adjust:
         | "none"
@@ -5960,6 +5964,7 @@ export const Constants = {
         "carryforward",
       ],
       tax_assessment_status: ["draft", "confirmed"],
+      tax_base_date_basis: ["accrual", "cash"],
       tax_base_source: ["revenue_accounts", "dividends", "payroll", "manual"],
       tax_due_date_adjust: [
         "none",

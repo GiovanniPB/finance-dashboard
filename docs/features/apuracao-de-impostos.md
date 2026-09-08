@@ -84,9 +84,30 @@ retenção digitada e o imposto subiria em silêncio. O check
 ### Estado dos lançamentos na base
 
 `pending`, `settled` e `reconciled` — exatamente o mesmo conjunto da coluna de
-**competência** da DRE (`…_dre_competencia_inclui_pendente`). Se divergisse, a DRE e a
-apuração discordariam sobre a receita do mês. `scheduled` fica fora: é previsão de
-recorrência, não fato ocorrido.
+**competência** da DRE (`…_dre_competencia_inclui_pendente`). `scheduled` fica fora: é
+previsão de recorrência, não fato ocorrido.
+
+### ⚠️ A data que delimita o período é PARÂMETRO, não constante
+
+`tax_rules.base_date_basis` escolhe entre `accrual` (`accrual_date`) e `cash`
+(`cash_date`, caindo para a competência quando ainda não há). Não existe resposta
+universal — depende do tributo e de como a empresa registra receita.
+
+Medido na produção, na OTM Assessoria:
+
+|              | por `accrual_date` | por `cash_date`     | planilha do contador |
+| ------------ | ------------------ | ------------------- | -------------------- |
+| IRPJ 3t2026  | R$ 681.872,60      | **R$ 1.543.003,86** | **R$ 1.543.003,86**  |
+| ISS ago/2026 | R$ 0,00            | **R$ 681.872,60**   | **R$ 681.872,60**    |
+
+O lançamento de comissão tem `accrual_date` no mês a que a comissão **se refere**
+("comissão ref julho 2026", accrual 10/07, caixa 07/08), enquanto a competência fiscal
+é a da **nota** — que nesses dados cai no `cash_date`. A primeira versão colhia sempre
+por `accrual_date`, justificada por consistência com a DRE, e dava a base errada.
+
+Por isso `tax_assessment_inputs` devolve também `gross_revenue_alt_basis` — o total do
+mesmo período pela outra data — e o motor **avisa quando as duas divergem mais de 1%**.
+Errar a data-base não parece defeito: o número sai bonito, só do mês trocado.
 
 ### RLS
 
@@ -174,6 +195,12 @@ numa linha. É o que faz a invariante do banco (`Σ linhas = base`) fechar.
   total é recusado.
 - **Retenção só entra quando a regra permite.** No IRRF de dividendos a empresa é a
   fonte pagadora, não a retida.
+- **A data-base é conferida contra a alternativa.** Toda apuração compara o total pela
+  outra data e avisa se divergir — é o que impede a base sair deslocada em um mês em
+  silêncio.
+- **DAS do Simples não é apurável aqui.** A alíquota efetiva é progressiva sobre o
+  RBT12; o motor faz alíquota fixa. Fica fora de `APURAVEIS`, com aviso no motor para o
+  caso de uma regra ser inserida por SQL.
 
 ## Verificação feita
 
